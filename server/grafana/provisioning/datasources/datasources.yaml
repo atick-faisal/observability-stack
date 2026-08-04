@@ -1,0 +1,100 @@
+# The three LGTM datasources, with cross-signal correlation wired in both
+# directions: Prometheus exemplar → Tempo trace → Loki log line → back to Tempo.
+#
+# `$$` escaping: Grafana's provisioning loader interpolates `$VAR` and `${VAR}`
+# from the environment before parsing this file. Grafana's own query-time
+# variables must therefore be written `$$__tags`, `$${__value.raw}` so a single
+# `$` survives into the stored config. This has nothing to do with Compose.
+#
+# The `tags:` blocks below need no renaming because docs/labels.md guarantees
+# `app`/`service`/`env` are spelled identically in metrics, logs, and traces.
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    access: proxy
+    orgId: 1
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      httpMethod: POST
+      prometheusType: Prometheus
+      prometheusVersion: "3.11.3"
+      # Matches global.scrape_interval, so $__rate_interval resolves correctly.
+      timeInterval: 15s
+      cacheLevel: High
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: tempo
+          urlDisplayLabel: View in Tempo
+
+  - name: Loki
+    type: loki
+    uid: loki
+    access: proxy
+    orgId: 1
+    url: http://loki:3100
+    isDefault: false
+    editable: false
+    jsonData:
+      maxLines: 1000
+      derivedFields:
+        # trace_id is structured metadata, not a stream label (docs/labels.md §3).
+        # matcherType "label" matches both, which is why this works.
+        - name: TraceID
+          datasourceUid: tempo
+          matcherType: label
+          matcherRegex: trace_id
+          url: "$${__value.raw}"
+          urlDisplayLabel: View Trace in Tempo
+
+  - name: Tempo
+    type: tempo
+    uid: tempo
+    access: proxy
+    orgId: 1
+    url: http://tempo:3200
+    isDefault: false
+    editable: false
+    jsonData:
+      httpMethod: GET
+      serviceMap:
+        datasourceUid: prometheus
+      nodeGraph:
+        enabled: true
+      search:
+        hide: false
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: "-1m"
+        spanEndTimeShift: "1m"
+        tags:
+          - key: app
+          - key: service
+          - key: env
+        filterByTraceID: false
+        filterBySpanID: false
+        # An indexed structured-metadata filter. filterByTraceID would instead
+        # emit `|= "<traceID>"`, a substring scan of the log body.
+        customQuery: true
+        query: '{$${__tags}} | trace_id="$${__span.traceId}"'
+      tracesToMetrics:
+        datasourceUid: prometheus
+        spanStartTimeShift: "-1m"
+        spanEndTimeShift: "1m"
+        tags:
+          - key: app
+          - key: service
+          - key: env
+        # A latency query lands at M5, once real span metrics exist and the
+        # histogram's actual series name can be read off Prometheus rather
+        # than guessed — Tempo has shipped more than one name for it.
+        queries:
+          - name: Request rate
+            query: sum(rate(traces_spanmetrics_calls_total{$$__tags}[$$__rate_interval]))
+          - name: Error rate
+            query: sum(rate(traces_spanmetrics_calls_total{status_code="STATUS_CODE_ERROR",$$__tags}[$$__rate_interval]))

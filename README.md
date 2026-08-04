@@ -5,7 +5,7 @@ An application-independent Grafana LGTM stack. One deployment on a VPS serves ev
 Onboarding a new FastAPI + Postgres app is four steps: copy `agent/`, add a few Docker labels,
 `uv add obskit`, one function call.
 
-> **Status: pre-v1, under construction.** Current milestone: **M1 — Server core**.
+> **Status: pre-v1, under construction.** Current milestone: **M2 — Grafana provisioning**.
 > See [`TASKS.md`](./TASKS.md) for what is done and what is next.
 
 ## The two halves
@@ -86,3 +86,11 @@ make demo-verify   # assert all five signals arrive  (M4)
 The server stack binds to `127.0.0.1` only. Until Traefik lands (M6) it is reachable
 on the box and nowhere else: Grafana `:3000`, Prometheus `:9090`, Loki `:3100`,
 Tempo `:3200` / `:4317` / `:4318`.
+
+Grafana comes up with all three datasources and the `Applications` / `Databases` /
+`Infrastructure` folders already provisioned. They are read-only by design — dashboards
+are files in git, not UI state.
+
+> Avoid `$` in `GF_ADMIN_PASSWORD`. Compose interpolates `--env-file` values, so `$$`
+> collapses to `$` and `$NAME` expands, and the password Grafana receives is not the one
+> the file shows.

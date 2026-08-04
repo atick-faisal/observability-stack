@@ -1,0 +1,20 @@
+# Dashboards are files in git, not UI state. allowUiUpdates stays false: with it
+# on, a "Save" in the browser rewrites the provisioned dashboard in place — the
+# reference stack's fastapi.json is now a UI-saved v2 resource, not the file
+# anyone authored.
+#
+# Folders come from the directory names under options.path, so do not set
+# `folder:` here.
+
+apiVersion: 1
+
+providers:
+  - name: default
+    orgId: 1
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: true

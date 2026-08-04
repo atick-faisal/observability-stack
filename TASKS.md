@@ -55,16 +55,44 @@ A clean boot on fresh volumes logs **zero** `level=error` lines across all four 
 
 ## M2 — Grafana provisioning
 
-- [ ] `server/grafana/provisioning/datasources/datasources.yaml` — fixed UIDs `prometheus`/`loki`/`tempo`; `exemplarTraceIdDestinations`; Loki `derivedFields` (`matcherType: label`, `matcherRegex: trace_id`); `tracesToLogsV2` + `tracesToMetrics` with `tags: [{key: app},{key: service},{key: env}]`; `serviceMap`, `nodeGraph`
-- [ ] Remember `$$` escaping for `$__tags` / `${__value.raw}` (Grafana's provisioning loader interpolates `$VAR`)
-- [ ] `server/grafana/provisioning/dashboards/provider.yaml` — file provider, `foldersFromFilesStructure: true`, `updateIntervalSeconds: 30`, `allowUiUpdates: false`
-- [ ] Three placeholder dashboard JSONs in `Applications/`, `Databases/`, `Infrastructure/`
+- [x] `server/grafana/provisioning/datasources/datasources.yaml` — fixed UIDs `prometheus`/`loki`/`tempo`; `exemplarTraceIdDestinations`; Loki `derivedFields` (`matcherType: label`, `matcherRegex: trace_id`); `tracesToLogsV2` + `tracesToMetrics` with `tags: [{key: app},{key: service},{key: env}]`; `serviceMap`, `nodeGraph`
+- [x] Remember `$$` escaping for `$__tags` / `${__value.raw}` (Grafana's provisioning loader interpolates `$VAR`)
+- [x] `server/grafana/provisioning/dashboards/provider.yaml` — file provider, `foldersFromFilesStructure: true`, `updateIntervalSeconds: 30`, `allowUiUpdates: false`
+- [x] Three placeholder dashboard JSONs in `Applications/`, `Databases/`, `Infrastructure/`
+
+Also landed, not in the original list:
+
+- [x] `tracesToLogsV2` uses `customQuery` — `{$$__tags} | trace_id="$${__span.traceId}"` — rather than `filterByTraceID: true`. `trace_id` is Loki **structured metadata** (labels §3), so this is an indexed filter; `filterByTraceID` would emit `|= "<traceID>"`, a substring scan of the log body.
+- [x] Prometheus `timeInterval: 15s` (matches `scrape_interval`, so `$__rate_interval` resolves correctly) and `prometheusVersion` realigned to the pinned `3.11.3`
+- [x] Deleted `provisioning/{datasources,dashboards}/.gitkeep` and `dashboards/.gitkeep` — superseded by real files, and M1 proved Grafana logs a `warn` for a `.gitkeep` in a directory it scans. `provisioning/plugins/.gitkeep` stays: that directory gets no real file and its absence logs an `error`.
+
+Deferred, with reason:
+
+- [ ] `tracesToMetrics` latency query — ships at M5. `traces_spanmetrics_calls_total` is stable, but Tempo has used more than one name for the latency histogram; the query gets written from Prometheus' actual series list rather than from memory.
 
 **Verify**:
 ```bash
-curl -su admin:$PW localhost:3000/api/datasources | jq -r '.[].uid'   # → prometheus loki tempo
-curl -su admin:$PW localhost:3000/api/search | jq -r '.[].folderTitle'  # → 3 folders
+# $GF_ADMIN_USER, not a hardcoded admin — read the creds from the container so
+# they never land in a shell history.
+G() { docker compose --env-file .env.server -f compose.yml exec -T grafana \
+        sh -c "curl -s -u \"\$GF_SECURITY_ADMIN_USER:\$GF_SECURITY_ADMIN_PASSWORD\" \"http://localhost:3000$1\""; }
+
+G /api/datasources                | jq -r '.[].uid'      # → loki prometheus tempo
+G '/api/search?type=dash-folder'  | jq -r '.[].title'    # → Applications Databases Infrastructure
+
+# the $$ escaping round-tripped: single $ on the way out
+G /api/datasources/uid/tempo | jq -r '.jsonData.tracesToLogsV2.query'
+#   → {${__tags}} | trace_id="${__span.traceId}"
+
+# each datasource actually reaches its backend over the obs network
+for u in prometheus loki tempo; do G "/api/datasources/uid/$u/health" | jq -r .status; done   # → OK OK OK
 ```
+Provisioned dashboards are immutable: a `POST /api/dashboards/db` with `overwrite: true`
+returns `400 {"message":"Cannot save provisioned dashboard"}`. Note that `meta.canSave`
+still reports `true` — in Grafana 13 that field reflects the *user's permission*, not the
+provisioning lock, so the write attempt is the only real test.
+
+Zero `level=error` lines, as at M1.
 
 ---
 
@@ -179,7 +207,7 @@ Then re-run `verify-signals.sh` — all five steps still pass over HTTPS.
 - [ ] `docs/deploy-vps.md` — provisioning, DNS, first `up`, clock-sync check
 - [ ] `docs/onboarding-an-app.md` — the four-step diff, incl. the `EXPOSE`/`expose:` requirement for label-driven scraping
 - [ ] `docs/local-dev.md` — demo stack, Mac caveats
-- [ ] `docs/operations.md` — retention/disk, backup/restore, cardinality watch, **do-not-re-enable Tempo `local-blocks`**, pinned digests, out-of-scope list
+- [ ] `docs/operations.md` — retention/disk, backup/restore, cardinality watch, **do-not-re-enable Tempo `local-blocks`**, pinned digests, out-of-scope list, and the `$`-in-password trap: Compose collapses `$$` → `$` when reading `--env-file`, so a `$` in `GF_ADMIN_PASSWORD` reaches Grafana as something other than what the file shows (measured: `PW=ab$$cd` arrives as `ab$cd`)
 - [ ] Pin resolved digests for `traefik`, `glitchtip`, `valkey`
 - [ ] Deploy to the VPS; onboard the first real app; tag `v0.1.0`
 
