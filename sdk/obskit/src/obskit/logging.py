@@ -11,7 +11,9 @@ from structlog.types import EventDict, Processor, WrappedLogger
 
 from obskit.settings import ObservabilitySettings
 
-_QUIET_LOGGERS = ("sqlalchemy.engine", "uvicorn.access", "watchfiles")
+# httpx logs one INFO line per outbound request, duplicating whatever the caller
+# already logs — the same relationship uvicorn.access has to our own HTTP line.
+_QUIET_LOGGERS = ("sqlalchemy.engine", "uvicorn.access", "httpx", "watchfiles")
 
 # uvicorn and gunicorn install their own handlers with propagate=False, so
 # configuring the root logger alone never reaches them: startup lines and the

@@ -145,16 +145,58 @@ Not verifiable here, by construction: exemplars reaching Prometheus (M5), spans 
 
 ## M3b — demo app
 
-- [ ] `demo/app` — FastAPI with `/ok`, `/slow`, `/boom`, `/db`; Dockerfile on `python:3.13-slim` + `uv`, installing `obskit` from local path
-- [ ] `demo/loadgen` — async loop with a fixed error/slow mix
+- [x] `demo/app` — FastAPI with `/ok`, `/items/{item_id}`, `/slow`, `/boom`, `/db`, and `/health` passed to `excluded_paths`; Dockerfile on `python:3.13-slim` + `uv`, non-root, installing `obskit` from the local path
+- [x] `demo/loadgen` — async loop with a fixed error/slow mix (70/15/8/5/2), wired with `setup_worker_observability` on `:9101`
+- [x] `compose.demo.yml` — *moved up from M4.* demo-api + demo-db + demo-loadgen on the server stack's `obs` network, OTLP straight at `tempo:4317`. M4 extends this file with the agent rather than creating it.
+- [x] `make lint` extended to type-check and lint both demo projects — they are the template every onboarded app copies
 
-**Verify**: with the server stack up and `OBS_OTLP_ENDPOINT` pointed straight at `tempo:4317`
-(the agent arrives at M4):
+Decisions worth keeping:
+
+- [x] **`OBS_LOG_FORMAT=json` is set explicitly on both demo services.** `auto` resolves to the console renderer when `env=local`, which is exactly what the local demo is — so without this the e2e would exercise a pretty-printed log path production never uses, and M4's `stage.json` would be validated against nothing. The default is right for a developer running uvicorn by hand; it is wrong the moment a collector tails the container. Noted in the SDK README.
+- [x] `client_requests_total`, not `loadgen_requests_total` — labels.md §4.4 bars `service` from a metric name exactly as it bars `app`. This is the pattern onboarded apps will copy for their own metrics.
+- [x] httpx is instrumented in the loadgen, so `traceparent` propagates and each trace covers **two** services. Without it every trace has one service and Tempo's service graph — provisioned at M2, verified at M5 — has no edge to draw.
+- [x] **Postgres 18 moved the data directory.** The volume mounts at `/var/lib/postgresql`; the image refuses to boot on the old `/var/lib/postgresql/data`. Found the hard way; recorded in `compose.demo.yml` and PLAN §8 so M4's postgres_exporter does not rediscover it.
+
+Reference defects found and countered (`ai-asset-management/backend/Dockerfile`):
+
+- [x] **`CMD ["fastapi", "run", "--workers", "4", …]` corrupts every counter.** Four processes share one listening socket, each with its own `CollectorRegistry`; consecutive scrapes answer from different workers, so a counter appears to move backwards and Prometheus reads each decrease as a reset. `rate()` is then wrong with nothing logged. The demo runs one worker per container; the SDK README grew a "Running multiple workers" section, because the instance-local registry does **not** save you here.
+- [x] `FROM python:3.12` (not `-slim`) → `python:3.13-slim`. The demo image is 388 MB.
+- [x] Runs as root, no `USER` → unprivileged `demo` user.
+- [x] No healthcheck on the backend service, so nothing downstream can `depends_on: service_healthy` — which is exactly what the loadgen needs.
+
+Fed back into the SDK:
+
+- [x] `httpx` added to `_QUIET_LOGGERS`. It logs one INFO line per outbound request, duplicating whatever the caller already logs — the same relationship `uvicorn.access` has to our own `"HTTP"` line. Only visible once a real client process existed.
+
+**Verify** — `make demo-up`, then:
 ```bash
-curl -s localhost:8000/metrics | grep fastapi_requests_total
-docker logs demo-api | tail -1 | jq .trace_id   # non-null after hitting a route
-curl -s 'localhost:3200/api/search?tags=service.name%3Ddemo-api' | jq '.traces | length'
+curl -s localhost:8000/metrics | grep '^fastapi_requests_total'
+#   route="/items/{item_id}" present, /items/7 absent, route="" for a 404,
+#   status_code="500" and exception_type="ValueError" for /boom,
+#   app/service/env on every series, /health absent entirely
+curl -so /dev/null -w '%{content_type}\n' localhost:8000/metrics
+#   → application/openmetrics-text; version=1.0.0; charset=utf-8
+
+# every line JSON, uvicorn's own included — 429/429 and 425/425 when measured
+docker compose --env-file .env.server -f compose.yml -f compose.demo.yml \
+  logs --no-log-prefix demo-api | python3 -c \
+  'import json,sys; [json.loads(l) for l in sys.stdin if l.strip()]; print("all JSON")'
+
+# the join M3a could not make: a trace_id out of a log line, resolved in Tempo
+TID=$(docker logs observability-demo-api-1 2>&1 | grep '"route": "/db"' | tail -1 | jq -r .trace_id)
+curl -s "localhost:3200/api/traces/$TID" | jq -r '...'
+#   → demo-loadgen: GET
+#     demo-api: GET /db
+#     demo-api: connect, INSERT, SELECT
 ```
+The last one is the milestone: one trace spanning both services, with the SQLAlchemy spans nested
+under the HTTP server span — which is the `AsyncEngine` → `sync_engine` unwrap running against a
+real database for the first time. Both resources carry `app`/`service`/`env`/`host` plus
+`service.name` and `service.version`.
+
+Server stack still logs zero `level=error` lines, with one exception unrelated to the demo: Loki
+emits a single `ratestore.go: error getting ingester clients err="empty ring"` while its ingester
+joins the ring at startup, then never again.
 
 ---
 
@@ -172,7 +214,7 @@ curl -s 'localhost:3200/api/search?tags=service.name%3Ddemo-api' | jq '.traces |
 - [ ] `agent/compose.agent.macos.yml` — containerd override for local testing only
 - [ ] `agent/postgres-exporter-init.sql` — `postgres_exporter` role, `pg_monitor` grant, search_path
 - [ ] `agent/.env.agent.example`, `agent/README.md`
-- [ ] `compose.demo.yml` — demo app + db + agent wired against the server stack
+- [ ] Extend `compose.demo.yml` (shipped at M3b) with the agent, and re-point `OBS_OTLP_ENDPOINT` from `tempo:4317` to `alloy:4317` — that one variable is the whole of what the agent changes for an app
 - [ ] `scripts/verify-signals.sh` (steps 1–5, exit codes)
 
 **Verify**: Alloy UI `localhost:12345/graph` shows every component healthy; targets appear with zero static addresses in the config; `verify-signals.sh` steps 1–3 pass.

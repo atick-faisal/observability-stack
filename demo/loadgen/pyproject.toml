@@ -1,0 +1,29 @@
+[project]
+name = "demo-loadgen"
+version = "0.1.0"
+description = "Steady synthetic traffic against the demo app, with a fixed error mix."
+requires-python = ">=3.13"
+dependencies = [
+    "httpx>=0.28.1",
+    "obskit[grpc]",
+    "opentelemetry-instrumentation-httpx>=0.62b1",
+]
+
+[dependency-groups]
+dev = ["mypy>=1.18.2", "ruff>=0.14.0"]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+obskit = { path = "../../sdk/obskit" }
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]

@@ -4,6 +4,7 @@ SERVER_FILES  := $(SERVER_ENV) -f compose.yml
 DEMO_FILES    := $(SERVER_ENV) -f compose.yml -f compose.demo.yml
 DEMO_PROFILES := --profile postgres --profile containers
 SDK_DIR       := sdk/obskit
+DEMO_DIRS     := demo/app demo/loadgen
 
 .DEFAULT_GOAL := help
 
@@ -34,8 +35,12 @@ demo-down: ## Stop the demo stack and remove its volumes
 demo-verify: ## Assert all five signals arrive from the demo app
 	./scripts/verify-signals.sh
 
-lint: ## Type-check and lint the SDK
+lint: ## Type-check and lint the SDK and the demo
 	cd $(SDK_DIR) && uv run mypy src && uv run ruff check .
+	@for d in $(DEMO_DIRS); do \
+		echo "==> $$d"; \
+		uv run --directory $$d mypy main.py && uv run --directory $$d ruff check . || exit 1; \
+	done
 
 test: ## Run the SDK test suite
 	cd $(SDK_DIR) && uv run pytest

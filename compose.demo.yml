@@ -1,0 +1,102 @@
+# Local end-to-end demo. Overlays compose.yml in the same Compose project, so
+# these containers join the `obs` network and reach tempo/loki/prometheus by name.
+#
+#   make demo-up
+#
+# At M3b the app exports traces straight to tempo:4317. M4 inserts Alloy in
+# between and that endpoint becomes alloy:4317 — the only line that changes.
+
+volumes:
+  demo_db_data: {}
+
+services:
+  demo-db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: demo
+      # Local only: no host port is published, so this reaches nothing off-box.
+      POSTGRES_PASSWORD: ${DEMO_DB_PASSWORD:-demo}
+      POSTGRES_DB: demo
+    volumes:
+      # Postgres 18 moved the data directory: the mount goes at
+      # /var/lib/postgresql, and the image puts the cluster in an 18/docker
+      # subdirectory. Mounting the old /var/lib/postgresql/data refuses to boot.
+      - demo_db_data:/var/lib/postgresql
+    networks:
+      - obs
+    labels:
+      obs.service: db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo -d demo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  demo-api:
+    build:
+      context: .
+      dockerfile: demo/app/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    expose:
+      - "8000"
+    environment:
+      OBS_APP: demo
+      OBS_SERVICE: api
+      OBS_ENV: local
+      OBS_HOST: demo-host
+      OBS_VERSION: 0.1.0
+      # Explicit, not `auto`. `auto` renders to the console when env=local, which
+      # is exactly what the local demo is — and Alloy's stage.json (M4) parses
+      # JSON. Without this the demo would exercise a log path production never uses.
+      OBS_LOG_FORMAT: json
+      OBS_LOG_LEVEL: INFO
+      OBS_OTLP_ENDPOINT: http://tempo:4317
+      DATABASE_URL: postgresql+asyncpg://demo:${DEMO_DB_PASSWORD:-demo}@demo-db:5432/demo
+    depends_on:
+      demo-db:
+        condition: service_healthy
+      tempo:
+        condition: service_started
+    networks:
+      - obs
+    labels:
+      obs.service: api
+      obs.metrics.port: "8000"
+      obs.metrics.path: /metrics
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request as u; u.urlopen('http://localhost:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  demo-loadgen:
+    build:
+      context: .
+      dockerfile: demo/loadgen/Dockerfile
+    restart: unless-stopped
+    expose:
+      - "9101"
+    environment:
+      OBS_APP: demo
+      OBS_SERVICE: loadgen
+      OBS_ENV: local
+      OBS_HOST: demo-host
+      OBS_VERSION: 0.1.0
+      OBS_LOG_FORMAT: json
+      OBS_LOG_LEVEL: INFO
+      OBS_OTLP_ENDPOINT: http://tempo:4317
+      LOADGEN_TARGET: http://demo-api:8000
+      LOADGEN_RATE: "5"
+    depends_on:
+      demo-api:
+        condition: service_healthy
+    networks:
+      - obs
+    labels:
+      obs.service: loadgen
+      obs.metrics.port: "9101"
+      obs.metrics.path: /metrics

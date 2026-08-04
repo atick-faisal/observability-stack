@@ -57,7 +57,7 @@ identity variables from the same `.env`, which is what keeps the two halves cons
 | `OBS_HOST` | `socket.gethostname()` | lowercased; the agent is authoritative for metrics |
 | `OBS_VERSION` | `0.0.0` | surfaces as `fastapi_app_info{version=...}` |
 | `OBS_LOG_LEVEL` | `INFO` | |
-| `OBS_LOG_FORMAT` | `auto` | `auto` is console when `env=local`, JSON otherwise |
+| `OBS_LOG_FORMAT` | `auto` | `auto` is console when `env=local`, JSON otherwise — set `json` explicitly if a collector tails a container running with `env=local` |
 | `OBS_OTLP_ENDPOINT` | *unset* | e.g. `http://alloy:4317`. Unset disables tracing entirely |
 | `OBS_OTLP_PROTOCOL` | `grpc` | `grpc` \| `http` |
 | `OBS_TRACE_SAMPLE_RATIO` | `1.0` | parent-based ratio sampler |
@@ -74,7 +74,9 @@ for you), and `excluded_paths` for health checks you do not want in the metrics.
 **Logs** — newline-delimited JSON on stdout, one `"HTTP"` line per request, with `trace_id` and
 `span_id` injected whenever a span is active. Standard-library loggers (uvicorn, SQLAlchemy) are
 routed through the same chain, so every line is JSON. Add your own request-scoped fields with
-`bind_request_context(tenant="acme")`.
+`bind_request_context(tenant="acme")`. `sqlalchemy.engine`, `uvicorn.access`, `httpx` and
+`watchfiles` are pinned to `WARNING` — each of them logs a line per request that duplicates one
+the SDK already emits.
 
 **Metrics** — on an instance-local `CollectorRegistry`, so importing twice or setting up two apps
 in one process cannot collide:
@@ -96,6 +98,21 @@ endpoint drops them silently.
 (`"{app}-{service}"`) and `deployment.environment.name`. If the exporter cannot be built the SDK
 logs at `error` and runs on without tracing; it never takes the app down for an infrastructure
 problem. A missing `OBS_APP`, by contrast, is a programmer error and fails at startup.
+
+## Running multiple workers
+
+**One worker per container.** Scale by running more containers, not more workers.
+
+`uvicorn --workers N` and `fastapi run --workers N` fork N processes that share one listening
+socket. Each holds its own `CollectorRegistry`, so consecutive scrapes land on different workers
+and a counter appears to move *backwards* — which Prometheus reads as a counter reset, making
+`rate()` and every dashboard built on it quietly wrong. Nothing logs an error; the graphs are just
+false.
+
+The instance-local registry does not save you here: the problem is one endpoint answering from N
+independent processes. If you must run multiple workers in one container, set
+`PROMETHEUS_MULTIPROC_DIR` and use `prometheus_client`'s multiprocess collector, and note that
+gauges and exemplars behave differently under it.
 
 ## Develop
 

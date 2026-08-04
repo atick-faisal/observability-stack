@@ -113,5 +113,5 @@ def test_bind_request_context(capsys: pytest.CaptureFixture[str]) -> None:
 
 def test_noisy_loggers_are_quieted() -> None:
     configure_logging(make_settings(log_level="DEBUG"))
-    for name in ("sqlalchemy.engine", "uvicorn.access", "watchfiles"):
+    for name in ("sqlalchemy.engine", "uvicorn.access", "httpx", "watchfiles"):
         assert logging.getLogger(name).level == logging.WARNING

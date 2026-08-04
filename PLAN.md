@@ -239,6 +239,8 @@ class ObservabilitySettings(BaseSettings):   # env_prefix="OBS_"
   **Configuring the root logger is not enough.** uvicorn and gunicorn install handlers directly on their own loggers with `propagate=False`, so the reference's setup never reaches them: startup lines and the whole `"Exception in ASGI application"` traceback stay plain text, and one traceback becomes one Loki line per frame. `obskit` clears those handlers and re-enables propagation.
 - `sentry_sdk.init(dsn, enable_tracing=False, shutdown_timeout=10)` — OTel owns tracing.
 
+**One uvicorn worker per container.** The reference's image ends `CMD ["fastapi", "run", "--workers", "4", …]`. Four processes share one listening socket and each holds its own registry, so consecutive scrapes answer from different workers, a counter appears to move backwards, and Prometheus reads every decrease as a reset — `rate()` returns numbers that are simply wrong, with nothing logged anywhere. The instance-local registry does not help: the problem is one endpoint backed by N processes. Scale by container, or adopt `PROMETHEUS_MULTIPROC_DIR`. Documented in the SDK README.
+
 **Change from the reference**:
 
 - Every metric carries `app`/`service`/`env` from settings, not a module-level constant; `fastapi_app_info` carries `app/service/env/version`. Not `host` — the agent is authoritative there (§1, and `docs/labels.md` §3.1).
@@ -304,10 +306,12 @@ Provider: file, `foldersFromFilesStructure: true`, `updateIntervalSeconds: 30`, 
 
 `make demo-up` → `docker compose -f compose.yml -f compose.demo.yml --profile postgres --profile containers up -d`, bringing up the **real server stack** (Traefik included, on `*.localhost`, so the auth path is genuinely exercised) plus:
 
-- `demo-api` — FastAPI on `python:3.13-slim`, installing `obskit` from the local path so SDK edits are live; routes `/ok`, `/slow`, `/boom`, `/db`; carries the `obs.*` Docker labels.
-- `demo-db` — `postgres:18-alpine` with the exporter bootstrap SQL applied on first boot.
+- `demo-api` — FastAPI on `python:3.13-slim`, installing `obskit` from the local path so SDK edits are live; routes `/ok`, `/items/{item_id}`, `/slow`, `/boom`, `/db`, plus `/health` passed to `excluded_paths` so probe traffic reaches no metric and no log line; carries the `obs.*` Docker labels. Build context is the repo root with the host layout mirrored inside the image, which is what lets the `obskit` path dependency resolve identically in both places.
+- `demo-db` — `postgres:18-alpine` with the exporter bootstrap SQL applied on first boot. **Postgres 18 moved the data directory**: the volume mounts at `/var/lib/postgresql`, not `/var/lib/postgresql/data`, and the image refuses to start on the old path.
 - the **unmodified `agent/config.alloy`**, with `.env.demo` pointing at `https://ingest.localhost/...` — proving one file works in both places.
-- `loadgen` — async loop hitting the four routes with a fixed error/slow mix.
+- `loadgen` — async loop hitting the routes with a fixed error/slow mix, itself wired with `setup_worker_observability`. That gives `app=demo` a second `service`, which is the only way the chained `$app`/`$service` dashboard variables (§6) are testable, and it instruments httpx so `traceparent` propagates and Tempo's service graph has an edge to draw. Its own counter is named `client_requests_total`, not `loadgen_requests_total` — `docs/labels.md` §4.4 bars `service` from a metric name exactly as it bars `app`.
+
+This assembles in stages: M3b brings up the server stack plus `demo-api`/`demo-db`/`demo-loadgen` with `OBS_OTLP_ENDPOINT` pointed straight at `tempo:4317`; M4 adds the agent and re-points that one variable at `alloy:4317`; M6 puts Traefik in front.
 
 Mac caveats for `docs/local-dev.md`: `prometheus.exporter.unix` reports the Docker Desktop Linux VM, not macOS, so the infra dashboard is verified for *shape*, not values; cAdvisor needs the containerd override.
 
