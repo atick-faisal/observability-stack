@@ -90,7 +90,3 @@ Tempo `:3200` / `:4317` / `:4318`.
 Grafana comes up with all three datasources and the `Applications` / `Databases` /
 `Infrastructure` folders already provisioned. They are read-only by design — dashboards
 are files in git, not UI state.
-
-> Avoid `$` in `GF_ADMIN_PASSWORD`. Compose interpolates `--env-file` values, so `$$`
-> collapses to `$` and `$NAME` expands, and the password Grafana receives is not the one
-> the file shows.
