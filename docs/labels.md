@@ -70,6 +70,13 @@ on it.
 
 Metrics carry `app`, `env`, `host`, `service` — four labels, same spelling as everywhere else.
 
+One overlap is deliberate: `obskit` also stamps `app`, `service`, and `env` onto the app's own
+series, so a `/metrics` page is self-describing and readable without the agent in front of it.
+`external_labels` are only *added* where absent, so the SDK's values win for those series and the
+agent's still cover everything else. Both halves read the same `OBS_*` variables from the same
+`.env` (§5), which is what keeps them from disagreeing. The SDK does **not** set `host` on
+metrics — a container reports its container id as its hostname, so the agent stays authoritative.
+
 ### 3.2 Logs → Loki
 
 Loki stream labels are **exactly these six, and no others**:
@@ -155,9 +162,10 @@ Metrics record `/users/{user_id}/orders/{order_id}`, never `/users/8123/orders/5
 is bounded by the number of routes in the app; the raw path is bounded by the number of rows in
 the database.
 
-In FastAPI the pattern is obtained by walking `app.routes` and testing
-`route.matches(scope) == Match.FULL` — `request.url.path` is always the raw path and must never
-reach a metric label.
+In FastAPI the pattern is `scope["route"].path` — the router already computed it while
+dispatching, so there is nothing to recompute. Where no route object is in scope, fall back to
+walking `app.routes` and testing `route.matches(scope) == Match.FULL`. `request.url.path` is
+always the raw path and must never reach a metric label.
 
 Unmatched requests (404s) collapse to a single `route=""`, deliberately: an open endpoint being
 scanned would otherwise generate one series per probed URL.

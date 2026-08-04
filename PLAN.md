@@ -231,22 +231,27 @@ class ObservabilitySettings(BaseSettings):   # env_prefix="OBS_"
 
 **Port verbatim from the reference — this logic is correct**:
 
-- Metric names `fastapi_requests_total` / `fastapi_responses_total` / `fastapi_requests_duration_seconds` / `fastapi_exceptions_total` / `fastapi_requests_in_progress` / `fastapi_app_info`; `disable_created_metrics()`; matched-route-pattern path via `route.matches(scope) == Match.FULL`; `status_code = "500"` default before `call_next`; exemplars via `.inc(exemplar=…)` / `.observe(…, exemplar=…)` served through the **OpenMetrics** renderer (`prometheus_client.openmetrics.exposition.generate_latest` + its `CONTENT_TYPE_LATEST`) — without that content type exemplars are silently dropped.
+- Metric names `fastapi_requests_total` / `fastapi_requests_duration_seconds` / `fastapi_exceptions_total` / `fastapi_requests_in_progress` / `fastapi_app_info`; `disable_created_metrics()`; matched-route-pattern path; `status_code = "500"` default before dispatch; exemplars via `.inc(exemplar=…)` / `.observe(…, exemplar=…)` served through the **OpenMetrics** renderer (`prometheus_client.openmetrics.exposition.generate_latest` + its `CONTENT_TYPE_LATEST`) — without that content type exemplars are silently dropped.
   → source: `ai-asset-management/backend/app/middleware/metrics.py`
+  **`fastapi_responses_total` is dropped.** The reference increments it in the same `finally` block, with the same labels, as `fastapi_requests_total` — a byte-identical duplicate series for zero extra information. (Dashboard 16110 intended `requests_total` to be counted *before* dispatch, without `status_code`; the reference counts both after.) We author every dashboard ourselves, so 16110 compatibility buys nothing.
 - structlog: `_add_otel_context` injecting `032x`/`016x` hex trace/span IDs, `merge_contextvars`, `ExceptionRenderer`, `cache_logger_on_first_use=True`, stdlib loggers routed through `ProcessorFormatter`, and critically **`foreign_pre_chain` must exclude `filter_by_level`** (ProcessorFormatter passes `logger=None` → `AttributeError`).
   → source: `ai-asset-management/backend/app/observability/logging.py`
+  **Configuring the root logger is not enough.** uvicorn and gunicorn install handlers directly on their own loggers with `propagate=False`, so the reference's setup never reaches them: startup lines and the whole `"Exception in ASGI application"` traceback stay plain text, and one traceback becomes one Loki line per frame. `obskit` clears those handlers and re-enables propagation.
 - `sentry_sdk.init(dsn, enable_tracing=False, shutdown_timeout=10)` — OTel owns tracing.
 
 **Change from the reference**:
 
-- Every metric carries `app`/`service`/`env` from settings, not a module-level constant; `fastapi_app_info` carries `app/service/env/version`.
+- Every metric carries `app`/`service`/`env` from settings, not a module-level constant; `fastapi_app_info` carries `app/service/env/version`. Not `host` — the agent is authoritative there (§1, and `docs/labels.md` §3.1).
+- The route label is named `route`, not `path`, matching the dimension name in `docs/labels.md` §2.
 - Metrics register on an **instance-local `CollectorRegistry`**, not global `REGISTRY` — kills duplicate-timeseries failures on re-import and in tests.
+- **Pure-ASGI middleware, not `BaseHTTPMiddleware`.** Same logic, without the per-request anyio task, the latency tax, and BaseHTTPMiddleware's breakage of `StreamingResponse` backpressure and `BackgroundTasks` timing. Status comes from wrapping `send` and reading `http.response.start`; the route pattern comes from `scope["route"]`, which the router has already computed, with the `app.routes` walk as fallback.
+- The scrape endpoint is excluded from tracing (`excluded_urls`) as well as from metrics, and the ASGI `"http send"`/`"http receive"` child spans are suppressed (`exclude_spans`) — together they are ~3 spans per request plus one trace per scrape, describing nothing.
 - `excluded_paths` is a parameter, not a hardcoded app-specific frozenset.
 - No JWT/user-email extraction in the logging middleware (that was app coupling). Export `bind_request_context(**fields)` so apps add their own contextvars.
-- Explicit failure modes: missing `OBS_APP` raises `ObservabilityConfigError` at startup (fail fast on programmer error); OTLP exporter construction failure logs at `error` and continues with a no-op tracer (degrade on infra error).
+- Explicit failure modes: missing or malformed `OBS_APP` raises `ObservabilityConfigError` at startup (fail fast on programmer error); OTLP exporter construction failure logs at `error` and continues without tracing (degrade on infra error).
 - No docstrings/comments; usage lives in the SDK README.
 
-Deps: base `structlog`, `prometheus-client`, `opentelemetry-sdk`, `opentelemetry-instrumentation-fastapi`, `pydantic-settings`. Extras `[grpc]`, `[http]`, `[sqlalchemy]`, `[errors]`.
+Deps: base `fastapi`, `structlog`, `prometheus-client`, `opentelemetry-sdk`, `opentelemetry-instrumentation-fastapi`, `pydantic-settings`. Extras `[grpc]`, `[http]`, `[sqlalchemy]`, `[errors]`. (`opentelemetry-instrumentation-fastapi` depends only on `opentelemetry-instrumentation-asgi`, so `fastapi` has to be named explicitly.)
 Install: `uv add "obskit[grpc,sqlalchemy] @ git+https://github.com/<you>/observability-stack@v0.1.0#subdirectory=sdk/obskit"`.
 
 **Logs stay stdout-JSON + Alloy Docker tailing — not OTLP push.** Reasons in order: it captures *every* container including Postgres, Traefik and crashed processes (exactly what you want mid-incident); a hard crash loses an in-process OTLP buffer whereas the line is already durable in Docker's json-file driver; Alloy stays the single choke point applying the label taxonomy. OTLP logs are documented as the escape hatch for non-Docker deployments.

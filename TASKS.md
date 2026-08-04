@@ -96,27 +96,64 @@ Zero `level=error` lines, as at M1.
 
 ---
 
-## M3 — `obskit` SDK + demo app
+## M3a — `obskit` SDK
 
-- [ ] `sdk/obskit/pyproject.toml` — base deps + `[grpc]` / `[http]` / `[sqlalchemy]` / `[errors]` extras
-- [ ] `settings.py` — `ObservabilitySettings(BaseSettings)`, `env_prefix="OBS_"`, `ObservabilityConfigError` raised on missing `app`
-- [ ] `logging.py` — structlog config; `_add_otel_context` injecting `032x`/`016x` hex; JSON vs Console by env; stdlib routed through `ProcessorFormatter`; **`foreign_pre_chain` must exclude `filter_by_level`**; `cache_logger_on_first_use=True`; noise suppression for `sqlalchemy.engine`, `uvicorn.access`, `watchfiles`
-- [ ] `metrics.py` — instance-local `CollectorRegistry`; `fastapi_requests_total` / `fastapi_responses_total` / `fastapi_requests_duration_seconds` / `fastapi_exceptions_total` / `fastapi_requests_in_progress` / `fastapi_app_info`; `disable_created_metrics()`; OpenMetrics exposition (`prometheus_client.openmetrics.exposition`)
-- [ ] `middleware.py` — `PrometheusMiddleware` (matched-route path via `route.matches(scope) == Match.FULL`, exemplars, `status_code="500"` default) and `RequestLoggingMiddleware` (event `"HTTP"`, level by status class, `clear_contextvars` at start)
-- [ ] `tracing.py` — TracerProvider, resource attrs (`app`/`service`/`env`/`host` + `service.name` + `deployment.environment.name`), FastAPI + optional SQLAlchemy instrumentors, degrade to no-op tracer on exporter failure
-- [ ] `errors.py` — `sentry_sdk.init(dsn, enable_tracing=False, shutdown_timeout=10)`
-- [ ] `runtime.py` — `setup_observability`, `setup_worker_observability`, `Observability` dataclass with `shutdown()`
-- [ ] `__init__.py` (four public names + `bind_request_context`), `py.typed`
-- [ ] Tests — settings validation, logging JSON shape incl. `trace_id`, metrics registry isolation across two setups, setup wiring
-- [ ] `sdk/obskit/README.md` — usage example (the only place docs live)
-- [ ] `demo/app` — FastAPI with `/ok`, `/slow`, `/boom`, `/db`; Dockerfile on `python:3.13-slim` + `uv`, installing `obskit` from local path
-- [ ] `demo/loadgen` — async loop with a fixed error/slow mix
+*Split out of the original M3 so the SDK is reviewable before the demo app depends on it.*
+
+- [x] `sdk/obskit/pyproject.toml` — base deps + `[grpc]` / `[http]` / `[sqlalchemy]` / `[errors]` extras — *`fastapi` had to be named explicitly: `opentelemetry-instrumentation-fastapi` depends only on `opentelemetry-instrumentation-asgi`*
+- [x] `settings.py` — `ObservabilitySettings(BaseSettings)`, `env_prefix="OBS_"`, `ObservabilityConfigError` raised on missing `app` (via `.load()`), plus `[a-z0-9-]+` enforcement on `app`/`service` so a malformed identity fails at startup rather than at query time
+- [x] `logging.py` — structlog config; `_add_otel_context` injecting `032x`/`016x` hex; JSON vs Console by env; stdlib routed through `ProcessorFormatter`; **`foreign_pre_chain` must exclude `filter_by_level`**; `cache_logger_on_first_use=True`; noise suppression for `sqlalchemy.engine`, `uvicorn.access`, `watchfiles`
+- [x] `metrics.py` — instance-local `CollectorRegistry`; `fastapi_requests_total` / `fastapi_requests_duration_seconds` / `fastapi_exceptions_total` / `fastapi_requests_in_progress` / `fastapi_app_info`; `disable_created_metrics()`; OpenMetrics exposition (`prometheus_client.openmetrics.exposition`)
+- [x] `middleware.py` — `PrometheusMiddleware` (matched-route pattern, exemplars, `status_code="500"` default) and `RequestLoggingMiddleware` (event `"HTTP"`, level by status class, `clear_contextvars` at start)
+- [x] `tracing.py` — TracerProvider, resource attrs (`app`/`service`/`env`/`host` + `service.name` + `deployment.environment.name`), FastAPI + optional SQLAlchemy instrumentors (an `AsyncEngine` is unwrapped to its `sync_engine`), degrade to no tracing on exporter failure
+- [x] `errors.py` — `sentry_sdk.init(dsn, enable_tracing=False, shutdown_timeout=10)`, plus `environment` and `release` so GlitchTip can group by them
+- [x] `runtime.py` — `setup_observability`, `setup_worker_observability`, `Observability` dataclass with `shutdown()`
+- [x] `__init__.py` (four public names + `bind_request_context` + `ObservabilityConfigError`), `py.typed`
+- [x] Tests — 37, covering settings validation, logging JSON shape incl. `trace_id`, metrics registry isolation across two setups, setup wiring, and the trace↔log↔exemplar correlation
+- [x] `sdk/obskit/README.md` — usage example (the only place docs live)
+
+Reference defects found and countered:
+
+- [x] **`fastapi_responses_total` dropped.** The reference increments it in the same `finally` block with the same labels as `fastapi_requests_total` — a byte-identical duplicate series. See PLAN §5.
+- [x] **Root-logger config does not reach uvicorn.** uvicorn installs handlers on its own loggers with `propagate=False`, so the reference's setup leaves startup lines and the entire `"Exception in ASGI application"` traceback as plain text — one Loki line per stack frame, none carrying a `trace_id`. `configure_logging` now clears those handlers and re-enables propagation; measured before/after on a real uvicorn process, 11/11 stdout lines are JSON.
+- [x] **`BaseHTTPMiddleware` → pure ASGI.** Drops the per-request anyio task and the associated breakage of `StreamingResponse` backpressure and `BackgroundTasks` timing.
+- [x] **`app_name` → `app`/`service`/`env`; `path` → `route`.** labels.md §4.1/§4.4 and §2 respectively.
+- [x] `O(routes)` walk per request → `scope["route"]`, which the router already computed. The walk stays as fallback; labels.md §4.3 updated.
+- [x] The scrape endpoint was still being *traced* while excluded from metrics — one trace per scrape, forever. Now excluded from both, and the ASGI `"http send"`/`"http receive"` child spans are suppressed (3 spans per request → 1).
 
 **Verify**:
 ```bash
-cd sdk/obskit && uv run pytest && uv run mypy src
+make lint && make test        # mypy strict + ruff + 37 tests
+```
+Then against a real uvicorn process, which is what catches anything `TestClient` cannot —
+the uvicorn logger adoption above was found exactly this way:
+```bash
+OBS_APP=demo OBS_ENV=production uv run --with uvicorn uvicorn smoke:app --port 8123
+curl -s localhost:8123/items/7 && curl -s localhost:8123/boom
+curl -s localhost:8123/metrics | grep '^fastapi_'
+#   → route="/items/{item_id}" (never /items/7), route="" for a 404,
+#     exception_type="ValueError" at status_code="500"
+curl -so /dev/null -w '%{content_type}\n' localhost:8123/metrics
+#   → application/openmetrics-text; version=1.0.0; charset=utf-8   (or exemplars vanish)
+```
+Every stdout line must parse as JSON, including uvicorn's own.
+
+Not verifiable here, by construction: exemplars reaching Prometheus (M5), spans reaching Tempo
+(M3b), trace→log correlation in Grafana (M5).
+
+---
+
+## M3b — demo app
+
+- [ ] `demo/app` — FastAPI with `/ok`, `/slow`, `/boom`, `/db`; Dockerfile on `python:3.13-slim` + `uv`, installing `obskit` from local path
+- [ ] `demo/loadgen` — async loop with a fixed error/slow mix
+
+**Verify**: with the server stack up and `OBS_OTLP_ENDPOINT` pointed straight at `tempo:4317`
+(the agent arrives at M4):
+```bash
 curl -s localhost:8000/metrics | grep fastapi_requests_total
 docker logs demo-api | tail -1 | jq .trace_id   # non-null after hitting a route
+curl -s 'localhost:3200/api/search?tags=service.name%3Ddemo-api' | jq '.traces | length'
 ```
 
 ---

@@ -5,7 +5,7 @@ An application-independent Grafana LGTM stack. One deployment on a VPS serves ev
 Onboarding a new FastAPI + Postgres app is four steps: copy `agent/`, add a few Docker labels,
 `uv add obskit`, one function call.
 
-> **Status: pre-v1, under construction.** Current milestone: **M2 — Grafana provisioning**.
+> **Status: pre-v1, under construction.** Current milestone: **M3a — `obskit` SDK**.
 > See [`TASKS.md`](./TASKS.md) for what is done and what is next.
 
 ## The two halves
@@ -67,6 +67,7 @@ setup_observability(app, engine=engine)
 | [`docs/labels.md`](./docs/labels.md) | **Read this first.** The label contract everything else depends on. |
 | [`PLAN.md`](./PLAN.md) | Design and rationale — the *why*. |
 | [`TASKS.md`](./TASKS.md) | Implementation checklist — the *what next*. |
+| [`sdk/obskit/README.md`](./sdk/obskit/README.md) | The Python SDK: settings, metric names, what one call gets you. |
 | `docs/onboarding-an-app.md` | The four-step diff in detail. *(M10)* |
 | `docs/deploy-vps.md` | Provisioning, DNS, first `up`. *(M10)* |
 | `docs/local-dev.md` | The demo stack, and macOS caveats. *(M10)* |
