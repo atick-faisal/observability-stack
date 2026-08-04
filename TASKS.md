@@ -22,21 +22,34 @@ Each milestone ends with a **Verify** step. Do not start the next milestone unti
 
 ## M1 — Server core
 
-- [ ] `compose.yml` — prometheus, loki, tempo, grafana; named volumes; ports bound to `127.0.0.1` only
-- [ ] `server/prometheus/prometheus.yml` — self-scrape only; `out_of_order_time_window: 2h`; `exemplars.max_exemplars: 200000`
-- [ ] Prometheus flags — `--web.enable-remote-write-receiver`, `--enable-feature=exemplar-storage`, `--storage.tsdb.retention.time=30d`, `--storage.tsdb.retention.size=25GB`
-- [ ] `server/loki/loki-config.yaml` — 336h retention, tsdb v13, `allow_structured_metadata`, `volume_enabled`, `discover_log_levels`, `pattern_ingester`, compactor retention, `reject_old_samples_max_age: 168h`
-- [ ] `server/tempo/tempo-config.yaml` — OTLP receivers, 168h `block_retention`, metrics_generator span-metrics + service-graphs remote_writing to Prometheus with exemplars, **`local-blocks` disabled**
-- [ ] `.env.server.example`
-- [ ] Healthchecks on all four services (no proxy-clearing prefixes — that was a corporate-network artifact)
+- [x] `compose.yml` — prometheus, loki, tempo, grafana; named volumes; ports bound to `127.0.0.1` only
+- [x] `server/prometheus/prometheus.yml` — self-scrape only; `out_of_order_time_window: 2h`; `exemplars.max_exemplars: 200000`
+- [x] Prometheus flags — `--web.enable-remote-write-receiver`, `--enable-feature=exemplar-storage`, `--storage.tsdb.retention.time=30d`, `--storage.tsdb.retention.size=25GB`
+- [x] `server/loki/loki-config.yaml` — 336h retention, tsdb v13, `allow_structured_metadata`, `volume_enabled`, `discover_log_levels`, `pattern_ingester`, compactor retention, `reject_old_samples_max_age: 168h`
+- [x] `server/tempo/tempo-config.yaml` — OTLP receivers, 168h `block_retention`, metrics_generator span-metrics + service-graphs remote_writing to Prometheus with exemplars, **`local-blocks` disabled**
+- [x] `.env.server.example`
+- [x] Healthchecks on ~~all four services~~ **prometheus and grafana only** (no proxy-clearing prefixes — that was a corporate-network artifact) — *the Loki and Tempo images are distroless: `grafana/loki:3.7.1` ships only `/usr/bin/loki` and `grafana/tempo:2.10.5` no `bin/` at all. No shell, no wget, no curl, so a container healthcheck is impossible. This is why the reference has none either. Readiness is asserted from the host in the verify block below; Grafana `depends_on` them with `condition: service_started`.*
+
+Also landed, not in the original list:
+
+- [x] No `user: "0"` anywhere — named volumes mount at each image's **own** data path (`/prometheus`, `/loki`, `/var/tempo`, `/var/lib/grafana`), so Docker seeds them with the image's ownership. The reference mounted at `/data/loki` and `/data/tempo`, paths absent from those images, which is what forced root.
+- [x] `GF_PLUGINS_PREINSTALL_DISABLED=true` — every datasource here is core; without it Grafana logs a plugin permission `error` on every boot
+- [x] `server/grafana/provisioning/{datasources,dashboards,plugins}/.gitkeep` + `alerting/empty.yaml` — Grafana logs an `error` for each provisioning subdirectory that does not exist, and a `warn` for a `.gitkeep` in `alerting/`
+- [x] `Makefile` — `--env-file .env.server` (Compose only auto-loads `.env`) and an `env-check` prerequisite on `up`/`demo-up`
 
 **Verify**:
 ```bash
+cp .env.server.example .env.server   # set GF_ADMIN_PASSWORD
+make up
+# Loki and Tempo need ~60s after start ("Ingester not ready: waiting for 15s after being ready")
+until curl -sf localhost:3100/ready >/dev/null; do sleep 3; done
+
 curl -sf localhost:9090/-/healthy && \
 curl -sf localhost:3100/ready && \
 curl -sf localhost:3200/ready && \
 curl -sf localhost:3000/api/health
 ```
+A clean boot on fresh volumes logs **zero** `level=error` lines across all four services. Anything else is a regression.
 
 ---
 

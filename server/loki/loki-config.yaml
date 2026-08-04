@@ -1,0 +1,59 @@
+auth_enabled: false
+
+analytics:
+  reporting_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9095
+  log_level: warn
+
+# /loki is the image's own data directory (uid 10001). Mounting the named
+# volume here lets Docker seed it with the right ownership, so the container
+# does not need to run as root.
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  retention_period: 336h
+  ingestion_rate_mb: 16
+  ingestion_burst_size_mb: 32
+  # An agent that buffered logs through a VPS outage replays them with their
+  # original timestamps. This is the log-side counterpart to Prometheus'
+  # out_of_order_time_window.
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+  allow_structured_metadata: true
+  volume_enabled: true
+  discover_log_levels: true
+
+compactor:
+  working_directory: /loki/compactor
+  delete_request_store: filesystem
+  retention_enabled: true
+
+ingester:
+  chunk_idle_period: 5m
+  max_chunk_age: 1h
+
+pattern_ingester:
+  enabled: true

@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_native_histograms: true
+
+storage:
+  tsdb:
+    # Agents buffer samples locally while this VPS is down. Without a window,
+    # everything they replay on reconnect is rejected as too old and the gap
+    # is permanent. See TASKS.md M9.
+    out_of_order_time_window: 2h
+  exemplars:
+    max_exemplars: 200000
+
+scrape_configs:
+  # Everything else arrives via remote_write from the agents. This is the only
+  # pull target on the server.
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          app: observability
+          service: prometheus

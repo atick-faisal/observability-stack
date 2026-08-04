@@ -1,0 +1,110 @@
+name: observability
+
+networks:
+  obs:
+    driver: bridge
+
+volumes:
+  prometheus_data: {}
+  loki_data: {}
+  tempo_data: {}
+  grafana_data: {}
+
+services:
+  # Ports bind to 127.0.0.1 only. The ingest endpoints are unauthenticated at
+  # this layer; Traefik fronts them with basic auth at M6.
+  prometheus:
+    image: prom/prometheus:v3.11.3
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./server/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      - --storage.tsdb.retention.size=25GB
+      - --web.enable-remote-write-receiver
+      - --enable-feature=exemplar-storage
+    networks:
+      - obs
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  loki:
+    image: grafana/loki:3.7.1
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      - ./server/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - obs
+    # No healthcheck: the image is distroless and ships only /usr/bin/loki —
+    # no shell, no wget, no curl, so there is nothing to run. Readiness is
+    # http://localhost:3100/ready, checked from the host.
+
+  tempo:
+    image: grafana/tempo:2.10.5
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3200:3200"
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+    volumes:
+      - ./server/tempo/tempo-config.yaml:/etc/tempo/config.yaml:ro
+      - tempo_data:/var/tempo
+    command: -config.file=/etc/tempo/config.yaml
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    networks:
+      - obs
+    # No healthcheck: distroless, same as loki. Readiness is
+    # http://localhost:3200/ready, checked from the host.
+
+  grafana:
+    image: grafana/grafana:13.0.1
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:?set GF_ADMIN_PASSWORD in .env.server}
+      GF_SERVER_ROOT_URL: ${GF_SERVER_ROOT_URL:-http://localhost:3000}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      # Every datasource here is core. Without this, the background installer
+      # tries to update bundled plugins in a root-owned image directory and
+      # logs a permission error at level=error on every boot.
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+      GF_LOG_LEVEL: warn
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./server/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./server/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_started
+    networks:
+      - obs
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

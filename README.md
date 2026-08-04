@@ -5,7 +5,7 @@ An application-independent Grafana LGTM stack. One deployment on a VPS serves ev
 Onboarding a new FastAPI + Postgres app is four steps: copy `agent/`, add a few Docker labels,
 `uv add obskit`, one function call.
 
-> **Status: pre-v1, under construction.** Current milestone: **M0 — Foundations**.
+> **Status: pre-v1, under construction.** Current milestone: **M1 — Server core**.
 > See [`TASKS.md`](./TASKS.md) for what is done and what is next.
 
 ## The two halves
@@ -75,8 +75,14 @@ setup_observability(app, engine=engine)
 ## Quickstart
 
 ```bash
+cp .env.server.example .env.server   # set GF_ADMIN_PASSWORD
+
 make help          # list targets
-make up            # start the server stack          (M1)
+make up            # start the server stack
 make demo-up       # start the local end-to-end demo (M4)
 make demo-verify   # assert all five signals arrive  (M4)
 ```
+
+The server stack binds to `127.0.0.1` only. Until Traefik lands (M6) it is reachable
+on the box and nowhere else: Grafana `:3000`, Prometheus `:9090`, Loki `:3100`,
+Tempo `:3200` / `:4317` / `:4318`.
