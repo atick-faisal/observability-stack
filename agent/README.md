@@ -84,6 +84,37 @@ whoever terminates the connection.
 
 Alloy's own UI is on `127.0.0.1:12345` — `/graph` shows every component and what it discovered.
 
+## What it holds on to when the VPS is unreachable
+
+All three writers buffer to disk, under `--storage.path` in the `alloy_data` volume, and replay
+with the **original timestamps** — so an outage leaves a continuous line rather than a gap, and
+`docker volume rm` on that volume is the one action that throws the buffer away.
+
+| Signal | Mechanism | Roughly how long | The server-side window that has to match |
+|---|---|---|---|
+| metrics | `prometheus.remote_write` WAL | 8h (`max_keepalive_time`) | `--storage.tsdb.out_of_order_time_window=2h` |
+| logs | `loki.write` WAL | 8h (`max_segment_age`), 20 retries ≈ 1h per batch | `reject_old_samples_max_age: 168h` |
+| traces | `otelcol` sending queue on `otelcol.storage.file` | 10 000 batches | none — Tempo accepts any timestamp |
+
+The server-side column is the half people forget. A buffer whose replay the server rejects as
+too old is worse than no buffer, because it looks like it worked.
+
+`--stability.level=public-preview` in `compose.agent.yml` is required by exactly one component,
+`otelcol.storage.file`, which is what puts the trace queue on disk instead of in memory. The flag
+is a floor rather than a switch: it permits public-preview components to be referenced, and every
+other component in `config.alloy` is generally-available. Drop the flag and Alloy refuses to start
+with a message naming the component, which is the right failure.
+
+One thing to know before you go looking: **Tempo's time-bounded search does not surface
+backfilled traces.** After a fifteen-minute outage, a search over the first ten minutes of that
+window comes back empty while `GET /api/traces/<id>` on a trace from the same minute returns it
+in full. The spans are stored — the search path is what does not find them. Check the trace side
+by taking a `trace_id` off a log line from the outage and looking that up, which is what
+`scripts/verify-resilience.sh` does.
+
+That script asserts all of this in the server repo by stopping the server for fifteen minutes
+and checking for a hole afterwards.
+
 ## postgres_exporter
 
 The exporter connects as its own least-privilege role, not as the application user. Create it once:

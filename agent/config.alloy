@@ -288,6 +288,21 @@ otelcol.processor.batch "default" {
 	}
 }
 
+// The trace-side counterpart to the two WALs below: a queue on disk, under
+// --storage.path, so a VPS outage or an agent restart does not lose spans.
+//
+// public-preview in Alloy 1.16, which is the only reason compose.agent.yml passes
+// --stability.level=public-preview. Without a `storage` the sending queue is
+// memory-only and dies with the process.
+//
+// The directory is spelled out because there is no expression for the value of
+// --storage.path; it has to be kept in step with the flag in compose.agent.yml by
+// hand. Getting it wrong writes the queue somewhere outside the alloy_data volume,
+// where it does not survive a container recreate — and nothing complains.
+otelcol.storage.file "traces" {
+	directory = "/var/lib/alloy/otlp-queue"
+}
+
 // A base URL: the exporter appends /v1/traces, which is the native upstream path
 // the ingest router proxies unrewritten.
 otelcol.exporter.otlphttp "obs" {
@@ -299,6 +314,28 @@ otelcol.exporter.otlphttp "obs" {
 			// Local only — see the note on prometheus.remote_write below.
 			insecure_skip_verify = sys.env("OBS_INGEST_TLS_INSECURE") == "true"
 		}
+	}
+
+	// Both blocks are here because the defaults silently discard. Unset,
+	// retry_on_failure gives up after max_elapsed_time = 5m and the batch is
+	// dropped without a further line in the log — so a VPS outage longer than five
+	// minutes is a hole in the traces that nothing in the stack records. 0s means
+	// keep retrying; the queue below, not a timer, is what bounds the memory.
+	sending_queue {
+		enabled       = true
+		storage       = otelcol.storage.file.traces.handler
+		num_consumers = 4
+		// Requests, not spans: one entry is one batch from the processor above.
+		// Enough for hours of the demo's rate, and the file-backed queue means the
+		// cost of being generous is disk, not RSS.
+		queue_size = 10000
+	}
+
+	retry_on_failure {
+		enabled          = true
+		initial_interval = "5s"
+		max_interval     = "1m"
+		max_elapsed_time = "0s"
 	}
 }
 
@@ -377,5 +414,29 @@ loki.write "obs" {
 		tls_config {
 			insecure_skip_verify = sys.env("OBS_INGEST_TLS_INSECURE") == "true"
 		}
+
+		// The default is 10 retries, which with the same backoff curve gives up
+		// after roughly nine minutes — shorter than the outage the WAL below is
+		// there to survive, and a batch dropped at that point is dropped for good.
+		// Twenty carries it past an hour.
+		max_backoff_retries = 20
+		max_backoff_period  = "5m"
+	}
+
+	// Log-side counterpart to the prometheus.remote_write WAL above. Without it
+	// batches live in the process only, so an agent restart during a VPS outage
+	// loses every line not yet accepted. The server's reject_old_samples_max_age
+	// (168h) is what lets the replay land with its original timestamps.
+	//
+	// The block is generally-available in Alloy 1.16 — it was experimental when
+	// PLAN.md §9 was written, and no --stability.level flag is needed for it.
+	// max_segment_age matches the prometheus WAL's max_keepalive_time, so both
+	// signals give up at the same point rather than at two undocumented ones.
+	wal {
+		enabled            = true
+		max_segment_age    = "8h"
+		min_read_frequency = "250ms"
+		max_read_frequency = "1s"
+		drain_timeout      = "30s"
 	}
 }

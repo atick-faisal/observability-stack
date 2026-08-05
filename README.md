@@ -5,7 +5,7 @@ An application-independent Grafana LGTM stack. One deployment on a VPS serves ev
 Onboarding a new FastAPI + Postgres app is four steps: copy `agent/`, add a few Docker labels,
 `uv add obskit`, one function call.
 
-> **Status: pre-v1, under construction.** Current milestone: **M8 — error tracking**.
+> **Status: pre-v1, under construction.** Current milestone: **M9 — resilience**.
 > See [`TASKS.md`](./TASKS.md) for what is done and what is next.
 
 ## The two halves
@@ -89,6 +89,10 @@ make demo-verify   # assert every signal arrives, with the label contract intact
 make verify-dashboards   # assert every panel on every dashboard has data
 ```
 
+`make up` adds `compose.local.yml`, which publishes Grafana `:3000`, Prometheus `:9090`,
+Loki `:3100` and Tempo `:3200` / `:4317` / `:4318` on `127.0.0.1` and bind-mounts the
+configs so an edit takes effect without a rebuild.
+
 Error tracking is opt-in and separate — five more containers and a second Postgres, which
 a stack that only wants metrics, logs and traces should not pay for:
 
@@ -100,9 +104,32 @@ OBS_ERROR_DSN=<the printed DSN> make demo-up
 make verify-errors                         # assert /boom becomes an issue, correctly tagged
 ```
 
-`make up` adds `compose.local.yml`, which publishes Grafana `:3000`, Prometheus `:9090`,
-Loki `:3100` and Tempo `:3200` / `:4317` / `:4318` on `127.0.0.1` and bind-mounts the
-configs so an edit takes effect without a rebuild.
+## Surviving an outage
+
+The agent buffers all three signals to disk and replays them with their original timestamps, so
+a VPS that is down for a while leaves a continuous line rather than a hole. Each buffer has a
+server-side window that has to be at least as generous — see the table in
+[`agent/README.md`](./agent/README.md), because a replay the server rejects as too old is worse
+than no buffer at all: it looks like it worked.
+
+```bash
+make verify-resilience   # stops the server for 15 min, asserts no gap in any signal
+```
+
+## Backup
+
+```bash
+make backup                                   # grafana.db + GlitchTip's database
+make backup ARGS="--all --keep 7"             # ...plus the three TSDBs, keeping the newest 7
+make restore DIR=backups/<stamp>              # dry run: prints what it would replace
+make restore DIR=backups/<stamp> ARGS=--yes   # and now for real
+```
+
+Dashboards are files in git, so the irreplaceable state is smaller than it looks: `grafana.db`
+(the admin account, users, annotations, alert state) and GlitchTip's Postgres. Those two are the
+default set. The TSDBs are opt-in — they are retention-bounded and 25 GB-capped, and a routine
+backup should not be tens of gigabytes. Each is copied the way its storage engine allows rather
+than all three the same way; `scripts/backup.sh`'s header says which and why.
 
 **`compose.yml` on its own is the deployed shape**: nothing published, each service
 building a small image with its config baked in, and Traefik routing driven by container

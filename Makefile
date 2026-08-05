@@ -37,7 +37,7 @@ DEMO_DIRS     := demo/app demo/loadgen
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down logs demo-up demo-down demo-logs demo-verify verify-ingest verify-dashboards verify-errors glitchtip-up glitchtip-down glitchtip-logs config-check lint test env-check glitchtip-env-check
+.PHONY: help up down logs demo-up demo-down demo-logs demo-verify verify-ingest verify-dashboards verify-errors verify-resilience backup restore glitchtip-up glitchtip-down glitchtip-logs config-check lint test env-check glitchtip-env-check
 
 env-check:
 	@test -f .env.server || { echo "missing .env.server — cp .env.server.example .env.server"; exit 1; }
@@ -47,7 +47,7 @@ glitchtip-env-check:
 
 help: ## List available targets
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) \
-		| awk -F':.*?## ' '{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
+		| awk -F':.*?## ' '{printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
 up: env-check ## Start the server stack (prometheus, loki, tempo, grafana)
 	$(COMPOSE) $(SERVER_FILES) up -d --build
@@ -94,6 +94,20 @@ glitchtip-logs: ## Tail GlitchTip logs (SVC=glitchtip-worker to narrow)
 
 verify-errors: ## Assert an unhandled exception reaches GlitchTip (needs: glitchtip-up, demo-up)
 	./scripts/verify-errors.sh
+
+# Takes about twenty minutes: it stops the server for fifteen and then waits for
+# the agent to replay. OUTAGE_SECONDS=120 for a quick one.
+verify-resilience: ## Assert a server outage leaves no gap in any signal (needs: make demo-up)
+	./scripts/verify-resilience.sh
+
+backup: ## Back up grafana.db and GlitchTip's database (--all adds the TSDBs)
+	./scripts/backup.sh $(ARGS)
+
+# No default target: the argument is which backup, and guessing that is the one
+# mistake this pair must not make.
+restore: ## Restore a backup — DIR=backups/<stamp>, then add ARGS=--yes
+	@test -n "$(DIR)" || { echo "usage: make restore DIR=backups/<stamp> [ARGS=--yes]"; exit 1; }
+	./scripts/restore.sh $(DIR) $(ARGS)
 
 # Renders the deployed shape — no ports, no bind mounts, edge network external —
 # without needing that network to exist here. This is exactly what a deploy runs.

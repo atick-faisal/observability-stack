@@ -42,6 +42,12 @@ services:
       - /etc/alloy/config.alloy
       - --storage.path=/var/lib/alloy
       - --server.http.listen-addr=0.0.0.0:12345
+      # For otelcol.storage.file alone, which backs the trace exporter's sending
+      # queue with disk instead of memory. The flag is a *floor*, not a switch: it
+      # only permits public-preview components to be referenced, and every other
+      # component in config.alloy is generally-available. loki.write's WAL needs
+      # nothing here — it graduated to GA in Alloy 1.16.
+      - --stability.level=public-preview
     labels:
       # Deliberately not collected. A failing push logs a line, and tailing your
       # own log means that line becomes another thing to push. Read them with

@@ -84,7 +84,8 @@ observability-stack/
 │  └─ src/obskit/{__init__,settings,logging,tracing,metrics,middleware,errors,runtime}.py + py.typed
 │     tests/
 ├─ demo/app/  demo/loadgen/
-├─ scripts/  add-ingest-user.sh verify-ingest.sh verify-signals.sh verify-dashboards.sh backup.sh
+├─ scripts/  add-ingest-user.sh verify-ingest.sh verify-signals.sh verify-dashboards.sh
+│            verify-errors.sh verify-resilience.sh backup.sh restore.sh
 └─ docs/  labels.md onboarding-an-app.md deploy-vps.md local-dev.md operations.md
 ```
 
@@ -364,15 +365,23 @@ The first seven are exactly what the reference proves in production. Pin resolve
 
 ## 10. Risks
 
-1. **Out-of-order rejection after an agent outage** — mitigated by `out_of_order_time_window: 2h`; M9 exists solely to verify this.
-2. **Alloy's `loki.write` WAL sits behind the experimental stability gate** (`--stability.level=experimental`). Without it, log durability across a VPS outage is best-effort retries only. Recommendation: enable it and accept the gate.
-3. **Traces are not durably buffered** — Alloy's OTLP `sending_queue` is in-memory. A long outage drops traces. Accepted; traces are the least valuable signal to backfill.
+1. ~~**Out-of-order rejection after an agent outage**~~ — verified at M9: a fifteen-minute outage with the app still serving leaves every 60s bucket of `fastapi_requests_total` populated. `out_of_order_time_window: 2h` is not what does the work in the single-agent case — the agent replays in order into a head whose max time is the moment it went down — but it is what keeps a *second* agent's replay from being rejected against the first's live writes, which is the shape any second app host takes.
+2. ~~**Alloy's `loki.write` WAL sits behind the experimental stability gate**~~ — **wrong as written, and measured at M9**: the block is `generally-available` in Alloy 1.16.1 and needs no flag at all. It was experimental when this line was written. What the WAL does *not* fix on its own is the endpoint's retry budget: the default 10 retries on the same backoff curve give up after roughly nine minutes, so a batch was still dropped inside the very outage the WAL is for. `max_backoff_retries = 20` carries it past an hour.
+3. ~~**Traces are not durably buffered**~~ — fixed at M9 rather than accepted, because "accepted" understated it: the default `retry_on_failure.max_elapsed_time` is five minutes, after which spans are discarded *silently*. `otelcol.storage.file` puts the sending queue on disk under `--storage.path`, and `max_elapsed_time = "0s"` makes the queue rather than a timer the thing that bounds it. This is the one component in `config.alloy` that is not generally-available, and the only reason `--stability.level=public-preview` is passed — a much weaker gate than the `experimental` this document assumed in item 2.
 4. **Basic auth does not enforce label integrity** (§4) — documented, with the `X-Scope-OrgID` upgrade path.
 5. ~~**`keepequal` port matching requires the metrics port to appear in `__meta_docker_port_private_port`**~~ — confirmed at M4, and the label is `__meta_docker_port_private`. The port must be `EXPOSE`d in the image or `expose:`d in compose; publishing it is not required. Document in `onboarding-an-app.md`; the `OBS_EXTRA_TARGET` env escape hatch covers containers that can't. **New at M4**: discovery emits one target per network as well as per port, so a container on two networks is scraped twice — `OBS_DOCKER_NETWORK` exists for that.
 6. ~~**Exemplars need OpenMetrics negotiation end to end**~~ — confirmed working through the agent at M4, with `send_exemplars = true` on `prometheus.remote_write` (off by default; the reference never sets it and drops every exemplar at that line). `verify-signals.sh` step 5 is the regression test.
 7. ~~**Tempo span-metrics dimension lookup**~~ — settled across M4 and M5. 2.10.5 reads `app`/`env` from resource attributes, so no `transform` processor is needed. The `service` collision (generator writes its own from `service.name`; ours arrives as `__service`) is fixed by `write_relabel_configs` on the generator's remote-write — the only mechanism that works, since the `__` prefix is applied against a hardcoded list that `intrinsic_dimensions` and `dimension_mappings` do not affect. Rejected alternatives: setting `service.name` to the bare service, which fixes the label but merges two apps' `api` into one node in Tempo's service list; and `dimension_mappings`, whose target name goes through the same collision check. Same block drops `__metrics_gen_instance` — `enable_instance_label: false` is accepted by 2.10.5 and does not remove it.
 8. **Clock skew** between app hosts and the VPS corrupts log ordering and can trip Loki's max-future-age. Require `chrony`/`systemd-timesyncd`; `deploy-vps.md` checks it.
-9. **Single node, filesystem storage, no HA.** `scripts/backup.sh` tars the Grafana volume (`grafana.db` is the only irreplaceable state) plus the TSDB volumes; restore tested once at M10.
+9. **Single node, filesystem storage, no HA.** `scripts/backup.sh` / `restore.sh`, built at M9. Each volume is copied the way its storage engine actually allows, which is not one method:
+
+   | | how | why not a live tar |
+   |---|---|---|
+   | `grafana_data` | stop → tar → start | `grafana.db` is SQLite; a sequential tar of the file and its `-wal` sidecar can capture a pair that disagree, which restores as a *corrupt* database rather than an old one. Grafana is a query UI, so the few seconds cost no ingest. |
+   | `glitchtip_pg_data` | `pg_dump -Fc` | tarring a live `PGDATA` without `pg_backup_start` is the textbook way to produce something that will not replay. |
+   | `prometheus_data`, `loki_data`, `tempo_data` | tar, live, opt-in behind `--all` | all three replay a WAL on start and write blocks temp-then-rename, so a live tar is a power cut, which they survive. Not in the default set because they are 25GB-capped and retention-bounded: a routine backup should not be tens of gigabytes. |
+
+   Rejected: Prometheus' `/api/v1/admin/tsdb/snapshot`, which is the correct atomic copy but needs `--web.enable-admin-api` — and that exposes `delete_series` to every container on the `obs` network, including the demo's app containers.
 10. **Cardinality** — cAdvisor is the usual offender; carry over the reference's `--disable_metrics` list and `id` labeldrop.
 
 **Out of scope for v1**, listed as future work in `docs/operations.md`: stack self-monitoring dashboards, Grafana alerting/contact-point provisioning, Pyroscope profiling, Mimir/multi-tenancy, community dashboard vendoring.
