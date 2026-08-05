@@ -111,6 +111,15 @@ services:
       # collector's address to the local agent's. Everything else — the labels,
       # the SDK call, the log format — is identical either way.
       OBS_OTLP_ENDPOINT: http://alloy:4317
+      # Empty by default, which is what obskit treats as "no error reporting" — the
+      # demo runs unchanged without GlitchTip. With compose.glitchtip.yml up, export
+      # the DSN its UI hands you and `make demo-up` again:
+      #
+      #   OBS_ERROR_DSN=http://<key>@glitchtip-web:8000/1 make demo-up
+      #
+      # The host is the compose service name, not localhost:8001 — this is dialled
+      # from inside the container, over the `obs` network glitchtip-web joins.
+      OBS_ERROR_DSN: ${OBS_ERROR_DSN:-}
       DATABASE_URL: postgresql+asyncpg://demo:${DEMO_DB_PASSWORD:-demo}@demo-db:5432/demo
     depends_on:
       demo-db:

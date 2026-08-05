@@ -24,5 +24,10 @@ def setup_error_reporting(settings: ObservabilitySettings) -> bool:
         shutdown_timeout=10,
         environment=settings.env,
         release=f"{settings.service_name}@{settings.version}",
+        # Defaults to socket.gethostname(), which in a container is its short ID —
+        # a different value from the `host` label on this service's metrics, logs
+        # and traces, and one that changes on every recreate. Passing OBS_HOST makes
+        # the error's server_name tag the same string you filter the dashboards by.
+        server_name=settings.host,
     )
     return True

@@ -63,7 +63,7 @@ identity variables from the same `.env`, which is what keeps the two halves cons
 | `OBS_TRACE_SAMPLE_RATIO` | `1.0` | parent-based ratio sampler |
 | `OBS_METRICS_ENABLED` | `true` | |
 | `OBS_METRICS_PATH` | `/metrics` | always excluded from its own metrics |
-| `OBS_ERROR_DSN` | *unset* | GlitchTip / Sentry DSN |
+| `OBS_ERROR_DSN` | *unset* | GlitchTip / Sentry DSN. Events are tagged `environment` = `OBS_ENV`, `release` = `<app>-<service>@<version>` and `server_name` = `OBS_HOST`, so an error joins the other three signals |
 
 `setup_observability(app, *, settings=None, engine=None, excluded_paths=())` — pass `settings`
 to bypass the environment, `engine` to trace SQLAlchemy queries (an `AsyncEngine` is unwrapped

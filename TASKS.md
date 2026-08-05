@@ -450,11 +450,34 @@ lands first, because 40 hand-written panels is well past the number anyone re-ch
 
 ## M8 — GlitchTip
 
-- [ ] `compose.glitchtip.yml` — web / worker / migrate + own `postgres:16-alpine` + `valkey`
-- [ ] `.env.glitchtip.example` (separate from the server env — no shared file)
-- [ ] Traefik router `errors.<domain>`
+- [x] `compose.glitchtip.yml` — `glitchtip-web` / `-worker` / `-migrate` + own `postgres:16-alpine` + `valkey`, on a third network of their own. An overlay of the same Compose project rather than a second project, so `glitchtip-web` joins the existing `edge` network and needs no proxy or published port of its own
+- [x] `compose.glitchtip.local.yml` — `127.0.0.1:8001`, the one thing local work needs and a deploy must not have
+- [x] `.env.glitchtip.example` — read by the containers via `env_file:`, never interpolated by Compose
+- [x] Traefik router `errors.<domain>` → `glitchtip-web:8000` behind `obs-secure-headers@docker`
+- [x] `scripts/verify-errors.sh` (+ `make verify-errors`, `glitchtip-up`, `glitchtip-down`, `glitchtip-logs`) — health, migrate, DSN, `/boom` → issue, and the event's tags
+- [x] `OBS_ERROR_DSN` passthrough on `demo-api`, empty by default; `obskit[errors]` in the demo's dependencies
+- [x] `sentry_sdk.init(server_name=settings.host)` in the SDK, with a test
 
-**Verify**: create a project in the UI, set `OBS_ERROR_DSN` on the demo app, hit `/boom`, confirm the event appears via the GlitchTip API.
+**Measured, where reading the documentation first would have been wrong:**
+
+- [x] **`ENABLE_OPEN_USER_REGISTRATION` is not a GlitchTip setting.** The name is `ENABLE_USER_REGISTRATION`, it defaults to **true**, and the wrong name is accepted in silence — set it, restart, and open registration is still on. Caught only by reading the setting back out of the running container.
+- [x] **`GLITCHTIP_MAX_EVENT_LIFE_DAYS` is the legacy name**; `settings.py:163` reads it solely as the fallback default for `GLITCHTIP_RETENTION_DAYS`. Both work today; only one will keep working.
+- [x] **`ALLOWED_HOSTS` defaults to `["*"]`**, and GlitchTip logs a warning about it on every boot. Restricting it is right, but it has to include the *in-network* name as well as the public one: an app reporting to `http://<key>@glitchtip-web:8000/1` sends `Host: glitchtip-web:8000`, and Django rejects an unknown host with a 400 before any view runs. Proven both ways here — `https://errors.<domain>` returned 400 until the hostname was added, then 200.
+- [x] **`GLITCHTIP_DOMAIN` is a full URL, not a domain** — `settings.py:91` raises `ImproperlyConfigured` unless it starts with `http`. Its *scheme* is what decides whether session and CSRF cookies get the `Secure` flag (`settings.py:801`), so leaving it `http://…` on a stack served over TLS is a silently insecure cookie, not a cosmetic wrong link.
+- [x] **The CSRF failure I expected does not happen, so it is not claimed.** Django compares the browser `Origin` against `<scheme>://<host>`, and behind a TLS-terminating proxy that is usually `http` vs `https`. Measured: a real login POST through Traefik, carrying a browser `Origin` and a valid CSRF cookie, returns **400 `email_password_mismatch`** — granian forwards the scheme, so Django already sees `https`. `CSRF_TRUSTED_ORIGINS` is still set, because that is a property of the app server rather than of the configuration, but the comment says what was measured.
+- [x] **The event's `server_name` was the container ID**, not `OBS_HOST` — `sentry_sdk` defaults to `socket.gethostname()`. An error tagged `e8ca088cb289` joins nothing: it matches no `host` label on any metric, log or trace, and it changes on every recreate. One argument, and the fourth signal is filterable by the same strings as the other three.
+
+**Verified**: `verify-errors.sh` **8/8** — `/_health/` 200, `glitchtip-migrate` exited 0, the demo's DSN matches a key on the project, `GET /boom` moves the event count, and the newest event carries `transaction=/boom`, `environment=local`, `release=demo-api@0.1.0`, `server_name=demo-host`. `--bootstrap` is idempotent. Through the edge, `https://errors.<domain>/_health/` returns 200 with `referrer-policy: strict-origin-when-cross-origin`, so the router and the shared middleware both apply; Traefik's ACME attempt for that hostname appears in its log alongside the other two, failing against the staging CA exactly as they do because DNS does not point here. `verify-signals.sh` still **7/7**, `verify-dashboards.sh` still green, `make lint` clean, `make test` **41 passed**, and `compose.yml + compose.glitchtip.yml` renders with the edge network external and nothing published.
+
+**Reference defects surfaced** (measured against `../ai-asset-management/observability/`, not read off):
+
+- Its GlitchTip runs as **the cluster superuser in the default database with the password `postgres`** (`DATABASE_URL=postgres://postgres:postgres@postgres:5432/postgres`), and that same container **publishes `5431:5432` on every host interface**.
+- `web` **publishes `8001:8000`**, so the app answers regardless of what fronts it.
+- **One `.env` serves both stacks**: GlitchTip's `SECRET_KEY` and DB password sit beside `GF_ADMIN_PASSWORD`, `POSTGRES_EXPORTER_PASSWORD` and the corporate proxy settings. There is no way to hand over or rotate one without the others.
+- **`valkey/valkey` carries no tag at all** → `:latest`, whatever it happens to be at redeploy. `postgres:16` floats its minor.
+- **No healthchecks, and `depends_on` is a bare list** — `web`, `worker` and `migrate` all start when Postgres's *container* exists, not when it accepts connections, and `migrate` races `web` instead of gating it.
+- **`GLITCHTIP_DOMAIN=http://10.200.112.10:8001`** — one deployment's private IP, committed in the example, over plaintext, which by `settings.py:801` also means non-`Secure` cookies anywhere it is served over TLS.
+- **Neither retention variable is set**, so events keep the 90-day default while the LGTM stack beside it retains 30d metrics / 14d logs / 7d traces. The error outlives every signal that would explain it, by two months.
 
 ---
 

@@ -23,15 +23,27 @@ ifdef EDGE
 DEMO_FILES    += -f compose.edge.yml -f compose.demo.edge.yml
 DEMO_ENV      += ACME_CASERVER=https://acme-staging-v02.api.letsencrypt.org/directory
 endif
+# GlitchTip is five more containers and a second Postgres, so it is opt-in: its own
+# compose file, its own env file, its own targets. Nothing in `up` or `demo-up`
+# pulls it in. GT_SVCS is named explicitly on every command because these files
+# overlay the same Compose project as everything else — `down` here would otherwise
+# take Grafana with it.
+GLITCHTIP_FILES := -f compose.glitchtip.yml -f compose.glitchtip.local.yml
+GT_FILES        := $(SERVER_FILES) $(GLITCHTIP_FILES)
+GT_SVCS         := glitchtip-postgres glitchtip-valkey glitchtip-migrate glitchtip-web glitchtip-worker
+
 SDK_DIR       := sdk/obskit
 DEMO_DIRS     := demo/app demo/loadgen
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down logs demo-up demo-down demo-logs demo-verify verify-ingest verify-dashboards config-check lint test env-check
+.PHONY: help up down logs demo-up demo-down demo-logs demo-verify verify-ingest verify-dashboards verify-errors glitchtip-up glitchtip-down glitchtip-logs config-check lint test env-check glitchtip-env-check
 
 env-check:
 	@test -f .env.server || { echo "missing .env.server — cp .env.server.example .env.server"; exit 1; }
+
+glitchtip-env-check:
+	@test -f .env.glitchtip || { echo "missing .env.glitchtip — cp .env.glitchtip.example .env.glitchtip"; exit 1; }
 
 help: ## List available targets
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -67,6 +79,21 @@ verify-ingest: ## Assert the edge authenticates and routes (needs: make demo-up 
 
 verify-dashboards: ## Assert every panel on every dashboard has data (needs: make demo-up)
 	./scripts/verify-dashboards.sh
+
+glitchtip-up: env-check glitchtip-env-check ## Start GlitchTip alongside the server stack, on :8001
+	COMPOSE_IGNORE_ORPHANS=true $(COMPOSE) $(GT_FILES) up -d $(GT_SVCS)
+
+# Not `down`: these files overlay the `observability` project, so a plain down would
+# stop Prometheus, Loki, Tempo and Grafana too. Volumes are kept — glitchtip_pg_data
+# is every error ever reported.
+glitchtip-down: ## Stop and remove the GlitchTip containers, keeping their volumes
+	COMPOSE_IGNORE_ORPHANS=true $(COMPOSE) $(GT_FILES) rm -sf $(GT_SVCS)
+
+glitchtip-logs: ## Tail GlitchTip logs (SVC=glitchtip-worker to narrow)
+	COMPOSE_IGNORE_ORPHANS=true $(COMPOSE) $(GT_FILES) logs -f --tail=100 $(or $(SVC),$(GT_SVCS))
+
+verify-errors: ## Assert an unhandled exception reaches GlitchTip (needs: glitchtip-up, demo-up)
+	./scripts/verify-errors.sh
 
 # Renders the deployed shape — no ports, no bind mounts, edge network external —
 # without needing that network to exist here. This is exactly what a deploy runs.

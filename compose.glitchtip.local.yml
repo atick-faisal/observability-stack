@@ -1,0 +1,16 @@
+# Local development overlay for compose.glitchtip.yml. One port, and nothing else.
+#
+#   docker compose -f compose.yml -f compose.glitchtip.yml -f compose.glitchtip.local.yml up -d
+#
+# It is a separate file rather than a few lines in compose.local.yml because that
+# file loads on every `make up`, and an override naming a service the base does not
+# define fails the render with "no image and no build context".
+#
+# The port is needed locally for a reason the LGTM ports are not: the first thing
+# you do with GlitchTip is register a user and create a project in its UI, and
+# errors.localhost only exists when compose.edge.yml is also running.
+
+services:
+  glitchtip-web:
+    ports:
+      - "127.0.0.1:8001:8000"

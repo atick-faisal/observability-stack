@@ -5,7 +5,7 @@ An application-independent Grafana LGTM stack. One deployment on a VPS serves ev
 Onboarding a new FastAPI + Postgres app is four steps: copy `agent/`, add a few Docker labels,
 `uv add obskit`, one function call.
 
-> **Status: pre-v1, under construction.** Current milestone: **M7 — dashboards**.
+> **Status: pre-v1, under construction.** Current milestone: **M8 — error tracking**.
 > See [`TASKS.md`](./TASKS.md) for what is done and what is next.
 
 ## The two halves
@@ -24,7 +24,7 @@ APP HOST                              OBSERVABILITY VPS
 └──────────────────────┘              └────────────────────┘
 ```
 
-**Server** — Traefik fronts Grafana and GlitchTip on public subdomains, plus a single
+**Server** — Traefik fronts Grafana and GlitchTip (`compose.glitchtip.yml`) on public subdomains, plus a single
 `ingest.<domain>` host exposing three authenticated paths that proxy to Prometheus
 remote-write, Loki push, and Tempo OTLP/HTTP. Nothing else is reachable from outside.
 
@@ -87,6 +87,17 @@ make up            # start the server stack
 make demo-up       # start the local end-to-end demo (app + db + loadgen)
 make demo-verify   # assert every signal arrives, with the label contract intact
 make verify-dashboards   # assert every panel on every dashboard has data
+```
+
+Error tracking is opt-in and separate — five more containers and a second Postgres, which
+a stack that only wants metrics, logs and traces should not pay for:
+
+```bash
+cp .env.glitchtip.example .env.glitchtip   # set SECRET_KEY and POSTGRES_PASSWORD
+make glitchtip-up                          # GlitchTip on 127.0.0.1:8001, errors.<domain> via Traefik
+./scripts/verify-errors.sh --bootstrap     # mint an organisation, a project and a DSN
+OBS_ERROR_DSN=<the printed DSN> make demo-up
+make verify-errors                         # assert /boom becomes an issue, correctly tagged
 ```
 
 `make up` adds `compose.local.yml`, which publishes Grafana `:3000`, Prometheus `:9090`,

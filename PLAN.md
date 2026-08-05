@@ -319,6 +319,12 @@ Provider: file, `foldersFromFilesStructure: true`, `updateIntervalSeconds: 30`, 
 
 **Not carried over**: `host.docker.internal`, the `${APP_PROJECT_NAME}_default` external network, `http_proxy`/`no_proxy` env plumbing and the proxy-clearing healthcheck prefixes, `user: "0"` on Loki/Tempo (use pre-created volumes with correct ownership), and the shared LGTM/GlitchTip `.env` (now three separate env files).
 
+**GlitchTip's secrets are read by its containers, not interpolated by Compose.** `compose.glitchtip.yml` names `.env.glitchtip` in `env_file:` rather than referencing `${SECRET_KEY}` and `${POSTGRES_PASSWORD}`, so those values never pass through the `${}` layer and the `$$`-doubling that `INGEST_USERS` needs does not apply to them — which matters most for exactly the values most likely to contain a `$`, a generated key and a generated password. Only what is *derived* stays in `environment:`: `GLITCHTIP_DOMAIN` and `CSRF_TRUSTED_ORIGINS`, both from `GLITCHTIP_DOMAIN` in `.env.server`, so a deployment cannot set one and forget the other. Same pattern as the agent's `DATA_SOURCE_*` (§3).
+
+**GlitchTip gets a third network of its own.** `obs` carries the LGTM services *and* the app containers on the box; GlitchTip's Postgres holds exception payloads — stack traces, request context — from every app that reports there, and belongs on neither. Only `glitchtip-web` joins `obs` (so an app can POST to `glitchtip-web:8000`) and `edge` (so Traefik can route `errors.<domain>`).
+
+**Error events carry the label contract too.** `sentry_sdk.init` gets `server_name=settings.host`; its default is `socket.gethostname()`, which inside a container is the short container ID — a value that matches nothing else in the stack and changes on every recreate. With `OBS_HOST` instead, an error's `server_name`, `environment` and `release` tags are the same strings the metrics, logs and traces are filtered by, which is the only reason the fourth signal is worth having next to the other three.
+
 ---
 
 ## 8. Local development

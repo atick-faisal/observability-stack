@@ -1,0 +1,158 @@
+# Error tracking. Overlays compose.yml in the same Compose project, so glitchtip-web
+# lands on the `edge` network the LGTM services already use and the Traefik labels
+# below need no proxy of their own:
+#
+#   docker compose --env-file .env.server -f compose.yml -f compose.glitchtip.yml up -d
+#
+# Locally, add compose.glitchtip.local.yml for a 127.0.0.1 port — `make glitchtip-up`
+# does that for you. This file publishes nothing, which is the same invariant
+# compose.yml holds: errors.<domain> through Traefik is the only way in.
+#
+# GlitchTip is deliberately a separate file rather than a profile in compose.yml.
+# It is five more containers and a second Postgres; a stack that only wants metrics,
+# logs and traces should not pay for them.
+#
+# Its secrets come from .env.glitchtip via `env_file:`, which is read by the
+# *container*, not by Compose. That matters: values Compose interpolates need every
+# `$` doubled (see the INGEST_USERS note in .env.server.example), and a SECRET_KEY
+# from `openssl rand -hex 32` or a generated DB password is exactly where that trap
+# bites. Read directly, they are taken literally. agent/compose.agent.yml does the
+# same for postgres_exporter's DATA_SOURCE_* variables.
+
+networks:
+  # Private to these five. `obs` carries the LGTM services *and* the demo's app
+  # containers, and GlitchTip's database holds exception payloads — stack traces,
+  # request headers, local variables — from every app that reports here. Only the
+  # web container leaves this network, because only it has to.
+  glitchtip:
+    driver: bridge
+
+volumes:
+  glitchtip_pg_data: {}
+  # Shared by web and worker: the web process writes an uploaded sourcemap or
+  # release artifact, the worker reads it.
+  glitchtip_uploads: {}
+
+x-glitchtip-app: &glitchtip-app
+  image: glitchtip/glitchtip:6
+  env_file:
+    - path: .env.glitchtip
+      required: true
+  environment:
+    # Not in the env file: derived from OBS_DOMAIN rather than chosen, and not a
+    # secret. Despite the name it is a full URL — settings.py raises
+    # ImproperlyConfigured unless it starts with http or https. It is what GlitchTip
+    # builds outbound links and generated DSNs from, and its scheme is what decides
+    # whether session and CSRF cookies get the Secure flag.
+    GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN:-http://localhost:8001}
+    # Django compares the browser's Origin header against `<request scheme>://<host>`
+    # on every unsafe request, and falls back to this list when they differ. Measured
+    # here: a login POST through Traefik's TLS, with a browser Origin, is accepted
+    # with this list empty — granian passes the forwarded scheme through, so Django
+    # already sees https and the origins match without help. It is set anyway
+    # because that is a property of the app server, not of GlitchTip's
+    # configuration, and GlitchTip derives nothing here (settings.py:749 reads the
+    # variable straight from the environment, defaulting to empty). Same value as
+    # above, one variable, so the two cannot drift.
+    CSRF_TRUSTED_ORIGINS: ${GLITCHTIP_DOMAIN:-http://localhost:8001}
+  volumes:
+    - glitchtip_uploads:/code/uploads
+  networks:
+    - glitchtip
+
+services:
+  glitchtip-postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    # POSTGRES_DB / _USER / _PASSWORD come from the same file GlitchTip reads its
+    # DATABASE_URL from, so the two cannot drift apart in two places.
+    env_file:
+      - path: .env.glitchtip
+        required: true
+    volumes:
+      - glitchtip_pg_data:/var/lib/postgresql/data
+    networks:
+      - glitchtip
+    labels:
+      obs.logs: "false"
+    healthcheck:
+      # $$ so Compose passes the literal $ through to the container's shell.
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  glitchtip-valkey:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    networks:
+      - glitchtip
+    labels:
+      obs.logs: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # One-shot. Everything else waits for it to exit 0, so the web process never
+  # boots against a schema that is not there yet.
+  glitchtip-migrate:
+    <<: *glitchtip-app
+    restart: "no"
+    command: ./bin/run-migrate.sh
+    depends_on:
+      glitchtip-postgres:
+        condition: service_healthy
+      glitchtip-valkey:
+        condition: service_healthy
+    labels:
+      obs.logs: "false"
+
+  glitchtip-web:
+    <<: *glitchtip-app
+    restart: unless-stopped
+    depends_on:
+      glitchtip-migrate:
+        condition: service_completed_successfully
+    networks:
+      # The only container of the five on more than one network. `obs` is how
+      # demo-api (and any app sharing the box) POSTs events to glitchtip-web:8000;
+      # `edge` is how Traefik dials it.
+      - glitchtip
+      - obs
+      - edge
+    labels:
+      obs.logs: "false"
+      traefik.enable: "true"
+      # Without this Traefik picks one of the three arbitrarily and the route 504s
+      # intermittently — same reason compose.yml sets it on every service.
+      traefik.docker.network: ${OBS_EDGE_NETWORK:-observability_edge}
+      traefik.http.routers.obs-glitchtip.rule: "Host(`errors.${OBS_DOMAIN:-localhost}`)"
+      traefik.http.routers.obs-glitchtip.entrypoints: "websecure"
+      traefik.http.routers.obs-glitchtip.tls.certresolver: "letsencrypt"
+      # Defined on the grafana container in compose.yml. Traefik reads a middleware
+      # definition off whichever container carries it, so one copy serves both.
+      traefik.http.routers.obs-glitchtip.middlewares: "obs-secure-headers@docker"
+      traefik.http.services.obs-glitchtip.loadbalancer.server.port: "8000"
+    healthcheck:
+      # The image ships no curl or wget, but it is a Python image by construction.
+      test:
+        - CMD-SHELL
+        - python -c "import urllib.request as u; u.urlopen('http://localhost:8000/_health/')"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  glitchtip-worker:
+    <<: *glitchtip-app
+    restart: unless-stopped
+    command: ./bin/run-celery-with-beat.sh
+    depends_on:
+      glitchtip-migrate:
+        condition: service_completed_successfully
+    labels:
+      obs.logs: "false"
