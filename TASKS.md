@@ -431,10 +431,20 @@ lands first, because 40 hand-written panels is well past the number anyone re-ch
 
 ### 7b — the remaining two
 
-- [ ] `Databases/postgresql.json` — `pg_up`, connections vs max, commit/rollback, cache hit ratio, deadlocks, longest transaction, replication lag, DB size, `pg_stat_checkpointer_*`, autovacuum
-- [ ] `Infrastructure/host-and-containers.json` — node CPU/mem/disk/fs/net/load; per-container CPU/RSS/net/restarts
+- [x] `Databases/postgresql.json` — 17 panels in five rows: `pg_up`, connections vs `max_connections`, DB size, uptime; transactions, rows, cache hit ratio, longest transaction; connections by state, deadlocks, replication lag, WAL; checkpoints, checkpoint I/O, dead tuples, autovacuum; the database's own logs. Variables are `$app`/`$env`/`$datname` — the placeholder's `$service` is gone, because one exporter covers every database and filtering on the single value `db` selects nothing useful
+- [x] `Infrastructure/host-and-containers.json` — 17 panels in three rows: CPU/memory/load/uptime/container-count stats; CPU by mode, memory, load against core count, filesystem, disk, network; per-container CPU, memory, network in/out, restarts, OOM kills. Variables are `$app`/`$env`/`$host`/`$container`
 
-**Verify**: `make verify-dashboards` — every panel `expr` returns a non-empty result for `$app=demo`.
+**Measured, where reading the documentation first would have been wrong:**
+
+- [x] **`pg_stat_database_*` counters carry no `_total` suffix** — `pg_stat_database_xact_commit`, `…_blks_hit`, `…_deadlocks` — while `pg_stat_checkpointer_*` and `pg_stat_bgwriter_*` in the *same exporter* do have it. Ten panels' worth of plausible names would have returned nothing.
+- [x] **`pg_settings_max_connections` carries a `server="demo-db:5432"` label** that `pg_stat_database_numbackends` does not, so connections-vs-max is `scalar()`, not a label join. The numerator is deliberately unfiltered by `$datname`: the limit is server-wide, so a per-database numerator would be a meaningless percentage.
+- [x] **`pg_stat_activity_count` and `pg_stat_activity_max_tx_duration` emit a synthetic `state="disabled"` row** alongside the real states. Unfiltered, `max()` reports a duration belonging to no session, and the by-state panel charts a state no connection is ever in.
+- [x] **`container_spec_memory_limit_bytes` is 0 for every container** — nothing here sets a memory limit, so "memory as a percentage of limit" evaluates to `+Inf`. The panel was dropped rather than shipped as one the harness cannot assert; `container_oom_events_total` answers the same question without inventing a denominator.
+- [x] **`container_cpu_cfs_throttled_seconds_total` and `container_fs_usage_bytes` return nothing** for named containers under this cAdvisor build. Also dropped.
+- [x] **Node disk and network series are mostly stubs**: 16 of 18 block devices are `nbd1`–`nbd15`, and 9 of 10 interfaces are `erspan0`/`gre0`/`gretap0`/`ip6tnl0`/`sit0`/`tunl0` — which the conventional `device!~"lo|veth.*|docker.*"` deny-list lets straight through. Disk uses `topk(5, …)`; network uses an allow-list. Both stay correct on a VPS, where an allow-list of mountpoints or device names would not.
+- [x] **`includeAll` on `$container` expands to `.*`, which matches cAdvisor's machine-level series** (`name=""`). Every container panel carries `name!=""` as well; without it the "Containers" count and every stacked panel gain a phantom member.
+
+**Verified**: `make verify-dashboards` — **51 Prometheus/Loki targets green across all three dashboards** on the first run, 1 tempo panel reported as not evaluable, file shape green, all three provisioned under the folder their directory name implies. Grafana loads both new dashboards at version 2 (22 and 20 panels including row headers) with no provisioning errors. `verify-signals.sh` still **7/7**, `make lint` clean, `make test` 39 passed. The packaged path is now proven too: `docker compose -f compose.yml build grafana` bakes all three under `/etc/grafana/dashboards/<Folder>/`, byte-identical to the repo.
 
 ---
 

@@ -18,14 +18,660 @@
   "links": [],
   "panels": [
     {
-      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "panels": [],
+      "title": "Overview",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Whether postgres_exporter could reach the server on its last scrape. Down here means the exporter is up and the database is not — if the exporter itself dies, this panel goes to \"No data\" rather than to zero.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [
+            {
+              "options": {
+                "0": { "color": "red", "index": 1, "text": "DOWN" },
+                "1": { "color": "green", "index": 0, "text": "UP" }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "text", "value": null }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
       "id": 1,
       "options": {
-        "content": "### Placeholder\n\nPanels land at **M7**, once `postgres_exporter` ships from the agent (M4).\n\nPlanned: `pg_up`, connections vs `max_connections`, commit/rollback rate, cache-hit ratio, deadlocks, longest transaction, replication lag, DB size, `pg_stat_checkpointer_*` (PG17+ names), autovacuum.",
-        "mode": "markdown"
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
       },
-      "title": "PostgreSQL",
-      "type": "text"
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "pg_up{app=\"$app\",env=\"$env\"}",
+          "legendFormat": "pg_up",
+          "refId": "A"
+        }
+      ],
+      "title": "Server",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Backends in use as a percentage of `max_connections`.\n\nDeliberately not filtered by `$datname`: `max_connections` is a server-wide limit, so the numerator has to be server-wide too or the percentage is nonsense.\n\n`scalar()` rather than a label join, because `pg_settings_max_connections` carries a `server` label that `pg_stat_database_numbackends` does not — matching on labels returns nothing.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 1,
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 70 },
+              { "color": "red", "value": 90 }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "100 * sum(pg_stat_database_numbackends{app=\"$app\",env=\"$env\"}) / scalar(pg_settings_max_connections{app=\"$app\",env=\"$env\"})",
+          "legendFormat": "of max",
+          "refId": "A"
+        }
+      ],
+      "title": "Connections",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "On-disk size of each selected database, including indexes and TOAST.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "text", "value": null }] },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "id": 3,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "pg_database_size_bytes{app=\"$app\",env=\"$env\",datname=~\"$datname\"}",
+          "legendFormat": "{{datname}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Database size",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Time since the postmaster started. A sudden drop is a restart, which also resets every counter on this dashboard — worth knowing before reading anything else here.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "text", "value": null }] },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "id": 4,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "time() - pg_postmaster_start_time_seconds{app=\"$app\",env=\"$env\"}",
+          "legendFormat": "uptime",
+          "refId": "A"
+        }
+      ],
+      "title": "Uptime",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "id": 101,
+      "panels": [],
+      "title": "Throughput",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Committed and rolled-back transactions per second. A rollback rate that tracks the commit rate is usually an application retrying, not a database problem.\n\nNote the metric names: `pg_stat_database_xact_commit` has no `_total` suffix, unlike `pg_stat_checkpointer_*` further down — the same exporter spells the two families differently.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "showPoints": "never" },
+          "min": 0,
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "id": 5,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(pg_stat_database_xact_commit{app=\"$app\",env=\"$env\",datname=~\"$datname\"}[$__rate_interval]))",
+          "legendFormat": "commit",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(pg_stat_database_xact_rollback{app=\"$app\",env=\"$env\",datname=~\"$datname\"}[$__rate_interval]))",
+          "legendFormat": "rollback",
+          "refId": "B"
+        }
+      ],
+      "title": "Transactions",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Tuples per second. `returned` counts rows scanned, `fetched` counts rows actually handed back — a large gap between them means sequential scans doing work the query throws away.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 0, "showPoints": "never" },
+          "min": 0,
+          "unit": "rowsps"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "id": 6,
+      "options": {
+        "legend": { "calcs": ["mean"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(pg_stat_database_tup_returned{app=\"$app\",env=\"$env\",datname=~\"$datname\"}[$__rate_interval]))",
+          "legendFormat": "returned",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(pg_stat_database_tup_fetched{app=\"$app\",env=\"$env\",datname=~\"$datname\"}[$__rate_interval]))",
+          "legendFormat": "fetched",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(pg_stat_database_tup_inserted{app=\"$app\",env=\"$env\",datname=~\"$datname\"}[$__rate_interval]))",
+          "legendFormat": "inserted",
+          "refId": "C"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(pg_stat_database_tup_updated{app=\"$app\",env=\"$env\",datname=~\"$datname\"}[$__rate_interval]))",
+          "legendFormat": "updated",
+          "refId": "D"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(pg_stat_database_tup_deleted{app=\"$app\",env=\"$env\",datname=~\"$datname\"}[$__rate_interval]))",
+          "legendFormat": "deleted",
+          "refId": "E"
+        }
+      ],
+      "title": "Rows",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Share of block reads served from shared buffers, **over the rate window**.\n\nThe common form of this panel divides the raw counters, which gives the ratio since the server started: it drifts towards 100% and stays there, a cold cache an hour ago is invisible, and a restart silently resets it. Taking the rate of both sides first is what makes the number mean \"right now\".",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "fillOpacity": 10, "showPoints": "never", "thresholdsStyle": { "mode": "dashed" } },
+          "decimals": 2,
+          "max": 100,
+          "min": 90,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 99 }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "id": 7,
+      "options": {
+        "legend": { "calcs": ["min", "mean"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "100 * sum(rate(pg_stat_database_blks_hit{app=\"$app\",env=\"$env\",datname=~\"$datname\"}[$__rate_interval])) / sum(rate(pg_stat_database_blks_hit{app=\"$app\",env=\"$env\",datname=~\"$datname\"}[$__rate_interval]) + rate(pg_stat_database_blks_read{app=\"$app\",env=\"$env\",datname=~\"$datname\"}[$__rate_interval]))",
+          "legendFormat": "cache hit",
+          "refId": "A"
+        }
+      ],
+      "title": "Cache hit ratio",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Age of the oldest transaction still open. This is what holds back autovacuum: a connection left `idle in transaction` blocks cleanup of every table, not just the one it touched.\n\n`state!=\"disabled\"` is required — the exporter emits a synthetic `state=\"disabled\"` row alongside the real states, and `max()` over it would chart a value that corresponds to no session.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "fillOpacity": 10, "showPoints": "never" },
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 60 },
+              { "color": "red", "value": 300 }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "id": 8,
+      "options": {
+        "legend": { "calcs": ["max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "max(pg_stat_activity_max_tx_duration{app=\"$app\",env=\"$env\",datname=~\"$datname\",state!=\"disabled\"})",
+          "legendFormat": "oldest transaction",
+          "refId": "A"
+        }
+      ],
+      "title": "Longest transaction",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 },
+      "id": 102,
+      "panels": [],
+      "title": "Health",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Sessions by state. `idle in transaction` climbing is the one to act on — those hold locks and pin the xmin horizon while doing nothing.\n\nSame `state!=\"disabled\"` filter as above: charting the exporter's synthetic row as if it were a connection state is a mistake that survives review because the series is genuinely there.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "showPoints": "never", "stacking": { "mode": "normal" } },
+          "min": 0,
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 23 },
+      "id": 9,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (state) (pg_stat_activity_count{app=\"$app\",env=\"$env\",datname=~\"$datname\",state!=\"disabled\"})",
+          "legendFormat": "{{state}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Connections by state",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Deadlocks per second. Any non-zero value is a bug in lock ordering somewhere in the application — Postgres resolves it by killing a transaction, so the client saw an error.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "fillOpacity": 20, "showPoints": "never" },
+          "decimals": 4,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 0.0001 }
+            ]
+          },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 23 },
+      "id": 10,
+      "options": {
+        "legend": { "calcs": ["max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(pg_stat_database_deadlocks{app=\"$app\",env=\"$env\",datname=~\"$datname\"}[$__rate_interval]))",
+          "legendFormat": "deadlocks",
+          "refId": "A"
+        }
+      ],
+      "title": "Deadlocks",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Seconds a replica is behind the primary. On a standalone server this is flat zero — that is the correct reading, not a broken panel, and it is why the series is charted rather than hidden behind a replica check.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "fillOpacity": 10, "showPoints": "never" },
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 10 },
+              { "color": "red", "value": 60 }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 31 },
+      "id": 11,
+      "options": {
+        "legend": { "calcs": ["max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "pg_replication_lag_seconds{app=\"$app\",env=\"$env\"}",
+          "legendFormat": "lag",
+          "refId": "A"
+        }
+      ],
+      "title": "Replication lag",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "WAL held on disk. Growth that does not level off means something is stopping recycling: an inactive replication slot, a failing `archive_command`, or `wal_keep_size` set higher than the volume can afford.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "showPoints": "never" },
+          "min": 0,
+          "unit": "bytes"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "segments" },
+            "properties": [
+              { "id": "unit", "value": "short" },
+              { "id": "custom.axisPlacement", "value": "right" }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 },
+      "id": 12,
+      "options": {
+        "legend": { "calcs": ["last"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "pg_wal_size_bytes{app=\"$app\",env=\"$env\"}",
+          "legendFormat": "size",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "pg_wal_segments{app=\"$app\",env=\"$env\"}",
+          "legendFormat": "segments",
+          "refId": "B"
+        }
+      ],
+      "title": "WAL",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 39 },
+      "id": 103,
+      "panels": [],
+      "title": "Maintenance",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Checkpoints per second, split by what triggered them. Timed checkpoints are `checkpoint_timeout` doing its job; requested ones mean WAL hit `max_wal_size` first, and a sustained requested rate is the signal to raise it.\n\nThese come from `pg_stat_checkpointer_*`, which replaced `pg_stat_bgwriter_checkpoints_*` in PostgreSQL 17 and needs `--collector.stat_checkpointer` on the exporter.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "showPoints": "never" },
+          "decimals": 4,
+          "min": 0,
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+      "id": 13,
+      "options": {
+        "legend": { "calcs": ["mean"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(pg_stat_checkpointer_num_timed_total{app=\"$app\",env=\"$env\"}[$__rate_interval])",
+          "legendFormat": "timed",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(pg_stat_checkpointer_num_requested_total{app=\"$app\",env=\"$env\"}[$__rate_interval])",
+          "legendFormat": "requested",
+          "refId": "B"
+        }
+      ],
+      "title": "Checkpoints",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Fraction of wall-clock time the checkpointer spends writing and syncing.\n\nThe counters are cumulative milliseconds, so `rate()` gives ms per second; dividing by 1000 turns that into a unitless ratio, which is the form that can actually be compared against `checkpoint_completion_target`.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "showPoints": "never", "stacking": { "mode": "normal" } },
+          "decimals": 4,
+          "min": 0,
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+      "id": 14,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(pg_stat_checkpointer_write_time_total{app=\"$app\",env=\"$env\"}[$__rate_interval]) / 1000",
+          "legendFormat": "write",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(pg_stat_checkpointer_sync_time_total{app=\"$app\",env=\"$env\"}[$__rate_interval]) / 1000",
+          "legendFormat": "sync",
+          "refId": "B"
+        }
+      ],
+      "title": "Checkpoint I/O",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Dead tuples awaiting vacuum, per table. A table whose dead count climbs and never falls is one autovacuum is not keeping up with — usually because a long-running transaction is holding the xmin horizon back, which the \"Longest transaction\" panel shows.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "showPoints": "never" },
+          "min": 0,
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 48 },
+      "id": 15,
+      "options": {
+        "legend": { "calcs": ["last", "max"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (relname) (pg_stat_user_tables_n_dead_tup{app=\"$app\",env=\"$env\",datname=~\"$datname\"})",
+          "legendFormat": "{{relname}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Dead tuples by table",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Autovacuum and autoanalyze runs per table over the selected range — `$__range`, not a fixed window, so zooming out counts more of them rather than rescaling the same number.\n\nRead alongside the dead-tuple panel: dead tuples rising while this stays at zero is the case that needs attention.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 0,
+          "min": 0,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "text", "value": null }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 48 },
+      "id": 16,
+      "options": {
+        "displayMode": "gradient",
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "valueMode": "text"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (relname) (increase(pg_stat_user_tables_autovacuum_count{app=\"$app\",env=\"$env\",datname=~\"$datname\"}[$__range]))",
+          "instant": true,
+          "legendFormat": "{{relname}} vacuum",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (relname) (increase(pg_stat_user_tables_autoanalyze_count{app=\"$app\",env=\"$env\",datname=~\"$datname\"}[$__range]))",
+          "instant": true,
+          "legendFormat": "{{relname}} analyze",
+          "refId": "B"
+        }
+      ],
+      "title": "Autovacuum runs",
+      "type": "bargauge"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 56 },
+      "id": 104,
+      "panels": [],
+      "title": "Logs",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "The database container's own logs, selected by the `service` label the agent applies from `obs.service` — the same contract the metrics above use.\n\nNo `| json` here, unlike the FastAPI dashboard: Postgres writes plain text, and a parser stage that fails to match drops every line rather than passing it through.\n\nThis is where a deadlock or a checkpoint warning is actually explained; the panels above only tell you it happened.",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 57 },
+      "id": 17,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "{app=\"$app\",env=\"$env\",service=\"db\"}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Database logs",
+      "type": "logs"
     }
   ],
   "preload": false,
@@ -75,15 +721,16 @@
       {
         "current": {},
         "datasource": { "type": "prometheus", "uid": "prometheus" },
-        "definition": "label_values(pg_up{app=\"$app\",env=\"$env\"},service)",
+        "definition": "label_values(pg_stat_database_numbackends{app=\"$app\",env=\"$env\"},datname)",
+        "description": "The third variable is the database, not the service: one exporter covers every database on the server, so filtering by `service` would only ever match the single value the other dashboards call `db`.",
         "includeAll": true,
-        "label": "Service",
+        "label": "Database",
         "multi": true,
-        "name": "service",
+        "name": "datname",
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(pg_up{app=\"$app\",env=\"$env\"},service)",
+          "query": "label_values(pg_stat_database_numbackends{app=\"$app\",env=\"$env\"},datname)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,

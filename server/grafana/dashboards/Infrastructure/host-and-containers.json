@@ -18,20 +18,640 @@
   "links": [],
   "panels": [
     {
-      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "panels": [],
+      "title": "Overview",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Everything the CPU is doing that is not idling, across all cores.\n\nDerived from idle rather than summed from the busy modes, because that stays correct when a kernel adds a mode this expression has never heard of.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 1,
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 70 },
+              { "color": "red", "value": 90 }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 5, "x": 0, "y": 1 },
       "id": 1,
       "options": {
-        "content": "### Placeholder\n\nPanels land at **M7**, once `prometheus.exporter.unix` and cAdvisor ship from the agent (M4).\n\nPlanned: node CPU / memory / disk / filesystem / network / load, and per-container CPU, RSS, network, and restarts filtered by `$app`.\n\nOn macOS these report the Docker Desktop VM, not the host — verified for shape, not values (PLAN §8).",
-        "mode": "markdown"
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
       },
-      "title": "Host and containers",
-      "type": "text"
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "100 * (1 - sum(rate(node_cpu_seconds_total{app=\"$app\",env=\"$env\",host=\"$host\",mode=\"idle\"}[$__rate_interval])) / sum(rate(node_cpu_seconds_total{app=\"$app\",env=\"$env\",host=\"$host\"}[$__rate_interval])))",
+          "legendFormat": "busy",
+          "refId": "A"
+        }
+      ],
+      "title": "CPU",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Memory unavailable to a new process, as a percentage of total.\n\nAgainst `MemAvailable`, not `MemFree`: page cache is reclaimable, so a healthy host reads as 100% used by the naive measure.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 1,
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 80 },
+              { "color": "red", "value": 92 }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 5, "x": 5, "y": 1 },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "100 * (1 - node_memory_MemAvailable_bytes{app=\"$app\",env=\"$env\",host=\"$host\"} / node_memory_MemTotal_bytes{app=\"$app\",env=\"$env\",host=\"$host\"})",
+          "legendFormat": "used",
+          "refId": "A"
+        }
+      ],
+      "title": "Memory",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "One-minute load average. Only meaningful against the core count, which the \"Load average\" panel below charts alongside it.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 2,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "text", "value": null }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 5, "x": 10, "y": 1 },
+      "id": 3,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "node_load1{app=\"$app\",env=\"$env\",host=\"$host\"}",
+          "legendFormat": "load1",
+          "refId": "A"
+        }
+      ],
+      "title": "Load",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Time since boot. A reset here explains a discontinuity in every counter on this dashboard.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "text", "value": null }] },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 5, "x": 15, "y": 1 },
+      "id": 4,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "time() - node_boot_time_seconds{app=\"$app\",env=\"$env\",host=\"$host\"}",
+          "legendFormat": "uptime",
+          "refId": "A"
+        }
+      ],
+      "title": "Uptime",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Containers cAdvisor has seen recently. `name!=\"\"` drops the machine-level series cAdvisor also exports, which would otherwise add a phantom container to the count.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 0,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "text", "value": null }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+      "id": 5,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "count(container_last_seen{app=\"$app\",env=\"$env\",host=\"$host\",name!=\"\"})",
+          "legendFormat": "containers",
+          "refId": "A"
+        }
+      ],
+      "title": "Containers",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "id": 101,
+      "panels": [],
+      "title": "Host",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "CPU seconds per second by mode — the height of the stack is cores in use. `iowait` climbing while `user` stays flat points at the disk, not the application.\n\n`idle` is excluded so the stack shows work rather than the constant total.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 20, "showPoints": "never", "stacking": { "mode": "normal" } },
+          "min": 0,
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "id": 6,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (mode) (rate(node_cpu_seconds_total{app=\"$app\",env=\"$env\",host=\"$host\",mode!=\"idle\"}[$__rate_interval]))",
+          "legendFormat": "{{mode}}",
+          "refId": "A"
+        }
+      ],
+      "title": "CPU by mode",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Used, cached and available memory. `used` is total minus available, so it excludes reclaimable page cache — `cached` is charted separately rather than folded in, because the two behave very differently under pressure.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "showPoints": "never" },
+          "min": 0,
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "id": 7,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "node_memory_MemTotal_bytes{app=\"$app\",env=\"$env\",host=\"$host\"} - node_memory_MemAvailable_bytes{app=\"$app\",env=\"$env\",host=\"$host\"}",
+          "legendFormat": "used",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "node_memory_Cached_bytes{app=\"$app\",env=\"$env\",host=\"$host\"}",
+          "legendFormat": "cached",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "node_memory_MemAvailable_bytes{app=\"$app\",env=\"$env\",host=\"$host\"}",
+          "legendFormat": "available",
+          "refId": "C"
+        }
+      ],
+      "title": "Memory",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Load averages with the core count charted alongside. Load above the core line means processes are queued, waiting for a core; below it there is headroom whatever the absolute number looks like.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 0, "showPoints": "never" },
+          "min": 0,
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "cores" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } },
+              { "id": "custom.lineStyle", "value": { "dash": [10, 10], "fill": "dash" } }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "id": 8,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "node_load1{app=\"$app\",env=\"$env\",host=\"$host\"}",
+          "legendFormat": "1m",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "node_load5{app=\"$app\",env=\"$env\",host=\"$host\"}",
+          "legendFormat": "5m",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "node_load15{app=\"$app\",env=\"$env\",host=\"$host\"}",
+          "legendFormat": "15m",
+          "refId": "C"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "count(count by (cpu) (node_cpu_seconds_total{app=\"$app\",env=\"$env\",host=\"$host\"}))",
+          "legendFormat": "cores",
+          "refId": "D"
+        }
+      ],
+      "title": "Load average",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "The five fullest filesystems. `topk` rather than an allow-list of mountpoints: a VPS has two or three, a Docker Desktop host has twenty-two, and only the fullest ones are ever the reason anyone opens this panel.\n\nVirtual filesystems are excluded by `fstype` — `tmpfs` is memory, and `overlay` double-counts the backing device.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 1,
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 75 },
+              { "color": "red", "value": 90 }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "id": 9,
+      "options": {
+        "displayMode": "gradient",
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "valueMode": "text"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "topk(5, 100 * (1 - node_filesystem_avail_bytes{app=\"$app\",env=\"$env\",host=\"$host\",fstype!~\"tmpfs|erofs|overlay|ramfs|squashfs\"} / node_filesystem_size_bytes{app=\"$app\",env=\"$env\",host=\"$host\",fstype!~\"tmpfs|erofs|overlay|ramfs|squashfs\"}))",
+          "instant": true,
+          "legendFormat": "{{mountpoint}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Filesystem used",
+      "type": "bargauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "The five busiest block devices in each direction. `topk` again, and for the same reason: this host exports eighteen devices, sixteen of which are `nbd*` stubs that are permanently at zero.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "showPoints": "never" },
+          "min": 0,
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
+      "id": 10,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "topk(5, sum by (device) (rate(node_disk_read_bytes_total{app=\"$app\",env=\"$env\",host=\"$host\"}[$__rate_interval])))",
+          "legendFormat": "{{device}} read",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "topk(5, sum by (device) (rate(node_disk_written_bytes_total{app=\"$app\",env=\"$env\",host=\"$host\"}[$__rate_interval])))",
+          "legendFormat": "{{device}} write",
+          "refId": "B"
+        }
+      ],
+      "title": "Disk throughput",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Physical interfaces only.\n\nAn allow-list, not the usual `device!~\"lo|veth.*|docker.*\"` deny-list — every Linux netns also carries `erspan0`, `gre0`, `gretap0`, `ip6tnl0`, `sit0` and `tunl0`, which that pattern lets through and which are flat zero forever. Nine of this host's ten interfaces are exactly that.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "showPoints": "never" },
+          "min": 0,
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
+      "id": 11,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (device) (rate(node_network_receive_bytes_total{app=\"$app\",env=\"$env\",host=\"$host\",device=~\"(eth|en|wl).*\"}[$__rate_interval]))",
+          "legendFormat": "{{device}} rx",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (device) (rate(node_network_transmit_bytes_total{app=\"$app\",env=\"$env\",host=\"$host\",device=~\"(eth|en|wl).*\"}[$__rate_interval]))",
+          "legendFormat": "{{device}} tx",
+          "refId": "B"
+        }
+      ],
+      "title": "Network throughput",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 },
+      "id": 102,
+      "panels": [],
+      "title": "Containers",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "CPU cores in use per container.\n\nNote what this panel does *not* filter on: cAdvisor stamps `service=\"cadvisor\"` on every series it produces, whatever container is being observed, so the `$service` variable the Applications dashboard uses is meaningless here. Container identity lives in `name` — hence `$container`.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "showPoints": "never", "stacking": { "mode": "normal" } },
+          "min": 0,
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 31 },
+      "id": 12,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (name) (rate(container_cpu_usage_seconds_total{app=\"$app\",env=\"$env\",host=\"$host\",name=~\"$container\",name!=\"\"}[$__rate_interval]))",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Container CPU",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Working-set memory — the pages the kernel could not reclaim without swapping, which is what the OOM killer actually looks at. `container_memory_usage_bytes` includes reclaimable cache and reads far higher.\n\nThere is deliberately no \"percentage of limit\" panel here: `container_spec_memory_limit_bytes` is zero for every container that has no explicit limit, so the ratio would be `+Inf` on a stack like this one. The OOM panel below covers the same question without inventing a denominator.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "showPoints": "never", "stacking": { "mode": "normal" } },
+          "min": 0,
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 },
+      "id": 13,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (name) (container_memory_working_set_bytes{app=\"$app\",env=\"$env\",host=\"$host\",name=~\"$container\",name!=\"\"})",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Container memory",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Bytes received per container, summed over its interfaces.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "showPoints": "never" },
+          "min": 0,
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 39 },
+      "id": 14,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (name) (rate(container_network_receive_bytes_total{app=\"$app\",env=\"$env\",host=\"$host\",name=~\"$container\",name!=\"\"}[$__rate_interval]))",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Container network in",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Bytes sent per container. The agent is expected to be near the top here — everything this stack collects leaves the host through it.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "showPoints": "never" },
+          "min": 0,
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 39 },
+      "id": 15,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (name) (rate(container_network_transmit_bytes_total{app=\"$app\",env=\"$env\",host=\"$host\",name=~\"$container\",name!=\"\"}[$__rate_interval]))",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Container network out",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Restarts over the selected range.\n\ncAdvisor exports no restart counter, so this counts changes to the container's start time instead — a restart is by definition a new start timestamp. `$__range` rather than a fixed window, so zooming out counts more restarts rather than rescaling the same ones.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 0,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 1 },
+              { "color": "red", "value": 3 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 47 },
+      "id": 16,
+      "options": {
+        "displayMode": "gradient",
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "valueMode": "text"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (name) (changes(container_start_time_seconds{app=\"$app\",env=\"$env\",host=\"$host\",name=~\"$container\",name!=\"\"}[$__range]))",
+          "instant": true,
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Container restarts",
+      "type": "bargauge"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "OOM kills over the selected range. Read with the restart panel: a container restarting with an OOM event was killed for memory, one restarting without was not.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 0,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 47 },
+      "id": 17,
+      "options": {
+        "displayMode": "gradient",
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "valueMode": "text"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (name) (increase(container_oom_events_total{app=\"$app\",env=\"$env\",host=\"$host\",name=~\"$container\",name!=\"\"}[$__range]))",
+          "instant": true,
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Container OOM kills",
+      "type": "bargauge"
     }
   ],
   "preload": false,
   "refresh": "30s",
   "schemaVersion": 41,
-  "tags": ["infrastructure", "host", "containers"],
+  "tags": ["infrastructure", "node", "containers"],
   "templating": {
     "list": [
       {
@@ -76,14 +696,35 @@
         "current": {},
         "datasource": { "type": "prometheus", "uid": "prometheus" },
         "definition": "label_values(node_uname_info{app=\"$app\",env=\"$env\"},host)",
-        "includeAll": true,
+        "description": "Single-valued, not multi: the host panels compare against per-host totals like core count and memory size, which do not add up across hosts.",
+        "includeAll": false,
         "label": "Host",
-        "multi": true,
+        "multi": false,
         "name": "host",
         "options": [],
         "query": {
           "qryType": 1,
           "query": "label_values(node_uname_info{app=\"$app\",env=\"$env\"},host)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "definition": "label_values(container_memory_working_set_bytes{app=\"$app\",env=\"$env\"},name)",
+        "description": "The fourth variable is the container name, not the service: cAdvisor labels every series it emits `service=\"cadvisor\"` regardless of what it is observing, so the shared `$service` chain stops here.",
+        "includeAll": true,
+        "label": "Container",
+        "multi": true,
+        "name": "container",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(container_memory_working_set_bytes{app=\"$app\",env=\"$env\"},name)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
