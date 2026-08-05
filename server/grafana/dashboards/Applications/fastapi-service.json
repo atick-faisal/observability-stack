@@ -18,14 +18,488 @@
   "links": [],
   "panels": [
     {
-      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "panels": [],
+      "title": "Overview",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Requests served per second, summed across every selected service.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "text", "value": null }] },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
       "id": 1,
       "options": {
-        "content": "### Placeholder\n\nPanels land at **M7**. The variables above are already the shared `$app` / `$env` / `$service` chain from PLAN §6 and resolve once `fastapi_app_info` exists (M3).\n\nPlanned: RED metrics, p50/p95/p99 with exemplars, in-progress gauge, top routes by rate and p99, exception types, status-code breakdown, embedded Loki panel, service graph.",
-        "mode": "markdown"
+        "colorMode": "none",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
       },
-      "title": "FastAPI service",
-      "type": "text"
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(fastapi_requests_total{app=\"$app\",env=\"$env\",service=~\"$service\"}[$__rate_interval]))",
+          "legendFormat": "req/s",
+          "refId": "A"
+        }
+      ],
+      "title": "Request rate",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "5xx responses as a percentage of all responses, over the rate window rather than since process start — a burst an hour ago must not read the same as one happening now.\n\n`or vector(0)` renders a service with no 5xx as 0% instead of \"No data\". The underlying series is still proven to exist by \"Error rate by route\" below, which has no such fallback.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 2,
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "#EAB839", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "100 * (sum(rate(fastapi_requests_total{app=\"$app\",env=\"$env\",service=~\"$service\",status_code=~\"5..\"}[$__rate_interval])) or vector(0)) / sum(rate(fastapi_requests_total{app=\"$app\",env=\"$env\",service=~\"$service\"}[$__rate_interval]))",
+          "legendFormat": "5xx",
+          "refId": "A"
+        }
+      ],
+      "title": "Error rate",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Requests currently being handled. The gauge is keyed on method only — it carries no `route` label, because a route is not known until routing has happened.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "text", "value": null }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "id": 3,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(fastapi_requests_in_progress{app=\"$app\",env=\"$env\",service=~\"$service\"})",
+          "legendFormat": "in flight",
+          "refId": "A"
+        }
+      ],
+      "title": "In progress",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Unhandled exceptions per second. Distinct from the 5xx rate: an error handled by the application returns 500 without ever raising.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 3,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 0.01 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(fastapi_exceptions_total{app=\"$app\",env=\"$env\",service=~\"$service\"}[$__rate_interval])) or vector(0)",
+          "legendFormat": "exceptions/s",
+          "refId": "A"
+        }
+      ],
+      "title": "Exceptions",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "id": 101,
+      "panels": [],
+      "title": "Traffic",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "`route` is the template — `/items/{item_id}`, not `/items/42`. That is what keeps the label bounded however many item ids exist.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "fillOpacity": 10, "showPoints": "never", "stacking": { "mode": "normal" } },
+          "min": 0,
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "id": 5,
+      "options": {
+        "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (route) (rate(fastapi_requests_total{app=\"$app\",env=\"$env\",service=~\"$service\"}[$__rate_interval]))",
+          "legendFormat": "{{route}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Requests by route",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "fillOpacity": 10, "showPoints": "never", "stacking": { "mode": "normal" } },
+          "min": 0,
+          "unit": "reqps"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": "5.." },
+            "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "id": 6,
+      "options": {
+        "legend": { "calcs": ["mean"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (status_code) (rate(fastapi_requests_total{app=\"$app\",env=\"$env\",service=~\"$service\"}[$__rate_interval]))",
+          "legendFormat": "{{status_code}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Status codes",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 },
+      "id": 102,
+      "panels": [],
+      "title": "Latency",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Exemplars are on the p99 series: each dot is one real request, and clicking it opens that trace in Tempo. That link is the whole reason the SDK attaches a trace id to the histogram observation.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "fillOpacity": 0, "showPoints": "never" },
+          "min": 0,
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+      "id": 7,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(fastapi_requests_duration_seconds_bucket{app=\"$app\",env=\"$env\",service=~\"$service\"}[$__rate_interval])))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(fastapi_requests_duration_seconds_bucket{app=\"$app\",env=\"$env\",service=~\"$service\"}[$__rate_interval])))",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "exemplar": true,
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(fastapi_requests_duration_seconds_bucket{app=\"$app\",env=\"$env\",service=~\"$service\"}[$__rate_interval])))",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ],
+      "title": "Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Which route regressed, rather than whether something did. The aggregate p99 on the left moves for either reason.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "fillOpacity": 0, "showPoints": "never" },
+          "min": 0,
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+      "id": 8,
+      "options": {
+        "legend": { "calcs": ["max"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.99, sum by (le, route) (rate(fastapi_requests_duration_seconds_bucket{app=\"$app\",env=\"$env\",service=~\"$service\"}[$__rate_interval])))",
+          "legendFormat": "{{route}}",
+          "refId": "A"
+        }
+      ],
+      "title": "p99 by route",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "The five busiest routes right now, with the latency each is currently serving. Sorted and limited by transformation rather than by `topk` in the query, so both columns are joined over the same set of routes.",
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "req/s" },
+            "properties": [
+              { "id": "unit", "value": "reqps" },
+              { "id": "decimals", "value": 3 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "p99" },
+            "properties": [{ "id": "unit", "value": "s" }]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 23 },
+      "id": 9,
+      "options": { "cellHeight": "sm", "footer": { "show": false }, "showHeader": true },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (route) (rate(fastapi_requests_total{app=\"$app\",env=\"$env\",service=~\"$service\"}[$__rate_interval]))",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.99, sum by (le, route) (rate(fastapi_requests_duration_seconds_bucket{app=\"$app\",env=\"$env\",service=~\"$service\"}[$__rate_interval])))",
+          "format": "table",
+          "instant": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Top routes",
+      "transformations": [
+        { "id": "joinByField", "options": { "byField": "route", "mode": "outer" } },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time 1": true, "Time 2": true },
+            "renameByName": { "Value #A": "req/s", "Value #B": "p99" }
+          }
+        },
+        { "id": "sortBy", "options": { "sort": [{ "desc": true, "field": "req/s" }] } },
+        { "id": "limit", "options": { "limitField": 5 } }
+      ],
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 31 },
+      "id": 103,
+      "panels": [],
+      "title": "Errors",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "fillOpacity": 20, "showPoints": "never", "stacking": { "mode": "normal" } },
+          "min": 0,
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "id": 10,
+      "options": {
+        "legend": { "calcs": ["mean"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (exception_type) (rate(fastapi_exceptions_total{app=\"$app\",env=\"$env\",service=~\"$service\"}[$__rate_interval]))",
+          "legendFormat": "{{exception_type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Exception types",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Both sides are grouped by `route`, so the division matches per route and only routes that have actually served a 5xx appear at all.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "fillOpacity": 0, "showPoints": "never" },
+          "max": 100,
+          "min": 0,
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+      "id": 11,
+      "options": {
+        "legend": { "calcs": ["max"], "displayMode": "table", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "100 * sum by (route) (rate(fastapi_requests_total{app=\"$app\",env=\"$env\",service=~\"$service\",status_code=~\"5..\"}[$__rate_interval])) / sum by (route) (rate(fastapi_requests_total{app=\"$app\",env=\"$env\",service=~\"$service\"}[$__rate_interval]))",
+          "legendFormat": "{{route}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Error rate by route",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 40 },
+      "id": 104,
+      "panels": [],
+      "title": "Correlate",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "The same `app`/`env`/`service` selection as every panel above, because docs/labels.md guarantees those three are spelled identically in metrics and in logs.\n\nEvery line carrying a trace id has a \"View Trace in Tempo\" link, wired as a derived field on the Loki datasource — trace_id is structured metadata, not a stream label, which is how the stream label set stays at six.",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 41 },
+      "id": 12,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "{app=\"$app\",env=\"$env\",service=~\"$service\"} | json",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Logs",
+      "type": "logs"
+    },
+    {
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "description": "Tempo's own service map, drawn from the `traces_service_graph_*` series its metrics generator writes back into Prometheus. The node graph is rendered by the Tempo datasource, so verify-dashboards.sh cannot evaluate it — the edges it draws are asserted instead by check 7 of verify-signals.sh, and by the panel beside it.",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 51 },
+      "id": 13,
+      "targets": [
+        {
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "serviceMap",
+          "refId": "A"
+        }
+      ],
+      "title": "Service graph",
+      "type": "nodeGraph"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "The series behind the node graph, as a rate per edge. `client` and `server` are `service.name` values — `<app>-<service>` — so an edge crossing into another app is visible here.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "fillOpacity": 0, "showPoints": "never" },
+          "min": 0,
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 51 },
+      "id": 14,
+      "options": {
+        "legend": { "calcs": ["mean"], "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (client, server) (rate(traces_service_graph_request_total{app=\"$app\",env=\"$env\"}[$__rate_interval]))",
+          "legendFormat": "{{client}} → {{server}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Service graph edges",
+      "type": "timeseries"
     }
   ],
   "preload": false,

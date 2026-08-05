@@ -409,13 +409,32 @@ moves to a script and a test instead.
 
 ## M7 — Dashboards
 
-- [ ] `Applications/fastapi-service.json` — RED, p50/p95/p99 with exemplars, in-progress, top routes by rate and p99, exception types, status-code breakdown, embedded Loki panel, service graph
+All three are classic v1 JSON, `schemaVersion: 41`, fixed datasource UIDs, `editable: false`,
+and hand-written — no vendored community dashboard, for the reasons in PLAN §6. The verifier
+lands first, because 40 hand-written panels is well past the number anyone re-checks by eye.
+
+### 7a — the verifier and the FastAPI dashboard
+
+- [x] `scripts/verify-dashboards.sh` — file shape, every panel expression, and Grafana's own view of what it provisioned
+- [x] `make verify-dashboards`
+- [x] `Applications/fastapi-service.json` — 14 panels in five rows: RED stats; requests by route and status code; p50/p95/p99 with exemplars on p99; p99 by route; a top-routes table joining rate and p99; exception types; error rate by route; an embedded Loki panel on the same `app`/`env`/`service` selection; Tempo's service map beside the `traces_service_graph_*` series that feed it
+
+**Measured, where reading the documentation first would have been wrong:**
+
+- [x] **cAdvisor series carry `service="cadvisor"`, not the observed container's service.** The container's identity is in `name` and `image`. Applying the shared `$service` variable to a per-container panel returns nothing — which is why M7's variable chain is not uniform across the three dashboards, contrary to what PLAN §6 claimed.
+- [x] **Node-exporter series carry no `service` label at all** (`app`, `env`, `host`, `instance`, `job`), so the Infrastructure dashboard keys on `$host` instead.
+- [x] **cAdvisor exports no restart counter.** `container_restart_count` does not exist; restarts are `changes(container_start_time_seconds{name!=""}[$__range])`.
+- [x] **jq's `//` treats `false` as absent.** The obvious spelling of the `editable: false` assertion, `.editable // "absent"`, failed on all three dashboards — the ones that were correct. `has("editable")` instead. The check tested nothing until it tested the wrong thing loudly.
+- [x] **`format: "table"` is applied in the browser, not by the backend.** `POST /api/ds/query` returns one labelled frame per series either way, so the top-routes table's `joinByField` cannot be asserted from the API. What is asserted: both targets return `route`-labelled series, and Grafana round-trips the four transformations unmodified.
+
+**Verified**: `verify-dashboards.sh` — 16 Prometheus/Loki targets green (1 tempo panel reported as not evaluable), file shape green, and Grafana reports all three dashboards provisioned under the folder each directory name implies. `verify-signals.sh` still **7/7**. Grafana loads all 19 panels including the five row headers, with no provisioning errors in its log.
+
+### 7b — the remaining two
+
 - [ ] `Databases/postgresql.json` — `pg_up`, connections vs max, commit/rollback, cache hit ratio, deadlocks, longest transaction, replication lag, DB size, `pg_stat_checkpointer_*`, autovacuum
 - [ ] `Infrastructure/host-and-containers.json` — node CPU/mem/disk/fs/net/load; per-container CPU/RSS/net/restarts
-- [ ] All three: classic v1 JSON `schemaVersion: 41`, chained `$app`/`$env`/`$service` variables, fixed datasource UIDs, `editable: false`
-- [ ] `scripts/verify-dashboards.sh`
 
-**Verify**: `scripts/verify-dashboards.sh` — every panel `expr` returns a non-empty result for `$app=demo`.
+**Verify**: `make verify-dashboards` — every panel `expr` returns a non-empty result for `$app=demo`.
 
 ---
 

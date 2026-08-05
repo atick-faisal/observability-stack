@@ -5,7 +5,7 @@ An application-independent Grafana LGTM stack. One deployment on a VPS serves ev
 Onboarding a new FastAPI + Postgres app is four steps: copy `agent/`, add a few Docker labels,
 `uv add obskit`, one function call.
 
-> **Status: pre-v1, under construction.** Current milestone: **M6 — edge and ingest auth**.
+> **Status: pre-v1, under construction.** Current milestone: **M7 — dashboards**.
 > See [`TASKS.md`](./TASKS.md) for what is done and what is next.
 
 ## The two halves
@@ -86,6 +86,7 @@ make help          # list targets
 make up            # start the server stack
 make demo-up       # start the local end-to-end demo (app + db + loadgen)
 make demo-verify   # assert every signal arrives, with the label contract intact
+make verify-dashboards   # assert every panel on every dashboard has data
 ```
 
 `make up` adds `compose.local.yml`, which publishes Grafana `:3000`, Prometheus `:9090`,
@@ -102,3 +103,9 @@ being optional.
 Grafana comes up with all three datasources and the `Applications` / `Databases` /
 `Infrastructure` folders already provisioned. They are read-only by design — dashboards
 are files in git, not UI state.
+
+Which is why `make verify-dashboards` exists: an expression that returns nothing renders as
+an empty graph, indistinguishable from a quiet period, and a dashboard nobody can edit in the
+browser is a dashboard nobody notices has gone blank. It runs every panel's query against the
+demo and fails on any that comes back empty, so a rename in `docs/labels.md` breaks the build
+rather than a graph three months later.

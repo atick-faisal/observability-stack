@@ -28,7 +28,7 @@ DEMO_DIRS     := demo/app demo/loadgen
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down logs demo-up demo-down demo-logs demo-verify verify-ingest config-check lint test env-check
+.PHONY: help up down logs demo-up demo-down demo-logs demo-verify verify-ingest verify-dashboards config-check lint test env-check
 
 env-check:
 	@test -f .env.server || { echo "missing .env.server — cp .env.server.example .env.server"; exit 1; }
@@ -64,6 +64,9 @@ demo-verify: ## Assert every signal arrives from the demo app
 
 verify-ingest: ## Assert the edge authenticates and routes (needs: make demo-up EDGE=1)
 	./scripts/verify-ingest.sh
+
+verify-dashboards: ## Assert every panel on every dashboard has data (needs: make demo-up)
+	./scripts/verify-dashboards.sh
 
 # Renders the deployed shape — no ports, no bind mounts, edge network external —
 # without needing that network to exist here. This is exactly what a deploy runs.

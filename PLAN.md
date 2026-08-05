@@ -277,9 +277,9 @@ Install: `uv add "obskit[grpc,sqlalchemy] @ git+https://github.com/<you>/observa
 
 **Classic v1 JSON, `schemaVersion: 41`, for all three** — the reference mixed v1 with the still-moving `dashboard.grafana.app/v2` resource format; normalize to v1, which is what grafana.com exports and what file provisioning handles best.
 
-**Author all three ourselves; vendor nothing in v1.** Community dashboards (16110, 9628, node-exporter-full) bake in `$job`/`$instance` assumptions and dozens of panels that ignore `$app`. We reuse their *metric names* — that is why the SDK keeps the 16110 names — but hand-pick 10–14 panels each.
+**Author all three ourselves; vendor nothing in v1.** Community dashboards (16110, 9628, node-exporter-full) bake in `$job`/`$instance` assumptions and dozens of panels that ignore `$app`. We reuse their *metric families* — that is why the SDK keeps the 16110 names — but not their labels: `app_name` and `path` become `app` and `route`, and `fastapi_responses_total` does not exist here at all. Panels are hand-picked, 10–14 each.
 
-Chained variables, identical on every dashboard:
+Chained variables, on every dashboard that has something to chain:
 
 ```
 $app     = label_values(fastapi_app_info, app)
@@ -287,11 +287,15 @@ $env     = label_values(fastapi_app_info{app="$app"}, env)
 $service = label_values(fastapi_app_info{app="$app",env="$env"}, service)   # multi, includeAll
 ```
 
-Every expression filters `{app="$app", env="$env", service=~"$service"}`. Datasources are the fixed UIDs `prometheus`/`loki`/`tempo` — we own provisioning, so a `$datasource` variable is pure friction. `exemplar: true` on latency-histogram targets so click-through to Tempo works.
+`$app` and `$env` are universal — the agent stamps them onto everything it forwards. **`$service` is not.** It identifies the workload that emitted a series, and only the app's own instrumentation has one worth selecting on: cAdvisor labels every container metric `service=cadvisor` regardless of what it is observing, and node-exporter series carry no `service` at all. So Applications chains all three; Databases substitutes `$datname`; Infrastructure substitutes `$host` and `$container`, and identifies a container by its `name` label. Applying `$service` to those would filter every panel down to nothing.
+
+Datasources are the fixed UIDs `prometheus`/`loki`/`tempo` — we own provisioning, so a `$datasource` variable is pure friction. `exemplar: true` on latency-histogram targets so click-through to Tempo works.
+
+**Every panel's query is a test.** `scripts/verify-dashboards.sh` substitutes the demo's values for the variables and asserts each expression returns something, because an empty result renders identically to a quiet period and these dashboards cannot be repaired in the browser. It also asserts the file shape — `schemaVersion`, `editable`, unique uids, no datasource outside the three — and asks Grafana which dashboards it actually provisioned and into which folder, which is the only check that can see a file provisioning rejected.
 
 1. `Applications/fastapi-service.json` — RED (rate, error %, p50/p95/p99 from `fastapi_requests_duration_seconds_bucket` with exemplars), in-progress gauge, top routes by rate and by p99, exception types, status-code breakdown, embedded Loki panel `{app="$app",env="$env",service=~"$service"} | json`, service graph from `traces_spanmetrics_*`.
 2. `Databases/postgresql.json` — `pg_up`, connections vs `max_connections`, commit/rollback rate, cache-hit ratio, deadlocks, longest transaction, replication lag, DB size, `pg_stat_checkpointer_*` (PG17+ series names), autovacuum.
-3. `Infrastructure/host-and-containers.json` — `$host` from `label_values(node_uname_info, host)`; node CPU/mem/disk/fs/network/load; per-container CPU/RSS/net/restarts from cAdvisor filtered by `$app`.
+3. `Infrastructure/host-and-containers.json` — `$host` from `label_values(node_uname_info, host)`; node CPU/mem/disk/fs/network/load; per-container CPU/RSS/net/restarts from cAdvisor filtered by `$app` and `$container`. Restarts are `changes(container_start_time_seconds[$__range])` — cAdvisor exports no restart counter.
 
 Provider: file, `foldersFromFilesStructure: true`, `updateIntervalSeconds: 30`, `allowUiUpdates: false` (tightened from the reference — provisioned dashboards should be immutable).
 
