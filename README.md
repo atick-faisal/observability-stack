@@ -5,8 +5,9 @@ An application-independent Grafana LGTM stack. One deployment on a VPS serves ev
 Onboarding a new FastAPI + Postgres app is four steps: copy `agent/`, add a few Docker labels,
 `uv add obstack`, one function call.
 
-> **Status: pre-v1, under construction.** Current milestone: **M9 — resilience**.
-> See [`TASKS.md`](./TASKS.md) for what is done and what is next.
+> **Status: pre-v1.** Current milestone: **M10 — ship**. Everything below is built and verified
+> against a local end-to-end run; what remains is the first real VPS deploy, the first onboarded
+> app, and the `v0.1.0` tag. See [`TASKS.md`](./TASKS.md) for what is done and what is next.
 
 ## The two halves
 
@@ -52,7 +53,7 @@ services:
 docker compose -f compose.yml -f observability/compose.agent.yml up -d
 
 # 3. add the SDK
-uv add "obstack[grpc,sqlalchemy] @ git+<repo-url>@v0.1.0#subdirectory=sdk/obstack"
+uv add "obstack[grpc,sqlalchemy] @ git+https://github.com/atick-faisal/observability-stack@v0.1.0#subdirectory=sdk/obstack"
 ```
 
 ```python
@@ -147,3 +148,7 @@ an empty graph, indistinguishable from a quiet period, and a dashboard nobody ca
 browser is a dashboard nobody notices has gone blank. It runs every panel's query against the
 demo and fails on any that comes back empty, so a rename in `docs/labels.md` breaks the build
 rather than a graph three months later.
+
+## License
+
+MIT — see [`LICENSE`](./LICENSE).

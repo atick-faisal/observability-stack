@@ -269,7 +269,7 @@ class ObservabilitySettings(BaseSettings):   # env_prefix="OBS_"
 - No docstrings/comments; usage lives in the SDK README.
 
 Deps: base `fastapi`, `structlog`, `prometheus-client`, `opentelemetry-sdk`, `opentelemetry-instrumentation-fastapi`, `pydantic-settings`. Extras `[grpc]`, `[http]`, `[sqlalchemy]`, `[errors]`. (`opentelemetry-instrumentation-fastapi` depends only on `opentelemetry-instrumentation-asgi`, so `fastapi` has to be named explicitly.)
-Install: `uv add "obstack[grpc,sqlalchemy] @ git+https://github.com/<you>/observability-stack@v0.1.0#subdirectory=sdk/obstack"`.
+Install: `uv add "obstack[grpc,sqlalchemy] @ git+https://github.com/atick-faisal/observability-stack@v0.1.0#subdirectory=sdk/obstack"`.
 
 **Logs stay stdout-JSON + Alloy Docker tailing — not OTLP push.** Reasons in order: it captures *every* container including Postgres, Traefik and crashed processes (exactly what you want mid-incident); a hard crash loses an in-process OTLP buffer whereas the line is already durable in Docker's json-file driver; Alloy stays the single choke point applying the label taxonomy. OTLP logs are documented as the escape hatch for non-Docker deployments.
 
