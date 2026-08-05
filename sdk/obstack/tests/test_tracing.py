@@ -10,9 +10,9 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from starlette.testclient import TestClient
 
 from conftest import make_settings
-from obskit import setup_observability
-from obskit.settings import ObservabilitySettings
-from obskit.tracing import apply_semconv_opt_in, build_resource, build_tracer_provider
+from obstack import setup_observability
+from obstack.settings import ObservabilitySettings
+from obstack.tracing import apply_semconv_opt_in, build_resource, build_tracer_provider
 
 
 def test_resource_carries_flat_and_semconv_names() -> None:
@@ -51,7 +51,7 @@ def test_exporter_failure_degrades_to_no_tracing(monkeypatch: pytest.MonkeyPatch
     def explode(_settings: ObservabilitySettings) -> SpanExporter:
         raise OSError("no route to host")
 
-    monkeypatch.setattr("obskit.tracing._build_exporter", explode)
+    monkeypatch.setattr("obstack.tracing._build_exporter", explode)
 
     assert build_tracer_provider(make_settings(otlp_endpoint="http://alloy:4317")) is None
 
@@ -60,7 +60,7 @@ def test_span_correlates_with_log_line_and_exemplar(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     exporter = InMemorySpanExporter()
-    monkeypatch.setattr("obskit.tracing._build_exporter", lambda _settings: exporter)
+    monkeypatch.setattr("obstack.tracing._build_exporter", lambda _settings: exporter)
 
     app = FastAPI()
 

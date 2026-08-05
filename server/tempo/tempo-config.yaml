@@ -67,7 +67,7 @@ metrics_generator:
             target_label: status_code
           # Intrinsic service is service.name ("{app}-{service}"); ours lost the
           # collision and arrived as __service. Prefer ours, and leave service.name
-          # in place for anything not instrumented by obskit.
+          # in place for anything not instrumented by obstack.
           - source_labels: [__service]
             regex: (.+)
             target_label: service

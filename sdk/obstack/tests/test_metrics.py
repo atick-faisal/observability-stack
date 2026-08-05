@@ -3,7 +3,7 @@ from __future__ import annotations
 from prometheus_client.parser import text_string_to_metric_families
 
 from conftest import make_settings
-from obskit.metrics import build_metrics, render
+from obstack.metrics import build_metrics, render
 
 
 def test_registries_are_isolated() -> None:

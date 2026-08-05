@@ -10,8 +10,8 @@ import structlog
 from opentelemetry.sdk.trace import TracerProvider
 
 from conftest import make_settings
-from obskit import bind_request_context
-from obskit.logging import configure_logging
+from obstack import bind_request_context
+from obstack.logging import configure_logging
 
 
 def _lines(capsys: pytest.CaptureFixture[str]) -> list[dict[str, Any]]:

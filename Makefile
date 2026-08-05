@@ -32,7 +32,7 @@ GLITCHTIP_FILES := -f compose.glitchtip.yml -f compose.glitchtip.local.yml
 GT_FILES        := $(SERVER_FILES) $(GLITCHTIP_FILES)
 GT_SVCS         := glitchtip-postgres glitchtip-valkey glitchtip-migrate glitchtip-web glitchtip-worker
 
-SDK_DIR       := sdk/obskit
+SDK_DIR       := sdk/obstack
 DEMO_DIRS     := demo/app demo/loadgen
 
 .DEFAULT_GOAL := help

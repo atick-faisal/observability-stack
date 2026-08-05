@@ -8,7 +8,7 @@ from prometheus_client.openmetrics.parser import text_string_to_metric_families
 from starlette.testclient import TestClient
 
 from conftest import make_settings
-from obskit import setup_observability
+from obstack import setup_observability
 
 
 def build_app(**overrides: object) -> tuple[FastAPI, TestClient]:

@@ -8,7 +8,7 @@ import signal
 
 import httpx
 import structlog
-from obskit import setup_worker_observability
+from obstack import setup_worker_observability
 from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 from prometheus_client import Counter
 

@@ -1,12 +1,12 @@
 [project]
 name = "demo-app"
 version = "0.1.0"
-description = "Reference FastAPI app wired with obskit, for local end-to-end verification."
+description = "Reference FastAPI app wired with obstack, for local end-to-end verification."
 requires-python = ">=3.13"
 dependencies = [
     "asyncpg>=0.30.0",
     "fastapi>=0.115.0",
-    "obskit[grpc,sqlalchemy,errors]",
+    "obstack[grpc,sqlalchemy,errors]",
     "sqlalchemy>=2.0.44",
     "uvicorn>=0.34.0",
 ]
@@ -18,7 +18,7 @@ dev = ["mypy>=1.18.2", "ruff>=0.14.0"]
 package = false
 
 [tool.uv.sources]
-obskit = { path = "../../sdk/obskit" }
+obstack = { path = "../../sdk/obstack" }
 
 [tool.mypy]
 python_version = "3.13"

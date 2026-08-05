@@ -9,10 +9,10 @@ from starlette.routing import Match
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from structlog.contextvars import clear_contextvars
 
-from obskit.metrics import Metrics
-from obskit.settings import ObservabilitySettings
+from obstack.metrics import Metrics
+from obstack.settings import ObservabilitySettings
 
-log = structlog.get_logger("obskit.http")
+log = structlog.get_logger("obstack.http")
 
 
 def _route_pattern(scope: Scope) -> str:

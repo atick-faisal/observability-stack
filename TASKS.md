@@ -96,11 +96,11 @@ Zero `level=error` lines, as at M1.
 
 ---
 
-## M3a — `obskit` SDK
+## M3a — `obstack` SDK
 
 *Split out of the original M3 so the SDK is reviewable before the demo app depends on it.*
 
-- [x] `sdk/obskit/pyproject.toml` — base deps + `[grpc]` / `[http]` / `[sqlalchemy]` / `[errors]` extras — *`fastapi` had to be named explicitly: `opentelemetry-instrumentation-fastapi` depends only on `opentelemetry-instrumentation-asgi`*
+- [x] `sdk/obstack/pyproject.toml` — base deps + `[grpc]` / `[http]` / `[sqlalchemy]` / `[errors]` extras — *`fastapi` had to be named explicitly: `opentelemetry-instrumentation-fastapi` depends only on `opentelemetry-instrumentation-asgi`*
 - [x] `settings.py` — `ObservabilitySettings(BaseSettings)`, `env_prefix="OBS_"`, `ObservabilityConfigError` raised on missing `app` (via `.load()`), plus `[a-z0-9-]+` enforcement on `app`/`service` so a malformed identity fails at startup rather than at query time
 - [x] `logging.py` — structlog config; `_add_otel_context` injecting `032x`/`016x` hex; JSON vs Console by env; stdlib routed through `ProcessorFormatter`; **`foreign_pre_chain` must exclude `filter_by_level`**; `cache_logger_on_first_use=True`; noise suppression for `sqlalchemy.engine`, `uvicorn.access`, `watchfiles`
 - [x] `metrics.py` — instance-local `CollectorRegistry`; `fastapi_requests_total` / `fastapi_requests_duration_seconds` / `fastapi_exceptions_total` / `fastapi_requests_in_progress` / `fastapi_app_info`; `disable_created_metrics()`; OpenMetrics exposition (`prometheus_client.openmetrics.exposition`)
@@ -110,7 +110,7 @@ Zero `level=error` lines, as at M1.
 - [x] `runtime.py` — `setup_observability`, `setup_worker_observability`, `Observability` dataclass with `shutdown()`
 - [x] `__init__.py` (four public names + `bind_request_context` + `ObservabilityConfigError`), `py.typed`
 - [x] Tests — 37, covering settings validation, logging JSON shape incl. `trace_id`, metrics registry isolation across two setups, setup wiring, and the trace↔log↔exemplar correlation
-- [x] `sdk/obskit/README.md` — usage example (the only place docs live)
+- [x] `sdk/obstack/README.md` — usage example (the only place docs live)
 
 Reference defects found and countered:
 
@@ -145,7 +145,7 @@ Not verifiable here, by construction: exemplars reaching Prometheus (M5), spans 
 
 ## M3b — demo app
 
-- [x] `demo/app` — FastAPI with `/ok`, `/items/{item_id}`, `/slow`, `/boom`, `/db`, and `/health` passed to `excluded_paths`; Dockerfile on `python:3.13-slim` + `uv`, non-root, installing `obskit` from the local path
+- [x] `demo/app` — FastAPI with `/ok`, `/items/{item_id}`, `/slow`, `/boom`, `/db`, and `/health` passed to `excluded_paths`; Dockerfile on `python:3.13-slim` + `uv`, non-root, installing `obstack` from the local path
 - [x] `demo/loadgen` — async loop with a fixed error/slow mix (70/15/8/5/2), wired with `setup_worker_observability` on `:9101`
 - [x] `compose.demo.yml` — *moved up from M4.* demo-api + demo-db + demo-loadgen on the server stack's `obs` network, OTLP straight at `tempo:4317`. M4 extends this file with the agent rather than creating it.
 - [x] `make lint` extended to type-check and lint both demo projects — they are the template every onboarded app copies
@@ -294,7 +294,7 @@ measured rather than read, three more next to it. All of them are fixed in one c
 one SDK function; no dashboard, app, or agent change followed.
 
 - [x] **`traces_spanmetrics_*` carried `service="demo-api"`, not `service="api"`.** Fixed with `write_relabel_configs` on the generator's remote-write in `server/tempo/tempo-config.yaml`. That is the only mechanism that works: the `__` prefix is applied against a *hardcoded* list of the four intrinsics (`service`, `span_name`, `span_kind`, `status_code`), so `intrinsic_dimensions.service: false` does not un-prefix `__service`, and `dimension_mappings`' target name goes through the same check. Rejected: setting `service.name` to the bare service, which fixes the label at source but merges two apps' `api` into one node in Tempo's service list and one entry in its service dropdown — the opposite of what a multi-app stack needs.
-- [x] **`http.response.status_code` was a dead dimension** — configured since M2, never populated. OpenTelemetry Python emits pre-1.0 attribute names (`http.status_code`, `http.method`, `http.target`) unless `OTEL_SEMCONV_STABILITY_OPT_IN` is set, and nothing set it. `obskit.tracing.apply_semconv_opt_in()` now does, from `build_tracer_provider()` — the one path both `setup_observability` and `setup_worker_observability` take, always before an instrumentor is constructed. `setdefault`, so `http/dup` survives.
+- [x] **`http.response.status_code` was a dead dimension** — configured since M2, never populated. OpenTelemetry Python emits pre-1.0 attribute names (`http.status_code`, `http.method`, `http.target`) unless `OTEL_SEMCONV_STABILITY_OPT_IN` is set, and nothing set it. `obstack.tracing.apply_semconv_opt_in()` now does, from `build_tracer_provider()` — the one path both `setup_observability` and `setup_worker_observability` take, always before an instrumentor is constructed. `setdefault`, so `http/dup` survives.
 - [x] **Service-graph edges carried no identity at all** — `{client, server, connection_type}` and nothing else, so M7's service map could not be scoped to `$app`. `service_graphs.dimensions: [app, env]`. `client`/`server` stay `service.name` on purpose: Grafana uses them as node names and clicks through to Tempo's service search on the value.
 - [x] **`status_code` meant two different things in one Prometheus** — HTTP status on app metrics, span status on span-metrics. The span status is relabelled to `span_status` and `status_code` is cleared before the HTTP one takes it, so spans without an HTTP status (database, client) carry no `status_code` rather than a span status wearing its name.
 - [x] **`__metrics_gen_instance` dropped** — its value is the Tempo container's id, so every restart re-identified every span-metric series.
@@ -455,7 +455,7 @@ lands first, because 40 hand-written panels is well past the number anyone re-ch
 - [x] `.env.glitchtip.example` — read by the containers via `env_file:`, never interpolated by Compose
 - [x] Traefik router `errors.<domain>` → `glitchtip-web:8000` behind `obs-secure-headers@docker`
 - [x] `scripts/verify-errors.sh` (+ `make verify-errors`, `glitchtip-up`, `glitchtip-down`, `glitchtip-logs`) — health, migrate, DSN, `/boom` → issue, and the event's tags
-- [x] `OBS_ERROR_DSN` passthrough on `demo-api`, empty by default; `obskit[errors]` in the demo's dependencies
+- [x] `OBS_ERROR_DSN` passthrough on `demo-api`, empty by default; `obstack[errors]` in the demo's dependencies
 - [x] `sentry_sdk.init(server_name=settings.host)` in the SDK, with a test
 
 **Measured, where reading the documentation first would have been wrong:**
@@ -524,6 +524,7 @@ The first three are one finding seen three times: the reference's durability sto
 
 ## M10 — Ship
 
+- [x] **Rename the SDK `obskit` → `obstack`.** The name was taken on PyPI before we could publish it.
 - [ ] `docs/deploy-vps.md` — provisioning, DNS, first `up`, clock-sync check
 - [ ] `docs/onboarding-an-app.md` — the four-step diff, incl. the `EXPOSE`/`expose:` requirement for label-driven scraping
 - [ ] `docs/local-dev.md` — demo stack, Mac caveats
@@ -531,4 +532,8 @@ The first three are one finding seen three times: the reference's durability sto
 - [ ] Pin resolved digests for `traefik`, `glitchtip`, `valkey`
 - [ ] Deploy to the VPS; onboard the first real app; tag `v0.1.0`
 
-**Verify**: `curl -vI https://grafana.<domain>` shows a Let's Encrypt chain. The onboarded app's repo diff is exactly: copy `agent/`, add `obs.*` labels, `uv add obskit`, one `setup_observability(app, engine=engine)` call.
+**Verify**: `curl -vI https://grafana.<domain>` shows a Let's Encrypt chain. The onboarded app's repo diff is exactly: copy `agent/`, add `obs.*` labels, `uv add obstack`, one `setup_observability(app, engine=engine)` call.
+
+### Measured, where the plan was wrong
+
+- [x] **The SDK's name was already on PyPI, and nothing in the plan would ever have caught it.** `obskit` is an active package — Talaat Magdy, v1.1.0, uploaded 2026-04-01, described as *"Production-ready observability toolkit for Python microservices"*, which is our pitch almost word for word. Every milestone from M2 on had been building against a name that could not be published. Nothing failed, because nothing checked: a name is only contested at `twine upload`, which is the last step of the last milestone. Renamed to **`obstack`** here — 93 occurrences across 34 files, one directory, three lockfiles — because after `v0.1.0` is tagged and anyone has installed it, the same edit is a breaking change instead of a mechanical one. The general lesson is that a distribution name is an external dependency and should be claimed, or at least checked, at the moment it is chosen.

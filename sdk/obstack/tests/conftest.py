@@ -6,7 +6,7 @@ from collections.abc import Iterator
 import pytest
 import structlog
 
-from obskit import ObservabilitySettings
+from obstack import ObservabilitySettings
 
 
 @pytest.fixture(autouse=True)

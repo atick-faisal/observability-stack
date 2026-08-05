@@ -3,7 +3,7 @@
 An application-independent Grafana LGTM stack. One deployment on a VPS serves every project.
 
 Onboarding a new FastAPI + Postgres app is four steps: copy `agent/`, add a few Docker labels,
-`uv add obskit`, one function call.
+`uv add obstack`, one function call.
 
 > **Status: pre-v1, under construction.** Current milestone: **M9 — resilience**.
 > See [`TASKS.md`](./TASKS.md) for what is done and what is next.
@@ -52,12 +52,12 @@ services:
 docker compose -f compose.yml -f observability/compose.agent.yml up -d
 
 # 3. add the SDK
-uv add "obskit[grpc,sqlalchemy] @ git+<repo-url>@v0.1.0#subdirectory=sdk/obskit"
+uv add "obstack[grpc,sqlalchemy] @ git+<repo-url>@v0.1.0#subdirectory=sdk/obstack"
 ```
 
 ```python
 # 4. wire it up
-from obskit import setup_observability
+from obstack import setup_observability
 
 setup_observability(app, engine=engine)
 ```
@@ -69,7 +69,7 @@ setup_observability(app, engine=engine)
 | [`docs/labels.md`](./docs/labels.md) | **Read this first.** The label contract everything else depends on. |
 | [`PLAN.md`](./PLAN.md) | Design and rationale — the *why*. |
 | [`TASKS.md`](./TASKS.md) | Implementation checklist — the *what next*. |
-| [`sdk/obskit/README.md`](./sdk/obskit/README.md) | The Python SDK: settings, metric names, what one call gets you. |
+| [`sdk/obstack/README.md`](./sdk/obstack/README.md) | The Python SDK: settings, metric names, what one call gets you. |
 | [`agent/README.md`](./agent/README.md) | The agent: labels to add, what it collects, what will bite you. |
 | [`demo/`](./demo/) | A worked example of the four steps above — copy it when onboarding. |
 | `docs/onboarding-an-app.md` | The four-step diff in detail. *(M10)* |

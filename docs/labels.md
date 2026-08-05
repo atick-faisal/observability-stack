@@ -51,7 +51,7 @@ thought about.
 |---|---|---|
 | Metrics | `prometheus.remote_write "obs"` → `external_labels` in `agent/config.alloy` | `app`, `env`, `host` |
 | Logs | `loki.process` → `stage.labels` in `agent/config.alloy` | `app`, `env`, `host`, `service`, `container`, `level` |
-| Traces | OTel `Resource` in `obskit`'s `tracing.py` | `app`, `service`, `env`, `host` |
+| Traces | OTel `Resource` in `obstack`'s `tracing.py` | `app`, `service`, `env`, `host` |
 
 ### 3.1 Metrics → Prometheus
 
@@ -70,7 +70,7 @@ on it.
 
 Metrics carry `app`, `env`, `host`, `service` — four labels, same spelling as everywhere else.
 
-One overlap is deliberate: `obskit` also stamps `app`, `service`, and `env` onto the app's own
+One overlap is deliberate: `obstack` also stamps `app`, `service`, and `env` onto the app's own
 series, so a `/metrics` page is self-describing and readable without the agent in front of it.
 `external_labels` are only *added* where absent, so the SDK's values win for those series and the
 agent's still cover everything else. Both halves read the same `OBS_*` variables from the same
@@ -236,7 +236,7 @@ sidesteps the whole translation problem.
 
 ## 5. Where each label actually comes from
 
-| Label | Agent (`agent/config.alloy`) | App (`obskit`) |
+| Label | Agent (`agent/config.alloy`) | App (`obstack`) |
 |---|---|---|
 | `app` | `OBS_APP` env var | `OBS_APP` → `ObservabilitySettings.app` — **required**, startup fails without it |
 | `service` | `obs.service` Docker label on the container | `OBS_SERVICE` → `.service`, default `api` |

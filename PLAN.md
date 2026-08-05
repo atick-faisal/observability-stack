@@ -6,7 +6,7 @@
 
 `ai-asset-management/observability/` contains a working Grafana LGTM stack, but it is welded to that one app: it joins the app's Compose network by name, hardcodes scrape targets (`backend:8000`, `db:5432`), bakes app-specific label values into dashboards (`{service="backend"}`, `imgworker_*`), and shares one `.env` between LGTM and GlitchTip. It also carries WSL2/Docker-Desktop and corporate-proxy artifacts that don't belong on a Linux VPS.
 
-This repo is a fresh, application-independent replacement. One deployment on a VPS serves every future project. Onboarding a new FastAPI+Postgres app should be: copy an agent directory, add a few Docker labels, `uv add obskit`, one function call.
+This repo is a fresh, application-independent replacement. One deployment on a VPS serves every future project. Onboarding a new FastAPI+Postgres app should be: copy an agent directory, add a few Docker labels, `uv add obstack`, one function call.
 
 **Architecture** — two independently deployable halves:
 
@@ -25,7 +25,7 @@ APP HOST                              OBSERVABILITY VPS
 └──────────────────────┘              └────────────────────┘
 ```
 
-**Decisions**: Alloy agent per app host (not direct OTLP, not remote scraping) · Prometheus v3 remote-write receiver (not Mimir) · ship an `obskit` Python SDK · Traefik + Let's Encrypt · dashboards for FastAPI / PostgreSQL / host+containers · 30d metrics, 14d logs, 7d traces · GlitchTip in its own compose file.
+**Decisions**: Alloy agent per app host (not direct OTLP, not remote scraping) · Prometheus v3 remote-write receiver (not Mimir) · ship an `obstack` Python SDK · Traefik + Let's Encrypt · dashboards for FastAPI / PostgreSQL / host+containers · 30d metrics, 14d logs, 7d traces · GlitchTip in its own compose file.
 
 ---
 
@@ -79,9 +79,9 @@ observability-stack/
 ├─ agent/                          # ← copied verbatim into any app repo
 │  ├─ compose.agent.yml  config.alloy  .env.agent.example
 │  ├─ postgres-exporter-init.sql  README.md
-├─ sdk/obskit/
+├─ sdk/obstack/
 │  ├─ pyproject.toml  README.md
-│  └─ src/obskit/{__init__,settings,logging,tracing,metrics,middleware,errors,runtime}.py + py.typed
+│  └─ src/obstack/{__init__,settings,logging,tracing,metrics,middleware,errors,runtime}.py + py.typed
 │     tests/
 ├─ demo/app/  demo/loadgen/
 ├─ scripts/  add-ingest-user.sh verify-ingest.sh verify-signals.sh verify-dashboards.sh
@@ -206,7 +206,7 @@ Per-app credentials mean you can rotate one app in isolation, and the username a
 
 ---
 
-## 5. `obskit` SDK
+## 5. `obstack` SDK
 
 Four public names:
 
@@ -250,7 +250,7 @@ class ObservabilitySettings(BaseSettings):   # env_prefix="OBS_"
   **`fastapi_responses_total` is dropped.** The reference increments it in the same `finally` block, with the same labels, as `fastapi_requests_total` — a byte-identical duplicate series for zero extra information. (Dashboard 16110 intended `requests_total` to be counted *before* dispatch, without `status_code`; the reference counts both after.) We author every dashboard ourselves, so 16110 compatibility buys nothing.
 - structlog: `_add_otel_context` injecting `032x`/`016x` hex trace/span IDs, `merge_contextvars`, `ExceptionRenderer`, `cache_logger_on_first_use=True`, stdlib loggers routed through `ProcessorFormatter`, and critically **`foreign_pre_chain` must exclude `filter_by_level`** (ProcessorFormatter passes `logger=None` → `AttributeError`).
   → source: `ai-asset-management/backend/app/observability/logging.py`
-  **Configuring the root logger is not enough.** uvicorn and gunicorn install handlers directly on their own loggers with `propagate=False`, so the reference's setup never reaches them: startup lines and the whole `"Exception in ASGI application"` traceback stay plain text, and one traceback becomes one Loki line per frame. `obskit` clears those handlers and re-enables propagation.
+  **Configuring the root logger is not enough.** uvicorn and gunicorn install handlers directly on their own loggers with `propagate=False`, so the reference's setup never reaches them: startup lines and the whole `"Exception in ASGI application"` traceback stay plain text, and one traceback becomes one Loki line per frame. `obstack` clears those handlers and re-enables propagation.
 - `sentry_sdk.init(dsn, enable_tracing=False, shutdown_timeout=10)` — OTel owns tracing.
 
 **One uvicorn worker per container.** The reference's image ends `CMD ["fastapi", "run", "--workers", "4", …]`. Four processes share one listening socket and each holds its own registry, so consecutive scrapes answer from different workers, a counter appears to move backwards, and Prometheus reads every decrease as a reset — `rate()` returns numbers that are simply wrong, with nothing logged anywhere. The instance-local registry does not help: the problem is one endpoint backed by N processes. Scale by container, or adopt `PROMETHEUS_MULTIPROC_DIR`. Documented in the SDK README.
@@ -268,7 +268,7 @@ class ObservabilitySettings(BaseSettings):   # env_prefix="OBS_"
 - No docstrings/comments; usage lives in the SDK README.
 
 Deps: base `fastapi`, `structlog`, `prometheus-client`, `opentelemetry-sdk`, `opentelemetry-instrumentation-fastapi`, `pydantic-settings`. Extras `[grpc]`, `[http]`, `[sqlalchemy]`, `[errors]`. (`opentelemetry-instrumentation-fastapi` depends only on `opentelemetry-instrumentation-asgi`, so `fastapi` has to be named explicitly.)
-Install: `uv add "obskit[grpc,sqlalchemy] @ git+https://github.com/<you>/observability-stack@v0.1.0#subdirectory=sdk/obskit"`.
+Install: `uv add "obstack[grpc,sqlalchemy] @ git+https://github.com/<you>/observability-stack@v0.1.0#subdirectory=sdk/obstack"`.
 
 **Logs stay stdout-JSON + Alloy Docker tailing — not OTLP push.** Reasons in order: it captures *every* container including Postgres, Traefik and crashed processes (exactly what you want mid-incident); a hard crash loses an in-process OTLP buffer whereas the line is already durable in Docker's json-file driver; Alloy stays the single choke point applying the label taxonomy. OTLP logs are documented as the escape hatch for non-Docker deployments.
 
@@ -332,7 +332,7 @@ Provider: file, `foldersFromFilesStructure: true`, `updateIntervalSeconds: 30`, 
 
 `make demo-up` → `docker compose -f compose.yml -f compose.demo.yml --profile postgres --profile containers up -d`, bringing up the **real server stack** (Traefik included, on `*.localhost`, so the auth path is genuinely exercised) plus:
 
-- `demo-api` — FastAPI on `python:3.13-slim`, installing `obskit` from the local path so SDK edits are live; routes `/ok`, `/items/{item_id}`, `/slow`, `/boom`, `/db`, plus `/health` passed to `excluded_paths` so probe traffic reaches no metric and no log line; carries the `obs.*` Docker labels. Build context is the repo root with the host layout mirrored inside the image, which is what lets the `obskit` path dependency resolve identically in both places.
+- `demo-api` — FastAPI on `python:3.13-slim`, installing `obstack` from the local path so SDK edits are live; routes `/ok`, `/items/{item_id}`, `/slow`, `/boom`, `/db`, plus `/health` passed to `excluded_paths` so probe traffic reaches no metric and no log line; carries the `obs.*` Docker labels. Build context is the repo root with the host layout mirrored inside the image, which is what lets the `obstack` path dependency resolve identically in both places.
 - `demo-db` — `postgres:18-alpine` with the exporter bootstrap SQL applied on first boot. **Postgres 18 moved the data directory**: the volume mounts at `/var/lib/postgresql`, not `/var/lib/postgresql/data`, and the image refuses to start on the old path.
 - the **unmodified `agent/config.alloy`**, with `.env.demo` pointing at `https://ingest.localhost/...` — proving one file works in both places.
 - `loadgen` — async loop hitting the routes with a fixed error/slow mix, itself wired with `setup_worker_observability`. That gives `app=demo` a second `service`, which is the only way the chained `$app`/`$service` dashboard variables (§6) are testable, and it instruments httpx so `traceparent` propagates and Tempo's service graph has an edge to draw. Its own counter is named `client_requests_total`, not `loadgen_requests_total` — `docs/labels.md` §4.4 bars `service` from a metric name exactly as it bars `app`.

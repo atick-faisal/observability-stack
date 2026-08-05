@@ -1,4 +1,4 @@
-# obskit
+# obstack
 
 Drop-in observability for FastAPI: structured JSON logs, Prometheus metrics, and OTLP traces
 that all carry the same four identity labels — `app`, `service`, `env`, `host`.
@@ -11,7 +11,7 @@ document wins.
 ## Install
 
 ```bash
-uv add "obskit[grpc,sqlalchemy] @ git+<repo-url>@v0.1.0#subdirectory=sdk/obskit"
+uv add "obstack[grpc,sqlalchemy] @ git+<repo-url>@v0.1.0#subdirectory=sdk/obstack"
 ```
 
 | Extra | Pulls in | When |
@@ -25,7 +25,7 @@ uv add "obskit[grpc,sqlalchemy] @ git+<repo-url>@v0.1.0#subdirectory=sdk/obskit"
 
 ```python
 from fastapi import FastAPI
-from obskit import setup_observability
+from obstack import setup_observability
 
 app = FastAPI()
 obs = setup_observability(app, engine=engine)
@@ -37,7 +37,7 @@ serves `/metrics`, and — when `OBS_OTLP_ENDPOINT` is set — starts exporting 
 For a process with no FastAPI app:
 
 ```python
-from obskit import setup_worker_observability
+from obstack import setup_worker_observability
 
 obs = setup_worker_observability(metrics_port=9100)
 ...

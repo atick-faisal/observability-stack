@@ -5,7 +5,7 @@ import socket
 import pytest
 
 from conftest import make_settings
-from obskit import ObservabilityConfigError, ObservabilitySettings
+from obstack import ObservabilityConfigError, ObservabilitySettings
 
 
 def test_missing_app_raises_config_error() -> None:

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import structlog
 
-from obskit.settings import ObservabilitySettings
+from obstack.settings import ObservabilitySettings
 
-log = structlog.get_logger("obskit.errors")
+log = structlog.get_logger("obstack.errors")
 
 
 def setup_error_reporting(settings: ObservabilitySettings) -> bool:
@@ -14,7 +14,7 @@ def setup_error_reporting(settings: ObservabilitySettings) -> bool:
     try:
         import sentry_sdk
     except ImportError:
-        log.error('error reporting unavailable, install obskit["errors"]')
+        log.error('error reporting unavailable, install obstack["errors"]')
         return False
 
     # OTel owns tracing; Sentry is here for exception grouping only.

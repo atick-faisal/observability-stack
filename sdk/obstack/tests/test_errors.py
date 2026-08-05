@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 
 from conftest import make_settings
-from obskit.errors import setup_error_reporting
+from obstack.errors import setup_error_reporting
 
 
 def test_no_dsn_is_not_an_error() -> None:

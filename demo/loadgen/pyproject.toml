@@ -5,7 +5,7 @@ description = "Steady synthetic traffic against the demo app, with a fixed error
 requires-python = ">=3.13"
 dependencies = [
     "httpx>=0.28.1",
-    "obskit[grpc]",
+    "obstack[grpc]",
     "opentelemetry-instrumentation-httpx>=0.62b1",
 ]
 
@@ -16,7 +16,7 @@ dev = ["mypy>=1.18.2", "ruff>=0.14.0"]
 package = false
 
 [tool.uv.sources]
-obskit = { path = "../../sdk/obskit" }
+obstack = { path = "../../sdk/obstack" }
 
 [tool.mypy]
 python_version = "3.13"

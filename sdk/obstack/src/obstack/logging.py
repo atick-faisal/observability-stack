@@ -9,7 +9,7 @@ from opentelemetry import trace
 from structlog.contextvars import bind_contextvars, clear_contextvars
 from structlog.types import EventDict, Processor, WrappedLogger
 
-from obskit.settings import ObservabilitySettings
+from obstack.settings import ObservabilitySettings
 
 # httpx logs one INFO line per outbound request, duplicating whatever the caller
 # already logs — the same relationship uvicorn.access has to our own HTTP line.

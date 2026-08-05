@@ -1,5 +1,5 @@
 # Build context is the repo root, and the host layout is mirrored inside the
-# image, so `obskit = { path = "../../sdk/obskit" }` resolves in both places.
+# image, so `obstack = { path = "../../sdk/obstack" }` resolves in both places.
 #
 #   docker build -f demo/app/Dockerfile .
 FROM python:3.13-slim
@@ -15,7 +15,7 @@ WORKDIR /src/demo/app
 
 # The SDK first: it is a path dependency, so it has to exist before uv can
 # resolve. Copying it separately keeps app source edits off this layer.
-COPY sdk/obskit /src/sdk/obskit
+COPY sdk/obstack /src/sdk/obstack
 COPY demo/app/pyproject.toml demo/app/uv.lock ./
 
 RUN --mount=type=cache,target=/root/.cache/uv \

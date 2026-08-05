@@ -9,7 +9,7 @@ from typing import Any
 
 import structlog
 from fastapi import FastAPI
-from obskit import bind_request_context, setup_observability
+from obstack import bind_request_context, setup_observability
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
@@ -43,7 +43,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 engine: AsyncEngine = create_async_engine(DATABASE_URL, pool_size=5, max_overflow=5)
-app = FastAPI(title="obskit demo", lifespan=lifespan)
+app = FastAPI(title="obstack demo", lifespan=lifespan)
 
 # /health is excluded, so the orchestrator's probe traffic never reaches a metric
 # label or a log line. Everything else is instrumented.

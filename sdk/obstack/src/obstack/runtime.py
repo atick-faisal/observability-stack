@@ -10,12 +10,12 @@ from opentelemetry.sdk.trace import TracerProvider
 from prometheus_client import CollectorRegistry, start_http_server
 from starlette.responses import Response
 
-from obskit.errors import setup_error_reporting
-from obskit.logging import configure_logging
-from obskit.metrics import build_metrics, render
-from obskit.middleware import PrometheusMiddleware, RequestLoggingMiddleware
-from obskit.settings import ObservabilitySettings
-from obskit.tracing import build_tracer_provider, instrument
+from obstack.errors import setup_error_reporting
+from obstack.logging import configure_logging
+from obstack.metrics import build_metrics, render
+from obstack.middleware import PrometheusMiddleware, RequestLoggingMiddleware
+from obstack.settings import ObservabilitySettings
+from obstack.tracing import build_tracer_provider, instrument
 
 if TYPE_CHECKING:
     from sqlalchemy import Engine

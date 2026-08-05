@@ -12,7 +12,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /src/demo/loadgen
 
-COPY sdk/obskit /src/sdk/obskit
+COPY sdk/obstack /src/sdk/obstack
 COPY demo/loadgen/pyproject.toml demo/loadgen/uv.lock ./
 
 RUN --mount=type=cache,target=/root/.cache/uv \

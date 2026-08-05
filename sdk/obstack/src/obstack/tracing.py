@@ -12,13 +12,13 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter
 from opentelemetry.sdk.trace.sampling import ParentBased, TraceIdRatioBased
 
-from obskit.settings import ObservabilitySettings
+from obstack.settings import ObservabilitySettings
 
 if TYPE_CHECKING:
     from sqlalchemy import Engine
     from sqlalchemy.ext.asyncio import AsyncEngine
 
-log = structlog.get_logger("obskit.tracing")
+log = structlog.get_logger("obstack.tracing")
 
 _HTTP_TRACES_PATH = "/v1/traces"
 _SEMCONV_OPT_IN = "OTEL_SEMCONV_STABILITY_OPT_IN"
@@ -78,7 +78,7 @@ def build_tracer_provider(settings: ObservabilitySettings) -> TracerProvider | N
         log.error(
             "otlp exporter unavailable, tracing disabled",
             protocol=settings.otlp_protocol,
-            hint=f'install obskit["{settings.otlp_protocol}"]',
+            hint=f'install obstack["{settings.otlp_protocol}"]',
         )
         return None
     except Exception as exc:
@@ -120,7 +120,7 @@ def instrument(
     try:
         from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
     except ImportError:
-        log.error('sqlalchemy instrumentation unavailable, install obskit["sqlalchemy"]')
+        log.error('sqlalchemy instrumentation unavailable, install obstack["sqlalchemy"]')
         return
 
     target: Any = getattr(engine, "sync_engine", engine)

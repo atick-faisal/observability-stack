@@ -102,7 +102,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "httpx" },
-    { name = "obskit", extra = ["grpc"] },
+    { name = "obstack", extra = ["grpc"] },
     { name = "opentelemetry-instrumentation-httpx" },
 ]
 
@@ -115,7 +115,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "obskit", extras = ["grpc"], directory = "../../sdk/obskit" },
+    { name = "obstack", extras = ["grpc"], directory = "../../sdk/obstack" },
     { name = "opentelemetry-instrumentation-httpx", specifier = ">=0.62b1" },
 ]
 
@@ -327,9 +327,9 @@ wheels = [
 ]
 
 [[package]]
-name = "obskit"
+name = "obstack"
 version = "0.1.0"
-source = { directory = "../../sdk/obskit" }
+source = { directory = "../../sdk/obstack" }
 dependencies = [
     { name = "fastapi" },
     { name = "opentelemetry-instrumentation-fastapi" },

@@ -12,7 +12,7 @@ from prometheus_client import (
 )
 from prometheus_client.openmetrics.exposition import CONTENT_TYPE_LATEST, generate_latest
 
-from obskit.settings import ObservabilitySettings
+from obstack.settings import ObservabilitySettings
 
 disable_created_metrics()  # type: ignore[no-untyped-call]
 

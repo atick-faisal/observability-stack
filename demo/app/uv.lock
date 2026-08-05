@@ -156,7 +156,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "asyncpg" },
     { name = "fastapi" },
-    { name = "obskit", extra = ["errors", "grpc", "sqlalchemy"] },
+    { name = "obstack", extra = ["errors", "grpc", "sqlalchemy"] },
     { name = "sqlalchemy" },
     { name = "uvicorn" },
 ]
@@ -171,7 +171,7 @@ dev = [
 requires-dist = [
     { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "fastapi", specifier = ">=0.115.0" },
-    { name = "obskit", extras = ["grpc", "sqlalchemy", "errors"], directory = "../../sdk/obskit" },
+    { name = "obstack", extras = ["grpc", "sqlalchemy", "errors"], directory = "../../sdk/obstack" },
     { name = "sqlalchemy", specifier = ">=2.0.44" },
     { name = "uvicorn", specifier = ">=0.34.0" },
 ]
@@ -403,9 +403,9 @@ wheels = [
 ]
 
 [[package]]
-name = "obskit"
+name = "obstack"
 version = "0.1.0"
-source = { directory = "../../sdk/obskit" }
+source = { directory = "../../sdk/obstack" }
 dependencies = [
     { name = "fastapi" },
     { name = "opentelemetry-instrumentation-fastapi" },

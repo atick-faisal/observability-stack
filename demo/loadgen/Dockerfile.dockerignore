@@ -1,11 +1,11 @@
-# Build context is the repo root; only sdk/obskit and demo/loadgen are needed.
+# Build context is the repo root; only sdk/obstack and demo/loadgen are needed.
 *
 
-!sdk/obskit
+!sdk/obstack
 !demo/loadgen
 
-sdk/obskit/.venv
-sdk/obskit/tests
+sdk/obstack/.venv
+sdk/obstack/tests
 **/__pycache__
 **/*.py[cod]
 **/.mypy_cache

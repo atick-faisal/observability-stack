@@ -111,7 +111,7 @@ services:
       # collector's address to the local agent's. Everything else — the labels,
       # the SDK call, the log format — is identical either way.
       OBS_OTLP_ENDPOINT: http://alloy:4317
-      # Empty by default, which is what obskit treats as "no error reporting" — the
+      # Empty by default, which is what obstack treats as "no error reporting" — the
       # demo runs unchanged without GlitchTip. With compose.glitchtip.yml up, export
       # the DSN its UI hands you and `make demo-up` again:
       #
