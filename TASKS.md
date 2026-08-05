@@ -68,7 +68,7 @@ Also landed, not in the original list:
 
 Deferred, with reason:
 
-- [ ] `tracesToMetrics` latency query — ships at M5. `traces_spanmetrics_calls_total` is stable, but Tempo has used more than one name for the latency histogram; the query gets written from Prometheus' actual series list rather than from memory.
+- [x] ~~`tracesToMetrics` latency query~~ — shipped at M5. The histogram is `traces_spanmetrics_latency_bucket`, read off Prometheus rather than recalled.
 
 **Verify**:
 ```bash
@@ -289,13 +289,59 @@ had to be running to answer them at all:
 - [x] ~~Confirm exemplars survive the Alloy → Prometheus hop~~ — they do. `send_exemplars = true` on `prometheus.remote_write` is the whole of it, and it is off by default.
 - [x] ~~Confirm Tempo 2.10.5 span-metrics picks up `app`/`service`/`env` from **resource** attributes~~ — `app` and `env` yes, so no `otelcol.processor.transform` is needed to copy them onto spans.
 
-What is left is the collision that turned up while checking:
+What was left was the collision that turned up while checking — and, once the running stack was
+measured rather than read, three more next to it. All of them are fixed in one config block plus
+one SDK function; no dashboard, app, or agent change followed.
 
-- [ ] **`traces_spanmetrics_*` carries `service="demo-api"`, not `service="api"`.** Tempo's generator writes its own `service` label from `service.name`, so our resource attribute of the same name loses and arrives as `__service`. Every other signal says `service="api"`, so span-metrics currently cannot be joined to anything on `service` — which is exactly what M2's `tracesToMetrics` and M7's service-graph panels want to do. Options to weigh: drop `service` from Tempo's `dimensions` and rename the intrinsic; use `dimension_mappings`; or set `service.name` to the bare service and let `app` disambiguate.
-- [ ] `tracesToMetrics` latency query — deferred from M2, to be written from Prometheus' actual series list
-- [ ] Trace → log → trace round trip in Grafana, by hand
+- [x] **`traces_spanmetrics_*` carried `service="demo-api"`, not `service="api"`.** Fixed with `write_relabel_configs` on the generator's remote-write in `server/tempo/tempo-config.yaml`. That is the only mechanism that works: the `__` prefix is applied against a *hardcoded* list of the four intrinsics (`service`, `span_name`, `span_kind`, `status_code`), so `intrinsic_dimensions.service: false` does not un-prefix `__service`, and `dimension_mappings`' target name goes through the same check. Rejected: setting `service.name` to the bare service, which fixes the label at source but merges two apps' `api` into one node in Tempo's service list and one entry in its service dropdown — the opposite of what a multi-app stack needs.
+- [x] **`http.response.status_code` was a dead dimension** — configured since M2, never populated. OpenTelemetry Python emits pre-1.0 attribute names (`http.status_code`, `http.method`, `http.target`) unless `OTEL_SEMCONV_STABILITY_OPT_IN` is set, and nothing set it. `obskit.tracing.apply_semconv_opt_in()` now does, from `build_tracer_provider()` — the one path both `setup_observability` and `setup_worker_observability` take, always before an instrumentor is constructed. `setdefault`, so `http/dup` survives.
+- [x] **Service-graph edges carried no identity at all** — `{client, server, connection_type}` and nothing else, so M7's service map could not be scoped to `$app`. `service_graphs.dimensions: [app, env]`. `client`/`server` stay `service.name` on purpose: Grafana uses them as node names and clicks through to Tempo's service search on the value.
+- [x] **`status_code` meant two different things in one Prometheus** — HTTP status on app metrics, span status on span-metrics. The span status is relabelled to `span_status` and `status_code` is cleared before the HTTP one takes it, so spans without an HTTP status (database, client) carry no `status_code` rather than a span status wearing its name.
+- [x] **`__metrics_gen_instance` dropped** — its value is the Tempo container's id, so every restart re-identified every span-metric series.
+- [x] `tracesToMetrics` gains the deferred p95 latency query, and its error query moves to `span_status`. All three scope to `span_kind="SPAN_KIND_SERVER"` — the rate a service *serves*, not that plus everything it calls — and break down `by (route)`.
+- [x] `scripts/verify-signals.sh` — steps 5 and 6 are no longer advisory (`STRICT_STEPS` defaults to all seven), step 6 asserts the join rather than mere existence, and a new step 7 covers the service graph.
 
-**Verify**: `traces_spanmetrics_calls_total{app="demo",service="api"}` returns a result. Manual round trip in Grafana: latency panel exemplar → Tempo trace → linked log line → back to the trace.
+Measured, where reading the documentation would have been wrong:
+
+- [x] **`write_relabel_configs` does apply.** Tempo's generator storage is Prometheus' own `remote.WriteStorage`, and the full `RemoteWriteConfig` is honoured. This was the milestone's one real risk; the fallback (routing the generator through the server Alloy) was not needed.
+- [x] **`span_metrics.enable_instance_label: false` does not remove `__metrics_gen_instance`.** Tempo 2.10.5 accepts it, `/status/config` shows it applied, and the label is still written — it governs a plain `instance` label we never see. The knob was removed rather than left in place looking correct; the labeldrop does the work.
+- [x] **Compose does not recreate a container when a bind-mounted config file changes.** `make demo-up` left Tempo running the old config, and the new labels only appeared after an explicit `docker restart`. Worth knowing before trusting any "I changed the config and re-upped" result.
+- [x] Old span-metric series linger for the registry's `stale_duration` (15m) and Prometheus' 5m lookback, so a label change looks half-applied for several minutes. Verification polls for the *absence* of the old label rather than sleeping.
+- [x] The service-graph database node became `demo-db` (the server address) rather than `demo` (the database name) once stable semconv landed — a better node name, and a reminder that the semconv switch reaches further than the two labels it was made for.
+
+Reference defects found and countered:
+
+- [x] `traces_spanmetrics_*` is unjoinable with the reference's own application metrics — same `service` collision, unnoticed, so its `tracesToMetrics` links have never returned data.
+- [x] A dead `http.response.status_code` dimension, for the same reason ours was dead: nothing sets the semconv opt-in. A config that looks correct and does nothing is worse than one that is absent.
+- [x] Service graph with no identity dimensions, on a stack meant to host more than one app.
+- [x] `__metrics_gen_instance` left enabled on a single-generator deployment.
+- [x] `status_code` carrying two different meanings in one Prometheus, with nothing distinguishing them.
+
+**Verify** — `make demo-up`, `docker restart observability-tempo-1`, then `./scripts/verify-signals.sh`, all seven green:
+
+```
+6. span-metrics  labels are exactly
+                 __name__,app,env,route,service,span_kind,span_name,span_status,status_code
+                 and this returns non-zero:
+                   count(
+                     sum by (app,env,service,route,status_code) (traces_spanmetrics_calls_total{...})
+                     and
+                     sum by (app,env,service,route,status_code) (fastapi_requests_total{app="demo"})
+                   )
+7. service graph edge demo-loadgen → demo-api, labelled app=demo
+```
+
+That join is the milestone assertion: the same request, described independently by the app's own
+instrumentation and by Tempo's generator, agreeing on five label names and values with no
+translation layer between them.
+
+A recent trace carries `http.request.method`, `http.response.status_code`, `url.path`,
+`server.address` — stable semconv, and the reason `status_code="200"` exists on span-metrics at
+all. The three `tracesToMetrics` queries return data with `$__tags` expanded to
+`app="demo",service="api",env="local"`; `/slow` reports a p95 of 1.92s, which is the load
+generator's configured delay.
+
+- [ ] **Left for you: the round trip by hand in Grafana.** Everything it depends on is asserted programmatically above, but the clicks themselves are not: Explore → Prometheus → `fastapi_requests_duration_seconds_bucket` with exemplars on → click an exemplar → Tempo trace → the span's **Logs for this span** → its **View Trace in Tempo** derived field → back to the same trace, and the span's three **Metrics** links non-empty. Blocked on the Grafana admin credential (see M2's open item).
 
 ---
 

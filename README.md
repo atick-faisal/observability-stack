@@ -5,7 +5,7 @@ An application-independent Grafana LGTM stack. One deployment on a VPS serves ev
 Onboarding a new FastAPI + Postgres app is four steps: copy `agent/`, add a few Docker labels,
 `uv add obskit`, one function call.
 
-> **Status: pre-v1, under construction.** Current milestone: **M4 — the agent**.
+> **Status: pre-v1, under construction.** Current milestone: **M5 — cross-signal correlation**.
 > See [`TASKS.md`](./TASKS.md) for what is done and what is next.
 
 ## The two halves

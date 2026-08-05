@@ -35,7 +35,7 @@ for slicing within a signal, never used to correlate across signals.
 | | Labels |
 |---|---|
 | **Identity** (all signals, same spelling) | `app`, `service`, `env`, `host` |
-| **Dimension** (signal-local) | `job`, `instance`, `container`, `level`, `method`, `status_code`, `route` |
+| **Dimension** (signal-local) | `job`, `instance`, `container`, `level`, `method`, `status_code`, `route`, `span_name`, `span_kind`, `span_status` |
 
 The practical difference: you may add, rename, or drop a dimension in one signal without
 touching the others. Changing an identity label is a breaking change to every dashboard and
@@ -119,14 +119,45 @@ The SDK sets OTel resource attributes using the flat names — `app`, `service`,
 The flat names are what dashboards and correlation links use. The semconv names are what Tempo
 and Grafana's built-in trace tooling expect. Setting both costs nothing and avoids choosing.
 
-Tempo's span-metrics generator is configured with:
+The SDK also sets `OTEL_SEMCONV_STABILITY_OPT_IN=http`, so HTTP spans carry the stable
+attribute names — `http.request.method`, `http.response.status_code`, `url.path`,
+`server.address` — rather than the pre-1.0 `http.method` / `http.status_code` / `http.target`
+that OpenTelemetry Python still emits by default. It is a process-wide global read once, so it
+affects every HTTP instrumentation in the process, not only the ones the SDK installs. Anything
+configured against the stable names — Tempo's `http.response.status_code` dimension below, a
+TraceQL query, a dashboard — produces **nothing at all** without it, silently.
 
-```yaml
-dimensions: [app, service, env, http.route, http.response.status_code]
-```
+### 3.4 Span metrics → Prometheus
 
-so `traces_spanmetrics_*` series carry the same identity labels as everything else and can be
-graphed alongside them.
+Tempo's generator turns spans into metrics, which means a fourth producer writing into the same
+Prometheus. It does not speak the taxonomy on its own, and reconciling it takes one config block.
+
+The generator has four **intrinsic** labels — `service`, `span_name`, `span_kind`, `status_code`
+— and writes `service` from `service.name`, i.e. `"{app}-{service}"`. A configured dimension
+whose name collides with an intrinsic is renamed with a `__` prefix, against a hardcoded list, so
+neither `intrinsic_dimensions` nor `dimension_mappings` can win the name back. Left alone the
+result is `service="demo-api"` alongside `__service="api"`, `http_route`, a `status_code` holding
+the *span* status, and `__metrics_gen_instance` holding the generator container's id.
+
+`write_relabel_configs` on the generator's remote-write reconciles all of it, on the way out,
+where nothing downstream has to know it happened:
+
+| Generator writes | Stored as | Why |
+|---|---|---|
+| `__service` | `service` | ours wins; `service.name` remains the fallback |
+| `http_route` | `route` | the name the app's own metrics use |
+| `http_response_status_code` | `status_code` | likewise — HTTP status, same meaning as §2 |
+| `status_code` (span status) | `span_status` | a different concept; it does not get to keep the name |
+| `__metrics_gen_instance` | *dropped* | the Tempo container id, so a restart re-identifies every series |
+
+The result is that `traces_spanmetrics_*` and `fastapi_requests_total` agree on
+`(app, env, service, route, status_code)` and can be joined, compared, or graphed together —
+which is what `tracesToMetrics` does on every trace you open.
+
+Service-graph edges get `dimensions: [app, env]` for the same reason: without them a service map
+cannot be scoped to one app. Their `client` and `server` labels deliberately stay `service.name`,
+because Grafana uses those as node names and clicks through to Tempo's service search on the
+value.
 
 ## 4. Hard rules
 
@@ -252,11 +283,14 @@ Recorded here so they are not rediscovered the hard way:
   corrupts them. The selector matches on `container`: `app` is added by `loki.write`'s
   `external_labels`, which run *after* the process stage, so a selector on `app` matches nothing
   and silently disables parsing everywhere. *(M4)*
-- **Tempo's span-metrics generator owns the `service` label.** It writes `service` from
-  `service.name`, so the resource attribute `service` collides with it and lands as `__service`.
-  `traces_spanmetrics_*` therefore reads `service="demo-api"` where every other signal reads
-  `service="api"`. Reconciling that is M5's job; until it is done, do not join span-metrics to
-  anything on `service`. *(M5)*
+- **Tempo's span-metrics generator owns four label names** — `service`, `span_name`, `span_kind`,
+  `status_code` — and a dimension colliding with one is renamed `__`-prefixed against a hardcoded
+  list. Only `write_relabel_configs` on the generator's remote-write can win the names back;
+  `intrinsic_dimensions` and `dimension_mappings` cannot. §3.4 has the mapping. *(M5, done)*
+- **A dimension configured against an attribute nothing emits fails silently.** Tempo accepted
+  `http.response.status_code` for three milestones and produced no such label, because the SDK
+  was on pre-1.0 semconv. Whenever a dimension is added, check that the label appeared — the
+  config is not the evidence. *(M5)*
 - **Provisioned dashboards are immutable.** `allowUiUpdates: false` on the dashboard provider —
   a dashboard edited in the UI and not in git is a dashboard that will be silently reverted.
   *(M2)*

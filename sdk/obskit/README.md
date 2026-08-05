@@ -99,6 +99,13 @@ endpoint drops them silently.
 logs at `error` and runs on without tracing; it never takes the app down for an infrastructure
 problem. A missing `OBS_APP`, by contrast, is a programmer error and fails at startup.
 
+Setup also sets `OTEL_SEMCONV_STABILITY_OPT_IN=http` if it is unset, so HTTP spans carry
+`http.request.method`, `http.response.status_code`, `url.path` and `server.address` rather than
+the pre-1.0 names OpenTelemetry Python still defaults to. This is a **process-wide** switch read
+once, so it applies to every HTTP instrumentation in the process, including ones the SDK does not
+install (`httpx`, `requests`). Export it yourself — `http/dup` emits both sets — to keep control
+of the timing during a migration; the SDK will not override an explicit value.
+
 ## Running multiple workers
 
 **One worker per container.** Scale by running more containers, not more workers.

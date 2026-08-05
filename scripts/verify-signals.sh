@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 #
-# Asserts that all five signals arrive from the demo app, end to end, with the
-# label contract intact. Run it a minute or so after `make demo-up`.
+# Asserts that every signal arrives from the demo app, end to end, with the label
+# contract intact and the three of them joinable. Run it a minute or so after
+# `make demo-up`.
 #
 #   ./scripts/verify-signals.sh
 #   OBS_APP=myapp PROM_URL=https://... ./scripts/verify-signals.sh
 #
-# Exit code is the number of failed checks, so it works in CI. Steps 4 and 5
-# cover exemplars and span-metrics, which M5 owns; until then they report
-# without failing the run.
+# Exit code is the number of failed checks, so it works in CI. Set STRICT_STEPS
+# to a subset to let the rest report without failing the run.
 
 set -uo pipefail
 
@@ -17,7 +17,7 @@ PROM_URL="${PROM_URL:-http://localhost:9090}"
 LOKI_URL="${LOKI_URL:-http://localhost:3100}"
 TEMPO_URL="${TEMPO_URL:-http://localhost:3200}"
 SERVICE="${OBS_SERVICE:-api}"
-STRICT_STEPS="${STRICT_STEPS:-1,2,3,4}"
+STRICT_STEPS="${STRICT_STEPS:-1,2,3,4,5,6,7}"
 
 failed=0
 step=0
@@ -30,7 +30,7 @@ fail() {
 		printf '  \033[31mFAIL\033[0m  %s\n' "$1"
 		failed=$((failed + 1))
 	else
-		skip "$1  (not required until M5)"
+		skip "$1  (not in STRICT_STEPS)"
 	fi
 }
 
@@ -125,10 +125,31 @@ n=$(curl -sG --max-time 10 "$PROM_URL/api/v1/query_exemplars" \
 	jq -r '.data // [] | length')
 [[ "${n:-0}" -gt 0 ]] && pass "$n exemplar series" || fail "no exemplars stored"
 
-check "span-metrics — Tempo's generator produced series for this app"
-n=$(promql "count(traces_spanmetrics_calls_total{app=\"$APP\"})")
-[[ "${n:-0}" -gt 0 ]] && pass "traces_spanmetrics_calls_total{app=\"$APP\"}" ||
-	fail "no span-metrics for app=$APP"
+check "span-metrics — Tempo's generator speaks the same label vocabulary"
+sm_labels=$(curl -sG --max-time 10 "$PROM_URL/api/v1/query" \
+	--data-urlencode "query=traces_spanmetrics_calls_total{app=\"$APP\",span_kind=\"SPAN_KIND_SERVER\",route!=\"\"}" |
+	jq -r '[.data.result[0].metric | keys[]] | join(",")')
+[[ "$sm_labels" == "__name__,app,env,route,service,span_kind,span_name,span_status,status_code" ]] &&
+	pass "span-metric labels are [$sm_labels]" ||
+	fail "span-metric labels are [$sm_labels] — Tempo's write_relabel_configs did not apply"
+
+# The milestone assertion. `and` intersects on identical label sets, so a non-zero
+# result means the app's own instrumentation and Tempo's generator describe the
+# same request with the same five labels — which no rename or reverted config can
+# fake. It is also what makes tracesToMetrics resolve.
+n=$(promql "count(
+  sum by (app,env,service,route,status_code) (traces_spanmetrics_calls_total{app=\"$APP\",span_kind=\"SPAN_KIND_SERVER\"})
+  and
+  sum by (app,env,service,route,status_code) (fastapi_requests_total{app=\"$APP\"})
+)")
+[[ "${n:-0}" -gt 0 ]] &&
+	pass "span-metrics and fastapi_requests_total join on (app,env,service,route,status_code)" ||
+	fail "no series joins fastapi_requests_total to traces_spanmetrics_calls_total"
+
+check "service graph — Tempo's edges carry identity and cross services"
+n=$(promql "count(traces_service_graph_request_total{app=\"$APP\",client=\"$APP-loadgen\",server=\"$APP-$SERVICE\"})")
+[[ "${n:-0}" -gt 0 ]] && pass "edge $APP-loadgen → $APP-$SERVICE, labelled app=$APP" ||
+	fail "no app-labelled service-graph edge from $APP-loadgen to $APP-$SERVICE"
 
 printf '\n'
 if [[ "$failed" -eq 0 ]]; then

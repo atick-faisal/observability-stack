@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 
 import pytest
 from fastapi import FastAPI
@@ -11,7 +12,7 @@ from starlette.testclient import TestClient
 from conftest import make_settings
 from obskit import setup_observability
 from obskit.settings import ObservabilitySettings
-from obskit.tracing import build_resource, build_tracer_provider
+from obskit.tracing import apply_semconv_opt_in, build_resource, build_tracer_provider
 
 
 def test_resource_carries_flat_and_semconv_names() -> None:
@@ -24,6 +25,22 @@ def test_resource_carries_flat_and_semconv_names() -> None:
     assert attributes["service.name"] == "demo-api"
     assert attributes["service.version"] == "1.2.3"
     assert attributes["deployment.environment.name"] == "production"
+
+
+def test_stable_http_semconv_is_opted_into(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("OTEL_SEMCONV_STABILITY_OPT_IN", raising=False)
+
+    build_tracer_provider(make_settings())
+
+    assert os.environ["OTEL_SEMCONV_STABILITY_OPT_IN"] == "http"
+
+
+def test_explicit_semconv_opt_in_is_not_overridden(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OTEL_SEMCONV_STABILITY_OPT_IN", "http/dup")
+
+    apply_semconv_opt_in()
+
+    assert os.environ["OTEL_SEMCONV_STABILITY_OPT_IN"] == "http/dup"
 
 
 def test_no_endpoint_disables_tracing() -> None:

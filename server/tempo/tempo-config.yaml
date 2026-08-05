@@ -36,6 +36,11 @@ metrics_generator:
   processor:
     service_graphs:
       max_items: 10000
+      # Edges are otherwise labelled with client/server and nothing else, so a
+      # service map cannot be scoped to one app. client/server stay service.name
+      # on purpose — Grafana uses them as node names and clicks through to Tempo's
+      # service search on that value.
+      dimensions: [app, env]
     span_metrics:
       dimensions: [app, service, env, http.route, http.response.status_code]
   storage:
@@ -43,6 +48,39 @@ metrics_generator:
     remote_write:
       - url: http://prometheus:9090/api/v1/write
         send_exemplars: true
+        # The generator's own label names, reconciled with docs/labels.md §2.
+        # Its four intrinsic labels are service, span_name, span_kind, status_code;
+        # a dimension colliding with one of those is renamed with a __ prefix
+        # against a hardcoded list, so neither intrinsic_dimensions nor
+        # dimension_mappings can undo it. Doing it here is the only place that works.
+        write_relabel_configs:
+          # status_code is the *span* status here, not an HTTP one. Move it aside,
+          # then clear it, so the HTTP status can take the name it has everywhere
+          # else and spans without one (database, client) end up with no
+          # status_code at all rather than a span status wearing its name.
+          - source_labels: [status_code]
+            target_label: span_status
+          - regex: status_code
+            action: labeldrop
+          - source_labels: [http_response_status_code]
+            regex: (.+)
+            target_label: status_code
+          # Intrinsic service is service.name ("{app}-{service}"); ours lost the
+          # collision and arrived as __service. Prefer ours, and leave service.name
+          # in place for anything not instrumented by obskit.
+          - source_labels: [__service]
+            regex: (.+)
+            target_label: service
+          - source_labels: [http_route]
+            regex: (.+)
+            target_label: route
+          # __metrics_gen_instance is this container's id, so a Tempo restart
+          # re-identifies every series. It disambiguates generator replicas and
+          # there is one. `span_metrics.enable_instance_label: false` is accepted
+          # by 2.10.5 and does not remove it — it governs a plain `instance` label
+          # we never see — so it goes here, where it demonstrably works.
+          - regex: (__service|http_route|http_response_status_code|__metrics_gen_instance)
+            action: labeldrop
 
 overrides:
   defaults:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Collection
 from typing import TYPE_CHECKING, Any
 
@@ -20,6 +21,17 @@ if TYPE_CHECKING:
 log = structlog.get_logger("obskit.tracing")
 
 _HTTP_TRACES_PATH = "/v1/traces"
+_SEMCONV_OPT_IN = "OTEL_SEMCONV_STABILITY_OPT_IN"
+
+
+def apply_semconv_opt_in() -> None:
+    # The HTTP instrumentations read this once, on first use, and cache the answer
+    # process-wide. Left unset they emit the pre-1.0 attribute names
+    # (http.status_code, http.method, http.target), and anything configured against
+    # the stable ones — Tempo's http.response.status_code span-metrics dimension,
+    # for instance — silently produces nothing. setdefault, so an app that has
+    # chosen "http/dup" during its own migration keeps it.
+    os.environ.setdefault(_SEMCONV_OPT_IN, "http")
 
 
 def build_resource(settings: ObservabilitySettings) -> Resource:
@@ -53,6 +65,10 @@ def _build_exporter(settings: ObservabilitySettings) -> SpanExporter:
 
 
 def build_tracer_provider(settings: ObservabilitySettings) -> TracerProvider | None:
+    # Before any instrumentor is constructed, and on the one path both
+    # setup_observability and setup_worker_observability take.
+    apply_semconv_opt_in()
+
     if not settings.otlp_endpoint:
         return None
 
