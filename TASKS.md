@@ -530,7 +530,10 @@ The first three are one finding seen three times: the reference's durability sto
 - [x] `docs/local-dev.md` — demo stack, Mac caveats
 - [x] `docs/operations.md` — retention/disk, backup/restore, cardinality watch, **do-not-re-enable Tempo `local-blocks`**, pinned digests, out-of-scope list, and the `$`-in-password trap: Compose collapses `$$` → `$` when reading `--env-file`, so a `$` in `GF_ADMIN_PASSWORD` reaches Grafana as something other than what the file shows (measured: `PW=ab$$cd` arrives as `ab$cd`)
 - [x] Pin resolved digests for `traefik`, `glitchtip`, `valkey` — multi-arch index digests, with `scripts/resolve-digests.sh --check` to report drift without ever re-pinning on its own. `postgres:16-alpine` / `postgres:18-alpine` deliberately left floating; the reasoning is in `docs/operations.md`.
+- [x] Publish the repo — MIT license, SDK packaging metadata (`License-Expression`, author, classifiers, project URLs), and the real install URL in the four places that carried a `<repo-url>` / `<you>` placeholder. `github.com/atick-faisal/observability-stack`, public.
+- [ ] **Push.** The repo exists and `origin` is set; the first push is the user's to run — `git push` is denied by this environment's settings, and routing around that with `gh repo create --push` would defeat a guardrail that is there on purpose.
 - [ ] Deploy to the VPS; onboard the first real app; tag `v0.1.0`
+- [ ] Publish `obstack` to PyPI — unblocked by the rename, and the wheel already carries the metadata for it. Claim the name before the next milestone starts depending on it.
 
 **Verify**: `curl -vI https://grafana.<domain>` shows a Let's Encrypt chain. The onboarded app's repo diff is exactly: copy `agent/`, add `obs.*` labels, `uv add obstack`, one `setup_observability(app, engine=engine)` call.
 
