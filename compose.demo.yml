@@ -1,15 +1,60 @@
-# Local end-to-end demo. Overlays compose.yml in the same Compose project, so
-# these containers join the `obs` network and reach tempo/loki/prometheus by name.
+# Local end-to-end demo. Overlays compose.yml and agent/compose.agent.yml in the
+# same Compose project, so these containers join the `obs` network and reach
+# tempo/loki/prometheus by name.
 #
 #   make demo-up
 #
-# At M3b the app exports traces straight to tempo:4317. M4 inserts Alloy in
-# between and that endpoint becomes alloy:4317 — the only line that changes.
+# The agent files are used unmodified — that is the point of the demo. What is
+# app-specific lives here: the three `obs.*` labels on each container, and the
+# agent's own settings, which a real app repo would put in observability/.env.agent
+# instead. They are inline because none of them is a secret at this stage: the
+# URLs are in-network and the credentials are ignored until Traefik enforces them
+# at M6.
 
 volumes:
   demo_db_data: {}
 
 services:
+  alloy:
+    environment:
+      OBS_APP: demo
+      OBS_ENV: local
+      OBS_HOST: demo-host
+      # Direct at M4. M6 re-points all three at https://ingest.<domain> and adds
+      # a real credential; nothing else about the agent changes.
+      OBS_PROM_URL: http://prometheus:9090/api/v1/write
+      OBS_LOKI_URL: http://loki:3100/loki/api/v1/push
+      OBS_TRACES_URL: http://tempo:4318
+      OBS_INGEST_USER: demo
+      OBS_INGEST_PASSWORD: demo
+      # Not strictly needed here — nothing joins two networks — but it keeps the
+      # knob exercised, and the value shows the form: <project>_<network>.
+      OBS_DOCKER_NETWORK: observability_obs
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_started
+    networks:
+      - obs
+
+  cadvisor:
+    networks:
+      - obs
+
+  postgres_exporter:
+    environment:
+      DATA_SOURCE_URI: demo-db:5432/demo?sslmode=disable
+      DATA_SOURCE_USER: postgres_exporter
+      DATA_SOURCE_PASS: ${DEMO_DB_PASSWORD:-demo}
+    depends_on:
+      demo-db:
+        condition: service_healthy
+    networks:
+      - obs
+
   demo-db:
     image: postgres:18-alpine
     restart: unless-stopped
@@ -18,11 +63,16 @@ services:
       # Local only: no host port is published, so this reaches nothing off-box.
       POSTGRES_PASSWORD: ${DEMO_DB_PASSWORD:-demo}
       POSTGRES_DB: demo
+      # Read by postgres-exporter-init.sql below, via psql's \getenv.
+      POSTGRES_EXPORTER_PASSWORD: ${DEMO_DB_PASSWORD:-demo}
     volumes:
       # Postgres 18 moved the data directory: the mount goes at
       # /var/lib/postgresql, and the image puts the cluster in an 18/docker
       # subdirectory. Mounting the old /var/lib/postgresql/data refuses to boot.
       - demo_db_data:/var/lib/postgresql
+      # Runs once, on a fresh volume. `make demo-down` removes the volume, so a
+      # down/up cycle re-runs it.
+      - ./agent/postgres-exporter-init.sql:/docker-entrypoint-initdb.d/10-postgres-exporter.sql:ro
     networks:
       - obs
     labels:
@@ -53,12 +103,15 @@ services:
       # JSON. Without this the demo would exercise a log path production never uses.
       OBS_LOG_FORMAT: json
       OBS_LOG_LEVEL: INFO
-      OBS_OTLP_ENDPOINT: http://tempo:4317
+      # The whole of what the agent changes for an app: one variable, from the
+      # collector's address to the local agent's. Everything else — the labels,
+      # the SDK call, the log format — is identical either way.
+      OBS_OTLP_ENDPOINT: http://alloy:4317
       DATABASE_URL: postgresql+asyncpg://demo:${DEMO_DB_PASSWORD:-demo}@demo-db:5432/demo
     depends_on:
       demo-db:
         condition: service_healthy
-      tempo:
+      alloy:
         condition: service_started
     networks:
       - obs
@@ -88,7 +141,7 @@ services:
       OBS_VERSION: 0.1.0
       OBS_LOG_FORMAT: json
       OBS_LOG_LEVEL: INFO
-      OBS_OTLP_ENDPOINT: http://tempo:4317
+      OBS_OTLP_ENDPOINT: http://alloy:4317
       LOADGEN_TARGET: http://demo-api:8000
       LOADGEN_RATE: "5"
     depends_on:

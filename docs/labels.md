@@ -93,8 +93,17 @@ of active streams and is the single fastest way to make Loki unusable.
 - Everything else stays in the JSON log body and is queried with `| json` at read time.
 
 Not every log line is JSON. Postgres and Traefik emit plain text, so JSON parsing must be
-**conditional** (see §6) — unconditional parsing mangles those lines. For non-JSON containers,
-`level` comes from Loki's own `discover_log_levels`.
+**conditional** (see §6) — unconditional parsing mangles those lines.
+
+Only JSON containers get a `level` **label**. For the rest, Loki's `discover_log_levels` writes
+`detected_level` into structured metadata, which is a different thing under a different name, and
+it reads `unknown` for any format it does not recognise — Postgres' `LOG:` / `ERROR:` prefixes
+among them. A panel that filters plain-text containers by severity has to say
+`| detected_level = "error"`, not `{level="error"}`.
+
+Loki will also mint a `service_name` stream label of its own unless `discover_service_name: []`
+is set. It duplicates `service` under a second spelling, which is precisely what this document
+exists to prevent, so the server config turns it off.
 
 ### 3.3 Traces → Tempo
 
@@ -201,12 +210,18 @@ sidesteps the whole translation problem.
 | `app` | `OBS_APP` env var | `OBS_APP` → `ObservabilitySettings.app` — **required**, startup fails without it |
 | `service` | `obs.service` Docker label on the container | `OBS_SERVICE` → `.service`, default `api` |
 | `env` | `OBS_ENV` env var | `OBS_ENV` → `.env`, default `local` |
-| `host` | `OBS_HOST` env var | `OBS_HOST` → `.host`, default `socket.gethostname()`; the agent overwrites it on ingest |
+| `host` | `OBS_HOST` env var | `OBS_HOST` → `.host`, default `socket.gethostname()` |
 
 Both halves read the same variable names from `.env`, so a single file configures the agent and
-the app consistently. `host` is authoritative from the agent — the agent upserts it onto
-incoming spans, because a containerized app reports its container id as its hostname, which is
-not the machine.
+the app consistently.
+
+`host` is split, and it is the one place the two halves can disagree. On **metrics** and **logs**
+the agent is authoritative: it sets `host` at the exit, so nothing an app does can get it wrong.
+On **traces** the app's value is used as-is. An app that leaves `OBS_HOST` unset reports
+`socket.gethostname()`, which in a container is its id — so its spans say one thing and its
+metrics another. No correlation link uses `host` (§4.1's `tags` are `app`/`service`/`env`, and it
+is not a span-metrics dimension), so the damage is confined to reading a trace; setting `OBS_HOST`
+in the file both halves already read avoids it entirely.
 
 An app opts a container into collection with Docker labels:
 
@@ -233,8 +248,15 @@ matches it against Docker's published port metadata.
 Recorded here so they are not rediscovered the hard way:
 
 - **JSON log parsing must be conditional.** Guard `stage.json` with a `stage.match` selector so
-  plain-text containers (Postgres, Traefik) pass through untouched and get `level` from
-  `discover_log_levels`. Parsing unconditionally corrupts them. *(M4)*
+  plain-text containers (Postgres, Traefik) pass through untouched. Parsing unconditionally
+  corrupts them. The selector matches on `container`: `app` is added by `loki.write`'s
+  `external_labels`, which run *after* the process stage, so a selector on `app` matches nothing
+  and silently disables parsing everywhere. *(M4)*
+- **Tempo's span-metrics generator owns the `service` label.** It writes `service` from
+  `service.name`, so the resource attribute `service` collides with it and lands as `__service`.
+  `traces_spanmetrics_*` therefore reads `service="demo-api"` where every other signal reads
+  `service="api"`. Reconciling that is M5's job; until it is done, do not join span-metrics to
+  anything on `service`. *(M5)*
 - **Provisioned dashboards are immutable.** `allowUiUpdates: false` on the dashboard provider —
   a dashboard edited in the UI and not in git is a dashboard that will be silently reverted.
   *(M2)*

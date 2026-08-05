@@ -1,0 +1,360 @@
+// The agent. One file, copied verbatim into every app repo, never edited.
+//
+// Identity and destinations come from environment variables; *targets come from
+// Docker labels*. No app-specific string appears below, which is the whole point:
+// onboarding an app is labelling its containers, not editing this file.
+//
+//   obs.service        role of the container   (api, worker, db)
+//   obs.metrics.port   presence = scrape me    (must also be EXPOSE'd)
+//   obs.metrics.path   defaults to /metrics
+//   obs.logs "false"   opt out of log collection
+//
+// See docs/labels.md — it is the contract this file enforces.
+
+// ─────────────────────────────────────────────────────────── discovery ──
+
+discovery.docker "containers" {
+	host             = "unix:///var/run/docker.sock"
+	refresh_interval = "15s"
+
+	filter {
+		name   = "status"
+		values = ["running"]
+	}
+}
+
+// One target per (network × exposed TCP port), so a container on two networks
+// yields two identical scrape targets and Prometheus receives duplicate samples
+// for one series. Set OBS_DOCKER_NETWORK to the network the agent shares with the
+// app to collapse that; unset matches every network, which is correct for the
+// single-network case that is by far the most common.
+discovery.relabel "metrics_targets" {
+	targets = discovery.docker.containers.targets
+
+	rule {
+		source_labels = ["__meta_docker_network_name"]
+		regex         = coalesce(sys.env("OBS_DOCKER_NETWORK"), ".+")
+		action        = "keep"
+	}
+
+	// No obs.metrics.port label means "logs only".
+	rule {
+		source_labels = ["__meta_docker_container_label_obs_metrics_port"]
+		regex         = ""
+		action        = "drop"
+	}
+
+	// Of the container's exposed ports, keep the one the label names. This is why
+	// the port has to appear in Docker's port metadata: EXPOSE in the image, or
+	// expose: in Compose. A published port is not required.
+	//
+	// The label is __meta_docker_port_private, not the __meta_docker_port_private_port
+	// that Prometheus' own docker_sd documents — Alloy names it differently, and
+	// getting it wrong drops every target silently.
+	rule {
+		source_labels = ["__meta_docker_port_private"]
+		target_label  = "__meta_docker_container_label_obs_metrics_port"
+		action        = "keepequal"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_network_ip", "__meta_docker_container_label_obs_metrics_port"]
+		separator     = ":"
+		target_label  = "__address__"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_label_obs_metrics_path"]
+		regex         = "(.+)"
+		target_label  = "__metrics_path__"
+	}
+
+	// The container IP is the default instance and it changes on every restart,
+	// which silently breaks any dashboard variable built on it. docs/labels.md §3.1.
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/?(.*)"
+		target_label  = "instance"
+	}
+
+	// Container name is the fallback service, then obs.service wins where set.
+	// The second rule no-ops when the label is absent, so nothing ends up with an
+	// empty service.
+	rule {
+		source_labels = ["instance"]
+		target_label  = "service"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_label_obs_service"]
+		regex         = "(.+)"
+		target_label  = "service"
+	}
+}
+
+// Alloy has no conditionals. An unset variable produces an empty address, the
+// rule drops it, and the whole job becomes a no-op — the idiom for genuinely
+// optional static targets (a process on the host, a container that cannot EXPOSE).
+discovery.relabel "extra_target" {
+	targets = [{
+		__address__ = sys.env("OBS_EXTRA_TARGET"),
+		service     = sys.env("OBS_EXTRA_SERVICE"),
+		instance    = sys.env("OBS_EXTRA_TARGET"),
+	}]
+
+	rule {
+		source_labels = ["__address__"]
+		regex         = ""
+		action        = "drop"
+	}
+}
+
+discovery.relabel "log_targets" {
+	targets = discovery.docker.containers.targets
+
+	rule {
+		source_labels = ["__meta_docker_container_label_obs_logs"]
+		regex         = "false"
+		action        = "drop"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/?(.*)"
+		target_label  = "container"
+	}
+
+	rule {
+		source_labels = ["container"]
+		target_label  = "service"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_label_obs_service"]
+		regex         = "(.+)"
+		target_label  = "service"
+	}
+}
+
+// ───────────────────────────────────────────────────────────── metrics ──
+
+// honor_labels: the app's own /metrics already carries app/service/env from the
+// SDK. Without this, the service label relabelled onto the target collides with
+// it and Prometheus renames one of them to exported_service. docs/labels.md §3.1
+// says the SDK's values win for its own series; this is that rule, in config.
+prometheus.scrape "discovered" {
+	targets = array.concat(
+		discovery.relabel.metrics_targets.output,
+		discovery.relabel.extra_target.output,
+	)
+
+	job_name        = "docker"
+	honor_labels    = true
+	scrape_interval = "15s"
+	scrape_timeout  = "10s"
+	forward_to      = [prometheus.relabel.trim.receiver]
+}
+
+// Host metrics come from Alloy itself — no node_exporter container to run.
+prometheus.exporter.unix "host" {
+	procfs_path = "/host/proc"
+	sysfs_path  = "/host/sys"
+	rootfs_path = "/host/root"
+
+	// The diskstats collector enriches devices from udev and logs at error level
+	// when it cannot find the directory — once per boot, at the one log level that
+	// is supposed to mean something. rootfs_path already mounts / for us.
+	// Docker Desktop's VM has no /run/udev, so this stays noisy on a Mac only.
+	udev_data_path = "/host/root/run/udev/data"
+}
+
+prometheus.scrape "host" {
+	targets         = prometheus.exporter.unix.host.targets
+	job_name        = "node"
+	scrape_interval = "30s"
+	forward_to      = [prometheus.relabel.host_instance.receiver]
+}
+
+prometheus.relabel "host_instance" {
+	forward_to = [prometheus.relabel.trim.receiver]
+
+	rule {
+		target_label = "instance"
+		replacement  = sys.env("OBS_HOST")
+	}
+
+	// The exporter puts job=integrations/unix on its own targets, which wins over
+	// the scrape's job_name. Normalise it so `job` reads the same way everywhere.
+	rule {
+		target_label = "job"
+		replacement  = "node"
+	}
+}
+
+// cAdvisor stamps the full container id onto every series — the highest
+// cardinality label in the stack, and redundant with the container name.
+prometheus.relabel "trim" {
+	forward_to = [prometheus.remote_write.obs.receiver]
+
+	rule {
+		regex  = "id"
+		action = "labeldrop"
+	}
+}
+
+// ──────────────────────────────────────────────────────────────── logs ──
+
+loki.source.docker "containers" {
+	host             = "unix:///var/run/docker.sock"
+	targets          = discovery.relabel.log_targets.output
+	refresh_interval = "15s"
+	forward_to       = [loki.process.parse.receiver]
+}
+
+loki.process "parse" {
+	// Not every container logs JSON — Postgres and Traefik do not. Parsing
+	// unconditionally mangles them and mints an empty level label for every line.
+	// The selector matches on `container`, not `app`: app is added by loki.write's
+	// external_labels, which run after this stage, so a selector on it would match
+	// nothing and silently disable JSON parsing everywhere.
+	//
+	// The regex is unescaped twice — once by Alloy reading this string, once by
+	// LogQL reading the quoted line filter — so `\\\\s` here is `\s` by the time
+	// it is compiled. LogQL's line filter rejects backtick raw strings, and
+	// `alloy validate` does not catch it: validation builds the graph, not the
+	// components, so a bad selector only surfaces when the container starts.
+	stage.match {
+		selector = "{container=~\".+\"} |~ \"^\\\\s*\\\\{\""
+
+		stage.json {
+			expressions = {
+				level     = "level",
+				trace_id  = "trace_id",
+				span_id   = "span_id",
+				timestamp = "timestamp",
+			}
+		}
+
+		stage.labels {
+			values = {
+				level = "level",
+			}
+		}
+
+		// Unique per request, so never a label — indexed here instead, filterable
+		// without minting a stream per request. docs/labels.md §4.2.
+		stage.structured_metadata {
+			values = {
+				trace_id = "trace_id",
+				span_id  = "span_id",
+			}
+		}
+
+		// The application's own timestamp, not the moment Docker read the line.
+		// skip rather than fudge: a JSON line without a timestamp field keeps the
+		// ingestion time instead of being nudged past its neighbours.
+		stage.timestamp {
+			source            = "timestamp"
+			format            = "RFC3339Nano"
+			action_on_failure = "skip"
+		}
+	}
+
+	forward_to = [loki.write.obs.receiver]
+}
+
+// ────────────────────────────────────────────────────────────── traces ──
+
+// App → local Alloy is gRPC: same host, no TLS, and grpcio ignores http_proxy
+// while the HTTP exporter honours it. Agent → VPS is OTLP/HTTP, because gRPC
+// through a reverse proxy needs h2c passthrough end to end.
+otelcol.receiver.otlp "in" {
+	grpc {
+		endpoint = "0.0.0.0:4317"
+	}
+
+	http {
+		endpoint = "0.0.0.0:4318"
+	}
+
+	output {
+		traces = [otelcol.processor.batch.default.input]
+	}
+}
+
+otelcol.processor.batch "default" {
+	output {
+		traces = [otelcol.exporter.otlphttp.obs.input]
+	}
+}
+
+// A base URL: the exporter appends /v1/traces, which is the native upstream path
+// the ingest router proxies unrewritten.
+otelcol.exporter.otlphttp "obs" {
+	client {
+		endpoint = sys.env("OBS_TRACES_URL")
+		auth     = otelcol.auth.basic.ingest.handler
+	}
+}
+
+otelcol.auth.basic "ingest" {
+	username = sys.env("OBS_INGEST_USER")
+	password = sys.env("OBS_INGEST_PASSWORD")
+}
+
+// ─────────────────────────────────────────────────────────────── exits ──
+
+// Identity is injected once, here, so it lands on every series the agent
+// forwards — app, node, cAdvisor, postgres — with no way to forget one.
+prometheus.remote_write "obs" {
+	external_labels = {
+		app  = sys.env("OBS_APP"),
+		env  = sys.env("OBS_ENV"),
+		host = sys.env("OBS_HOST"),
+	}
+
+	endpoint {
+		url = sys.env("OBS_PROM_URL")
+
+		// Off by default. Every exemplar the SDK attaches, and the OpenMetrics
+		// exposition that carries it, is discarded at this line without it.
+		send_exemplars = true
+
+		basic_auth {
+			username = sys.env("OBS_INGEST_USER")
+			password = sys.env("OBS_INGEST_PASSWORD")
+		}
+
+		queue_config {
+			capacity    = 10000
+			max_shards  = 10
+			min_backoff = "1s"
+			max_backoff = "5m"
+		}
+	}
+
+	// Buffers samples locally while the VPS is unreachable. The server's
+	// out_of_order_time_window has to be at least as generous or the replay is
+	// rejected as too old and the gap is permanent.
+	wal {
+		truncate_frequency = "2h"
+		max_keepalive_time = "8h"
+	}
+}
+
+loki.write "obs" {
+	external_labels = {
+		app  = sys.env("OBS_APP"),
+		env  = sys.env("OBS_ENV"),
+		host = sys.env("OBS_HOST"),
+	}
+
+	endpoint {
+		url = sys.env("OBS_LOKI_URL")
+
+		basic_auth {
+			username = sys.env("OBS_INGEST_USER")
+			password = sys.env("OBS_INGEST_PASSWORD")
+		}
+	}
+}

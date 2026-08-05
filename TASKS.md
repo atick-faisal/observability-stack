@@ -202,31 +202,100 @@ joins the ring at startup, then never again.
 
 ## M4 — Agent
 
-- [ ] `agent/config.alloy`
-  - [ ] `discovery.docker` + `discovery.relabel "metrics_targets"` (label-driven, `keepequal` port match)
-  - [ ] `discovery.relabel "log_targets"` (drop on `obs.logs="false"`, derive `container`/`service`)
-  - [ ] `loki.source.docker` + `loki.process` with **`stage.match`-guarded** `stage.json` (plain-text containers must pass through untouched)
-  - [ ] `prometheus.exporter.unix` with stable `instance` relabel
-  - [ ] `otelcol.receiver.otlp` (gRPC 4317, HTTP 4318) → `batch` → `attributes` (upsert `host`) → `otelcol.exporter.otlphttp`
-  - [ ] Exits: `prometheus.remote_write` (external_labels, `send_exemplars`, queue_config, WAL), `loki.write`
-  - [ ] `OBS_EXTRA_TARGET` empty-env-var escape hatch
-- [ ] `agent/compose.agent.yml` — `alloy` always; `cadvisor` profile `containers` (Linux-native: no `privileged`, no containerd flag, `devices: [/dev/kmsg]`); `postgres_exporter` profile `postgres` with env-driven `DATA_SOURCE_URI` and the PG17+ collector flags incl. `--collector.stat_checkpointer`
-- [ ] `agent/compose.agent.macos.yml` — containerd override for local testing only
-- [ ] `agent/postgres-exporter-init.sql` — `postgres_exporter` role, `pg_monitor` grant, search_path
-- [ ] `agent/.env.agent.example`, `agent/README.md`
-- [ ] Extend `compose.demo.yml` (shipped at M3b) with the agent, and re-point `OBS_OTLP_ENDPOINT` from `tempo:4317` to `alloy:4317` — that one variable is the whole of what the agent changes for an app
-- [ ] `scripts/verify-signals.sh` (steps 1–5, exit codes)
+- [x] `agent/config.alloy`
+  - [x] `discovery.docker` + `discovery.relabel "metrics_targets"` (label-driven, `keepequal` port match)
+  - [x] `discovery.relabel "log_targets"` (drop on `obs.logs="false"`, derive `container`/`service`)
+  - [x] `loki.source.docker` + `loki.process` with **`stage.match`-guarded** `stage.json` (plain-text containers must pass through untouched)
+  - [x] `prometheus.exporter.unix` with stable `instance` relabel
+  - [x] `otelcol.receiver.otlp` (gRPC 4317, HTTP 4318) → `batch` → `otelcol.exporter.otlphttp` — *no `attributes` stage; see the decisions below*
+  - [x] Exits: `prometheus.remote_write` (external_labels, `send_exemplars`, queue_config, WAL), `loki.write`
+  - [x] `OBS_EXTRA_TARGET` empty-env-var escape hatch
+- [x] `agent/compose.agent.yml` — `alloy` always; `cadvisor` profile `containers` (Linux-native: no `privileged`, no containerd flag, `devices: [/dev/kmsg]`); `postgres_exporter` profile `postgres` with env-driven `DATA_SOURCE_URI` and the PG17+ collector flags incl. `--collector.stat_checkpointer`
+- [x] `agent/compose.agent.macos.yml` — containerd override for local testing only
+- [x] `agent/postgres-exporter-init.sql` — `postgres_exporter` role, `pg_monitor` grant, search_path
+- [x] `agent/.env.agent.example`, `agent/README.md`
+- [x] Extend `compose.demo.yml` (shipped at M3b) with the agent, and re-point `OBS_OTLP_ENDPOINT` from `tempo:4317` to `alloy:4317` — that one variable is the whole of what the agent changes for an app
+- [x] `scripts/verify-signals.sh` (six checks, exit code = number of failures)
 
-**Verify**: Alloy UI `localhost:12345/graph` shows every component healthy; targets appear with zero static addresses in the config; `verify-signals.sh` steps 1–3 pass.
+Decisions worth keeping:
+
+- [x] **`honor_labels = true` on the discovered-targets scrape.** The SDK already stamps `app`/`service`/`env` on the app's own series, and the agent relabels `service` onto the target from `obs.service`. Without `honor_labels` those collide and Prometheus renames one `exported_service` — measured, then fixed. This is `docs/labels.md` §3.1's "the SDK's values win for those series", in config.
+- [x] **`host` is not rewritten on spans.** `otelcol.processor.attributes` cannot reach resource attributes, so the upsert PLAN §3 described would need an `otelcol.processor.transform` with an OTTL statement concatenated from `sys.env`. The app's own value is used instead; `docs/labels.md` §5 now says so and states what it costs (traces only — `host` is in no correlation link and no span-metrics dimension).
+- [x] **`service` falls back to the container name** where `obs.service` is absent, rather than to an empty label. Unlabelled containers still get their logs collected with something usable.
+- [x] `agent/` is used **unmodified** by the demo — `make demo-up` overlays `agent/compose.agent.yml` — so "copy this directory into your repo" is a tested claim. `OBS_AGENT_DIR` exists because Compose resolves relative paths against the *first* `-f` file's directory, not the file's own.
+- [x] `demo-down` no longer runs `down -v`: on the merged project that removed `grafana_data` too, and the Grafana admin account is created exactly once.
+
+Measured, where reading the documentation would have been wrong:
+
+- [x] **The port label is `__meta_docker_port_private`, not `__meta_docker_port_private_port`.** Prometheus' own `docker_sd` documents the latter; Alloy names it differently. With the wrong name `keepequal` matches nothing, every target is dropped, and *nothing is logged* — the component stays healthy with an empty output.
+- [x] **`alloy validate` does not build components.** The config validated clean while carrying a `stage.match` selector that LogQL rejects. Validation covers syntax and the component graph; a bad selector, a bad endpoint, or a bad stage only surfaces when the container starts.
+- [x] **LogQL rejects backtick raw strings in a line filter.** The regex is unescaped twice — once by Alloy reading the string, once by LogQL reading the quoted filter — so `\\\\s` in the config is `\s` at the regex.
+- [x] **`loki.source.docker` tails a multi-port container exactly once.** Tested with a throwaway container exposing three ports: discovery emitted three targets, Alloy created one tailer, and Loki received one copy of each line. *Metrics* are not so lucky — one target per network means a two-network container is scraped twice, which is what `OBS_DOCKER_NETWORK` is for.
+- [x] **`gcr.io/cadvisor/cadvisor:v0.57.0` does not exist.** That mirror stopped publishing after v0.47.x; v0.54.0+ lives on `ghcr.io/google/cadvisor`. PLAN §9 had the wrong registry; the reference had it right.
+- [x] **Mounting `/var/run:ro` into cAdvisor makes `/run` read-only** (it is a symlink on Linux), so any later mount under `/run` fails to create its parent. Mount the socket alone.
+- [x] **Loki adds a `service_name` stream label of its own** — a seventh label duplicating `service` under a second spelling. `discover_service_name: []` turns it off; `docs/labels.md` §3.2 records it.
+- [x] **`/loki/api/v1/labels` is resolved over a coarse window** and keeps reporting labels from streams no longer being written. `verify-signals.sh` asserts on `/series` instead, which returns the label sets of streams actually active.
+
+Reference defects found and countered (`observability/alloy/config.docker.alloy`):
+
+- [x] **`send_exemplars` is never set, so it defaults to `false` and every exemplar is discarded at the last hop.** The reference does all the upstream work — OpenMetrics exposition, `.observe(…, exemplar=…)`, `--enable-feature=exemplar-storage` on Prometheus — and then throws the result away in the one line nobody reads. PLAN risk 6, made real.
+- [x] **`environment="production"` on log streams next to `env="production"` on metric targets.** Two spellings of one concept, which Grafana cannot reconcile. `docs/labels.md` §4.1 is first in that document because of this line.
+- [x] **`stage.json` applied unconditionally**, mangling Postgres and Traefik output and minting an empty `level` label for every plain-text line.
+- [x] **Four hardcoded targets** (`backend:8000`, `postgres_exporter:9187`, `cadvisor:8080`, `host.docker.internal:9100`) — the premise of this repo.
+- [x] **No `queue_config` and no `wal` block** on `prometheus.remote_write`; defaults only (PLAN risks 1–2).
+- [x] **`compose_project` label with no consumer**, and `job="docker"` hardcoded onto every log stream.
+- [x] **`service` sourced from `com.docker.compose.service`** — renaming a Compose service silently renames a label the dashboards filter on. `obs.service` is explicit.
+- [x] **No OTLP receiver at all**: the app writes traces straight to Tempo, so it must know the collector's address and a VPS blip drops them with no local buffer.
+- [x] cAdvisor `privileged: true` + the containerd flag (Docker-Desktop/WSL2 artifacts), and `--store_container_labels` left at its default, which turns every Docker label — including this stack's own `obs.*` — into a metric label.
+- [x] `user: "0"` on the Alloy container is unnecessary: `grafana/alloy:v1.16.1` declares no `USER` and already runs as root.
+- [x] `postgres-exporter-init.sh`, a shell wrapper whose header documents three ways to run it, none automatic → one `.sql` reading the password with psql's `\getenv`, so the same file works from `/docker-entrypoint-initdb.d/` and from `psql -f`.
+
+Known and accepted, not worked around:
+
+- [x] **Recreating a container costs one remote-write batch of cAdvisor samples.** `id` is dropped (unbounded over time), so while a recreated container briefly coexists with its predecessor the two collapse onto one series, Prometheus answers `400 duplicate sample for timestamp`, and the whole request is rejected — measured at 587 samples on one `docker compose up` of Loki. Recorded in `agent/README.md` with the one-line change that trades it back for cardinality.
+- [x] **`prometheus.exporter.unix` logs one `level=error` per boot on Docker Desktop**: `udev_data_path` now points through `rootfs_path`, which resolves on a Linux VPS but not on the Mac VM, where `/run/udev` does not exist.
+- [x] Removing a container mid-refresh logs one `error inspecting Docker container … No such container` from the log tailer. Transient, self-correcting.
+
+**Verify** — `make demo-up`, then `./scripts/verify-signals.sh`, all six green:
+
+```
+1. metrics       fastapi_requests_total{app="demo"}; app/env/host/service/instance present,
+                 instance is the container name, no exported_* collision
+2. metrics       node_uname_info, container_memory_usage_bytes, pg_up — all carrying
+                 app/env/host from external_labels alone
+3. logs          stream labels are exactly app,container,env,host,level,service;
+                 trace_id in structured metadata
+4. traces        20 traces for service.name=demo-api, and the trace_id taken from a log
+                 line resolves in Tempo across both services
+5. exemplars     10 exemplar series survived the agent hop      (M5's, already green)
+6. span-metrics  traces_spanmetrics_calls_total{app="demo"}     (M5's, already green)
+```
+
+Alloy's own graph (`localhost:12345/graph`) shows all 17 components healthy and four discovered
+targets — `demo-api`, `demo-loadgen`, `cadvisor`, `postgres_exporter` — with no static address
+anywhere in the config. The plain-text guard holds: `{service="db"}` returns intact Postgres
+lines with no `level` label.
+
+Server stack error lines on a clean boot: prometheus 0, tempo 0, grafana 0, cadvisor 0,
+postgres_exporter 0, loki 1 (the known startup `empty ring`), alloy 1 (the macOS-only udev path).
 
 ---
 
 ## M5 — Cross-signal correlation
 
-- [ ] Confirm Tempo 2.10.5 span-metrics picks up `app`/`service`/`env` from **resource** attributes; if not, add `otelcol.processor.transform` in the agent copying them onto spans
-- [ ] Confirm exemplars survive the Alloy → Prometheus hop (OpenMetrics content-type negotiation)
+Two of the three questions this milestone existed to answer were settled at M4, because the agent
+had to be running to answer them at all:
 
-**Verify**: `verify-signals.sh` steps 4–5 pass. Manual round trip in Grafana: latency panel exemplar → Tempo trace → linked log line → back to the trace.
+- [x] ~~Confirm exemplars survive the Alloy → Prometheus hop~~ — they do. `send_exemplars = true` on `prometheus.remote_write` is the whole of it, and it is off by default.
+- [x] ~~Confirm Tempo 2.10.5 span-metrics picks up `app`/`service`/`env` from **resource** attributes~~ — `app` and `env` yes, so no `otelcol.processor.transform` is needed to copy them onto spans.
+
+What is left is the collision that turned up while checking:
+
+- [ ] **`traces_spanmetrics_*` carries `service="demo-api"`, not `service="api"`.** Tempo's generator writes its own `service` label from `service.name`, so our resource attribute of the same name loses and arrives as `__service`. Every other signal says `service="api"`, so span-metrics currently cannot be joined to anything on `service` — which is exactly what M2's `tracesToMetrics` and M7's service-graph panels want to do. Options to weigh: drop `service` from Tempo's `dimensions` and rename the intrinsic; use `dimension_mappings`; or set `service.name` to the bare service and let `app` disambiguate.
+- [ ] `tracesToMetrics` latency query — deferred from M2, to be written from Prometheus' actual series list
+- [ ] Trace → log → trace round trip in Grafana, by hand
+
+**Verify**: `traces_spanmetrics_calls_total{app="demo",service="api"}` returns a result. Manual round trip in Grafana: latency panel exemplar → Tempo trace → linked log line → back to the trace.
 
 ---
 

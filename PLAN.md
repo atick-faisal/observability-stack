@@ -115,7 +115,7 @@ discovery.relabel "metrics_targets" {
   targets = discovery.docker.containers.targets
   rule { source_labels = ["__meta_docker_container_label_obs_metrics_port"]
          regex = "" action = "drop" }
-  rule { source_labels = ["__meta_docker_port_private_port"]
+  rule { source_labels = ["__meta_docker_port_private"]
          target_label  = "__meta_docker_container_label_obs_metrics_port"
          action        = "keepequal" }
   rule { source_labels = ["__meta_docker_network_ip", "__meta_docker_container_label_obs_metrics_port"]
@@ -124,6 +124,16 @@ discovery.relabel "metrics_targets" {
          target_label = "service" }
 }
 ```
+
+The port label is `__meta_docker_port_private`, **not** the `__meta_docker_port_private_port` that
+Prometheus' own `docker_sd` documents — Alloy names it differently, and getting it wrong drops
+every target with no error anywhere. Discovery emits one target per (network × exposed TCP port),
+so `keepequal` is what picks the right one, and `OBS_DOCKER_NETWORK` collapses the multi-network
+case where the same series would otherwise be scraped twice.
+
+The scrape sets **`honor_labels = true`**. The SDK already stamps `app`/`service`/`env` on the
+app's own series; without it, the `service` relabelled onto the target collides and Prometheus
+renames one of them `exported_service`.
 
 The **empty-env-var idiom** handles genuinely optional static targets (Alloy has no conditionals) — unset var → empty address → dropped → job is a no-op:
 
@@ -149,11 +159,11 @@ prometheus.remote_write "obs" {
 }
 ```
 
-**Log parsing must be conditional** — the reference applied `stage.json` unconditionally, which mangles Postgres/Traefik plain-text logs. Wrap it in `stage.match { selector = "{app=~\".+\"} |~ \"^\\\\s*\\\\{\"" }` so non-JSON lines fall through and get `level` from Loki's `discover_log_levels`.
+**Log parsing must be conditional** — the reference applied `stage.json` unconditionally, which mangles Postgres/Traefik plain-text logs. Wrap it in `stage.match { selector = "{container=~\".+\"} |~ \"^\\\\s*\\\\{\"" }` so non-JSON lines fall through. The selector matches on `container`, not `app`: `app` is added by `loki.write`'s `external_labels`, which run *after* this stage. LogQL rejects backtick raw strings here, so the regex is unescaped twice — once by Alloy, once by LogQL.
 
-**Traces**: `otelcol.receiver.otlp` (gRPC 4317 + HTTP 4318) → `batch` → `attributes` (upsert `host` from env so apps can't get it wrong) → `otelcol.exporter.otlphttp` with `otelcol.auth.basic`.
+**Traces**: `otelcol.receiver.otlp` (gRPC 4317 + HTTP 4318) → `batch` → `otelcol.exporter.otlphttp` with `otelcol.auth.basic`. The agent does **not** rewrite `host` on spans: `otelcol.processor.attributes` only reaches span attributes and `host` is a *resource* attribute, so it would take an `otelcol.processor.transform` with an OTTL statement string-concatenated from `sys.env`. The app's own value is used instead — see `docs/labels.md` §5 for what that costs.
 
-`compose.agent.yml`: `alloy` always; `cadvisor` under profile `containers`; `postgres_exporter` under profile `postgres` with `DATA_SOURCE_URI: "${OBS_PG_HOST}:${OBS_PG_PORT}/${OBS_PG_DB}?sslmode=disable"` (no hardcoded `db`). Host metrics via Alloy's built-in `prometheus.exporter.unix` — no node_exporter container. Recommended wiring is `docker compose -f compose.yml -f observability/compose.agent.yml up`, so the agent shares the app's project network natively and the reference's `external:` network hack disappears.
+`compose.agent.yml`: `alloy` always; `cadvisor` under profile `containers`; `postgres_exporter` under profile `postgres`, its `DATA_SOURCE_*` variables read from `.env.agent` inside the container rather than interpolated by Compose (no hardcoded `db`, and no `$`-escaping in passwords). Both optional services carry their own `obs.*` labels and are discovered by the same mechanism as any app container. Host metrics via Alloy's built-in `prometheus.exporter.unix` — no node_exporter container. Recommended wiring is `docker compose -f compose.yml -f observability/compose.agent.yml up`, so the agent shares the app's project network natively and the reference's `external:` network hack disappears.
 
 Carry over verbatim from the reference (correct and hard-won): postgres_exporter's `--collector.stat_checkpointer` (required for PG17+/18, where checkpoint metrics moved out of `pg_stat_bgwriter`) and its sibling collector flags; cAdvisor's `--disable_metrics=advtcp,cpu_topology,...` list and the `id` labeldrop.
 
@@ -331,7 +341,7 @@ Mac caveats for `docs/local-dev.md`: `prometheus.exporter.unix` reports the Dock
 
 ## 9. Pinned versions
 
-`prom/prometheus:v3.11.3` · `grafana/loki:3.7.1` · `grafana/tempo:2.10.5` · `grafana/grafana:13.0.1` · `grafana/alloy:v1.16.1` · `quay.io/prometheuscommunity/postgres-exporter:v0.19.1` · `gcr.io/cadvisor/cadvisor:v0.57.0` · `traefik:v3.5` · `glitchtip/glitchtip:6` · `postgres:16-alpine` (GlitchTip) · `valkey/valkey:8-alpine` · `postgres:18-alpine` (demo) · `python:3.13-slim`.
+`prom/prometheus:v3.11.3` · `grafana/loki:3.7.1` · `grafana/tempo:2.10.5` · `grafana/grafana:13.0.1` · `grafana/alloy:v1.16.1` · `quay.io/prometheuscommunity/postgres-exporter:v0.19.1` · `ghcr.io/google/cadvisor:v0.57.0` (the `gcr.io/cadvisor` mirror stopped publishing after v0.47.x) · `traefik:v3.5` · `glitchtip/glitchtip:6` · `postgres:16-alpine` (GlitchTip) · `valkey/valkey:8-alpine` · `postgres:18-alpine` (demo) · `python:3.13-slim`.
 
 The first seven are exactly what the reference proves in production. Pin resolved digests for `traefik`, `glitchtip`, `valkey` at M1/M8 and record them in `docs/operations.md` — `:6` and `:v3.5` are floating tags.
 
@@ -343,9 +353,9 @@ The first seven are exactly what the reference proves in production. Pin resolve
 2. **Alloy's `loki.write` WAL sits behind the experimental stability gate** (`--stability.level=experimental`). Without it, log durability across a VPS outage is best-effort retries only. Recommendation: enable it and accept the gate.
 3. **Traces are not durably buffered** — Alloy's OTLP `sending_queue` is in-memory. A long outage drops traces. Accepted; traces are the least valuable signal to backfill.
 4. **Basic auth does not enforce label integrity** (§4) — documented, with the `X-Scope-OrgID` upgrade path.
-5. **`keepequal` port matching requires the metrics port to appear in `__meta_docker_port_private_port`**, i.e. `EXPOSE`d in the image or `expose:`d in compose. Verify at M4; document in `onboarding-an-app.md`; the `OBS_EXTRA_TARGET` env escape hatch covers containers that can't.
-6. **Exemplars need OpenMetrics negotiation end to end** — silent total failure if either side regresses. `verify-signals.sh` step 4 is the regression test.
-7. **Tempo span-metrics dimension lookup** (span vs resource attributes) must be confirmed against 2.10.5 at M5; if resource attributes aren't picked up, add `otelcol.processor.transform` in the agent to copy `app`/`service`/`env` onto spans.
+5. ~~**`keepequal` port matching requires the metrics port to appear in `__meta_docker_port_private_port`**~~ — confirmed at M4, and the label is `__meta_docker_port_private`. The port must be `EXPOSE`d in the image or `expose:`d in compose; publishing it is not required. Document in `onboarding-an-app.md`; the `OBS_EXTRA_TARGET` env escape hatch covers containers that can't. **New at M4**: discovery emits one target per network as well as per port, so a container on two networks is scraped twice — `OBS_DOCKER_NETWORK` exists for that.
+6. ~~**Exemplars need OpenMetrics negotiation end to end**~~ — confirmed working through the agent at M4, with `send_exemplars = true` on `prometheus.remote_write` (off by default; the reference never sets it and drops every exemplar at that line). `verify-signals.sh` step 5 is the regression test.
+7. **Tempo span-metrics dimension lookup** — measured at M4: 2.10.5 *does* read `app`/`env` from resource attributes, so no `transform` is needed for those. But the generator writes its own `service` label from `service.name`, so our `service` collides and arrives as `__service`: `traces_spanmetrics_*` reads `service="demo-api"` where every other signal reads `service="api"`. Reconciling that is M5's remaining work.
 8. **Clock skew** between app hosts and the VPS corrupts log ordering and can trip Loki's max-future-age. Require `chrony`/`systemd-timesyncd`; `deploy-vps.md` checks it.
 9. **Single node, filesystem storage, no HA.** `scripts/backup.sh` tars the Grafana volume (`grafana.db` is the only irreplaceable state) plus the TSDB volumes; restore tested once at M10.
 10. **Cardinality** — cAdvisor is the usual offender; carry over the reference's `--disable_metrics` list and `id` labeldrop.

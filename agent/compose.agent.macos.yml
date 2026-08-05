@@ -1,0 +1,22 @@
+# Local testing on Docker Desktop for Mac only. Never deploy this on a VPS.
+#
+#   docker compose -f compose.yml -f observability/compose.agent.yml \
+#     -f observability/compose.agent.macos.yml --profile containers up -d
+#
+# Docker Desktop runs containerd with the overlayfs snapshotter, where cAdvisor
+# cannot resolve a container's read-write layer from /var/lib/docker and fails
+# with "failed to identify the read-write layer ID". Reading rootfs paths from
+# the containerd API instead is the documented workaround (google/cadvisor#3709).
+# A Linux VPS uses overlay2 and needs none of this.
+
+services:
+  cadvisor:
+    privileged: true
+    volumes:
+      - /run/containerd/containerd.sock:/run/containerd/containerd.sock:ro
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=30s
+      - --store_container_labels=false
+      - --containerd=/run/containerd/containerd.sock
+      - --disable_metrics=advtcp,cpu_topology,cpuset,hugetlb,memory_numa,process,referenced_memory,resctrl,tcp,udp

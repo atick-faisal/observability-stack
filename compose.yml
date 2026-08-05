@@ -28,6 +28,12 @@ services:
       - --storage.tsdb.retention.size=25GB
       - --web.enable-remote-write-receiver
       - --enable-feature=exemplar-storage
+    # The agent tails every container on the host by default, which is right on
+    # an app host. Here the server and the demo share one box, so without this
+    # Loki would ingest its own logs under app=demo. Stack self-monitoring is
+    # out of scope for v1 (PLAN §10).
+    labels:
+      obs.logs: "false"
     networks:
       - obs
     healthcheck:
@@ -46,6 +52,9 @@ services:
       - ./server/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
       - loki_data:/loki
     command: -config.file=/etc/loki/local-config.yaml
+    # Not collected, as above.
+    labels:
+      obs.logs: "false"
     networks:
       - obs
     # No healthcheck: the image is distroless and ships only /usr/bin/loki —
@@ -66,6 +75,9 @@ services:
     depends_on:
       prometheus:
         condition: service_healthy
+    # Not collected, as above.
+    labels:
+      obs.logs: "false"
     networks:
       - obs
     # No healthcheck: distroless, same as loki. Readiness is
@@ -100,6 +112,9 @@ services:
         condition: service_started
       tempo:
         condition: service_started
+    # Not collected, as above.
+    labels:
+      obs.logs: "false"
     networks:
       - obs
     healthcheck:

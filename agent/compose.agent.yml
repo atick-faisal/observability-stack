@@ -1,0 +1,114 @@
+# The agent. Copy this directory into an app repo as observability/ and run it
+# alongside the app, so it shares the app's network and can reach the containers
+# it discovers:
+#
+#   docker compose -f compose.yml -f observability/compose.agent.yml up -d
+#   docker compose -f compose.yml -f observability/compose.agent.yml \
+#     --profile postgres --profile containers up -d
+#
+# Compose resolves relative paths against the *first* -f file's directory, not
+# against this file's. OBS_AGENT_DIR is how this file stays copyable: it defaults
+# to the recommended ./observability, and the demo in this repo sets ./agent.
+
+volumes:
+  alloy_data: {}
+
+services:
+  alloy:
+    image: grafana/alloy:v1.16.1
+    restart: unless-stopped
+    ports:
+      # UI and debug endpoint. On-box only.
+      - "127.0.0.1:12345:12345"
+    expose:
+      # The app sends OTLP here. Not published: same-host traffic only.
+      - "4317"
+      - "4318"
+    volumes:
+      - ${OBS_AGENT_DIR:-./observability}/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy_data:/var/lib/alloy
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # prometheus.exporter.unix reads the host through these.
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host/root:ro
+    env_file:
+      # Everything the agent needs is here, read by sys.env() inside config.alloy.
+      # Optional so a caller that sets `environment:` inline needs no file.
+      - path: ${OBS_AGENT_DIR:-./observability}/.env.agent
+        required: false
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+    labels:
+      # Deliberately not collected. A failing push logs a line, and tailing your
+      # own log means that line becomes another thing to push. Read them with
+      # `docker compose logs alloy`; drop this label to ship them anyway.
+      obs.logs: "false"
+
+  # Per-container CPU / memory / network / disk, for every container on the host.
+  cadvisor:
+    # ghcr, not gcr: the gcr.io/cadvisor mirror stopped publishing after v0.47.x,
+    # and v0.54.0+ is required for the containerd snapshotter (google/cadvisor#3709).
+    image: ghcr.io/google/cadvisor:v0.57.0
+    profiles: [containers]
+    restart: unless-stopped
+    expose:
+      - "8080"
+    # Linux-native. No privileged: true, and no containerd socket — both are
+    # Docker-Desktop/WSL2 artifacts. compose.agent.macos.yml restores them for
+    # local testing.
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      # The socket itself, not all of /var/run. On a Linux host /var/run is a
+      # symlink to /run, so mounting it read-only makes /run read-only too and
+      # any later mount under it fails to create its parent directory.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=30s
+      # Otherwise every Docker label on every container becomes a metric label,
+      # including the obs.* ones this stack sets — cardinality for nothing.
+      - --store_container_labels=false
+      - --disable_metrics=advtcp,cpu_topology,cpuset,hugetlb,memory_numa,process,referenced_memory,resctrl,tcp,udp
+    labels:
+      obs.service: cadvisor
+      obs.metrics.port: "8080"
+      # klog, one line per housekeeping pass. Nothing reads it.
+      obs.logs: "false"
+
+  # Discovered by the same obs.* labels as any app container: no static target
+  # anywhere, including for the stack's own pieces.
+  postgres_exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.19.1
+    profiles: [postgres]
+    restart: unless-stopped
+    expose:
+      - "9187"
+    env_file:
+      # DATA_SOURCE_URI / _USER / _PASS live here, next to the OBS_* variables.
+      - path: ${OBS_AGENT_DIR:-./observability}/.env.agent
+        required: false
+    command:
+      # Required for PG17+: checkpoint metrics moved out of pg_stat_bgwriter into
+      # pg_stat_checkpointer, and the collector for it is off by default.
+      - --collector.stat_checkpointer
+      - --collector.postmaster
+      - --collector.long_running_transactions
+      - --collector.database_wraparound
+      - --collector.process_idle
+      - --collector.stat_activity_autovacuum
+      - --web.listen-address=:9187
+      - --log.level=info
+    labels:
+      # The exporter reports on the database, so it carries the database's role.
+      # Its metrics then line up with the db container's log stream.
+      obs.service: db
+      obs.metrics.port: "9187"
