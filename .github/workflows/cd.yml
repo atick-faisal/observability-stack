@@ -1,0 +1,205 @@
+# 🚀 Continuous Deployment — publishes sdk/obstack to PyPI on a v*.*.* tag
+#
+# This repo is a monorepo: the published package lives in sdk/obstack/, not at
+# the root, so every step below runs with that working directory and the publish
+# step is pointed at sdk/obstack/dist explicitly. The tag, however, is on the
+# repo — which is why the version guard exists.
+#
+# Publishing uses PyPI Trusted Publishing (OIDC), so there is no API token in
+# this repo. Three things must agree with the publisher configured on PyPI, and
+# a mismatch fails at the upload step with a 403 that does not say which one:
+# the repository, this file's name (cd.yml), and the environment name (pypi).
+
+name: CD
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Tag to publish (e.g. v0.1.0). Defaults to the current ref."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PACKAGE_DIR: sdk/obstack
+
+jobs:
+  # 🔍 The tag has to agree with the version the package will publish under.
+  # Without this, `git tag v0.2.0` on a tree whose pyproject still says 0.1.0
+  # publishes 0.1.0 — or, once 0.1.0 exists, silently uploads nothing at all
+  # because of skip-existing below. Cheap check, unambiguous failure.
+  version-guard:
+    name: 🔖 Tag matches package version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: 🔖 Compare tag to pyproject version
+        id: check
+        run: |
+          set -euo pipefail
+          version=$(python3 -c "import tomllib,pathlib;print(tomllib.loads(pathlib.Path('$PACKAGE_DIR/pyproject.toml').read_text())['project']['version'])")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          tag="${{ inputs.ref || github.ref_name }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -z "${{ inputs.ref }}" ]; then
+            echo "::notice::Manual run on ${tag} — publishing version ${version} without a tag check."
+            exit 0
+          fi
+
+          if [ "$tag" != "v$version" ]; then
+            echo "::error::Tag ${tag} does not match ${PACKAGE_DIR} version ${version}."
+            echo "Bump the version in ${PACKAGE_DIR}/pyproject.toml, or retag as v${version}."
+            exit 1
+          fi
+          echo "✅ ${tag} matches version ${version}"
+
+  # 🔍 The same checks `make lint` and `make test` run, across the range the
+  # package claims to support. 3.11 is requires-python's floor and mypy's
+  # target; 3.13 is what the lockfile was resolved on and what the demo runs.
+  checks:
+    name: 🔍 Checks (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: 📦 Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "${{ env.PACKAGE_DIR }}/uv.lock"
+
+      # --locked fails rather than silently re-resolving, so a lockfile that
+      # drifted from pyproject.toml is caught here instead of at install time in
+      # someone else's project.
+      - name: 🔧 Install dependencies
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: uv sync --all-extras --dev --locked --python ${{ matrix.python-version }}
+
+      - name: 🔍 Type-check
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: uv run --python ${{ matrix.python-version }} mypy src
+
+      - name: 🔍 Lint
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: uv run --python ${{ matrix.python-version }} ruff check .
+
+      - name: 🧪 Test
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: uv run --python ${{ matrix.python-version }} pytest
+
+  # 📦 Build once, here, and hand the same artifacts to both the publish and
+  # the release job — so what lands on PyPI and what hangs off the GitHub
+  # Release are byte-identical rather than two independent builds.
+  build:
+    name: 📦 Build distributions
+    runs-on: ubuntu-latest
+    needs: [version-guard, checks]
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: 📦 Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+
+      - name: 🏗️ Build sdist and wheel
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: uv build
+
+      - name: 🔍 Check package metadata
+        working-directory: ${{ env.PACKAGE_DIR }}
+        run: uv run --with twine --no-project twine check dist/*
+
+      - name: 📤 Upload distributions
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist
+          path: ${{ env.PACKAGE_DIR }}/dist/
+          if-no-files-found: error
+
+  # 🚀 Trusted publishing: no token, an OIDC claim instead. id-token: write is
+  # what mints it, and it is granted on this job alone.
+  publish:
+    name: 🚀 Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      id-token: write
+      contents: read
+    environment:
+      name: pypi
+      url: https://pypi.org/p/obstack
+    steps:
+      - name: 📥 Download distributions
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+
+      # skip-existing keeps a re-run of a partially failed workflow from failing
+      # on the upload that already succeeded. It cannot mask a forgotten version
+      # bump — version-guard rejects that before anything is built.
+      - name: 🚀 Upload to PyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          skip-existing: true
+
+  # 🎉 Give the tag a page, with notes generated from the commits since the
+  # previous one, and the built artifacts attached.
+  release:
+    name: 🎉 Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [publish, version-guard]
+    permissions:
+      contents: write
+    steps:
+      - name: 📥 Download distributions
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+
+      - name: 🎉 Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.ref || github.ref_name }}
+          VERSION: ${{ needs.version-guard.outputs.version }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — uploading artifacts to it."
+            gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            # No --notes-start-tag: GitHub already walks back to the previous
+            # release on its own, and passing an explicit start tag breaks the
+            # very first release, when there is no previous one to name.
+            gh release create "$TAG" dist/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "$TAG" \
+              --generate-notes
+          fi
+          echo "🎉 obstack ${VERSION} published — pip install obstack==${VERSION}"

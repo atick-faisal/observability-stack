@@ -533,7 +533,8 @@ The first three are one finding seen three times: the reference's durability sto
 - [x] Publish the repo — MIT license, SDK packaging metadata (`License-Expression`, author, classifiers, project URLs), and the real install URL in the four places that carried a `<repo-url>` / `<you>` placeholder. `github.com/atick-faisal/observability-stack`, public.
 - [ ] **Push.** The repo exists and `origin` is set; the first push is the user's to run — `git push` is denied by this environment's settings, and routing around that with `gh repo create --push` would defeat a guardrail that is there on purpose.
 - [ ] Deploy to the VPS; onboard the first real app; tag `v0.1.0`
-- [ ] Publish `obstack` to PyPI — unblocked by the rename, and the wheel already carries the metadata for it. Claim the name before the next milestone starts depending on it.
+- [x] `.github/workflows/cd.yml` — pushing a `v*.*.*` tag runs the SDK checks on Python 3.11 and 3.13, builds once, publishes to PyPI by Trusted Publishing (OIDC, no token in the repo), and cuts a GitHub Release with the same artifacts attached. Every action pinned to a 40-character SHA; `actionlint` clean.
+- [ ] Publish `obstack` to PyPI — the PyPI project exists and is linked to the repo, so this is now `git tag v0.1.0 && git push --tags`. Nothing else claims the name in the meantime.
 
 **Verify**: `curl -vI https://grafana.<domain>` shows a Let's Encrypt chain. The onboarded app's repo diff is exactly: copy `agent/`, add `obs.*` labels, `uv add obstack`, one `setup_observability(app, engine=engine)` call.
 

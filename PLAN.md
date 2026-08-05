@@ -61,7 +61,8 @@ Hard rules, documented in `docs/labels.md`:
 
 ```
 observability-stack/
-├─ PLAN.md  TASKS.md  README.md  Makefile  .gitignore
+├─ PLAN.md  TASKS.md  README.md  LICENSE  Makefile  .gitignore
+├─ .github/workflows/cd.yml        # tag v*.*.* → checks, build, PyPI, GitHub release
 ├─ compose.yml                     # server, as deployed: build:, traefik labels, no ports
 ├─ compose.local.yml               # local: 127.0.0.1 ports + bind-mounted config
 ├─ compose.edge.yml                # opt-in traefik, for a host with no proxy already
