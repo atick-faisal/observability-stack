@@ -383,23 +383,27 @@ nested so one name covers every service this stack will add.
 
 ### 6b — ingest authentication
 
-- [ ] `obs-ingest-auth` (basicauth `users` from `${INGEST_USERS}`, `removeheader`) and `obs-ingest-ratelimit`, both label-defined
-- [ ] `scripts/add-ingest-user.sh` — `htpasswd -nbB`, emitting the hash **already `$$`-doubled**
-- [ ] `scripts/verify-ingest.sh`
-- [ ] `OBS_INGEST_TLS_INSECURE` in `config.alloy`, documented as local-only
-- [ ] `INGEST_USERS` in `.env.server.example`
+- [x] `obs-ingest-auth` (basicauth `users` from `${INGEST_USERS}`, `removeheader`) and `obs-ingest-ratelimit` (100/s, burst 200, per client IP), both label-defined on prometheus and referenced `@docker` from loki and tempo
+- [x] `scripts/add-ingest-user.sh` — `htpasswd -nbB`, emitting the hash **already `$$`-doubled**, with a docker fallback where apache2-utils is absent
+- [x] `scripts/verify-ingest.sh` — 6 checks, exit code = failures
+- [x] `OBS_INGEST_TLS_INSECURE` on all three writers in `config.alloy`, documented as local-only in three places
+- [x] `INGEST_USERS` in `.env.server.example`, carrying the demo:demo hash so a fresh clone runs
 
 `usersFile` was specified in PLAN §7 precisely to avoid `$$`-doubling bcrypt hashes, but it needs
 a path readable inside *Traefik's* container and we no longer own that container. The doubling
 moves to a script and a test instead.
 
-**Verify**:
-```bash
-make demo-up EDGE=1 && ./scripts/verify-ingest.sh
-```
-400 with a correct credential (auth passed, empty body rejected), 401 without and with a wrong
-one, 404 for any path with no router. Then `verify-signals.sh` again — all seven still green,
-with every signal now having traversed Traefik with basic auth.
+**Measured:**
+
+- [x] **A single `$` in `.env.server` does not merely unescape — it truncates.** `INGEST_USERS=demo:$2y$05$AAAA` renders as `demo:$2y$05`, because Compose reads `$AAAA` as a variable reference and expands it to nothing. Doubling is not cosmetic; measured both ways with `docker compose config`.
+- [x] **Shell environment variables are *not* re-interpolated, `--env-file` values are.** So the value passes with a single `$` from the shell and a doubled `$$` from the file. Only the file form matters for `.env.server`, but the asymmetry will mislead anyone debugging by exporting the variable to compare.
+- [x] **`${entry//$/$$}` in bash expands `$$` to the shell's PID**, producing a plausible-looking hash that is silently wrong (`demo-local:311652y311650531165kPAt…`). `add-ingest-user.sh` uses `sed` instead.
+- [x] **The rate-limit check passed while testing nothing.** 400 sequential `curl` invocations each pay process startup and a TLS handshake, capping out well below the 100/s limit. Re-run through `xargs -P 50`: 123/400 return 429.
+- [x] **Tempo answers 415, not 400, to an empty body** — it checks the content type before looking at the body. With `Content-Type: application/json` and `{}`, a well-formed OTLP request carrying no spans, it returns 200; that is the one backend that can be asked to *accept* something rather than reject it.
+
+**Verified**: `verify-ingest.sh` 6/6 — 401 with no credential, wrong password and unknown user; 400/400/200 from the three backends with the right one; 404 on `/graph`, `/-/quit`, `/api/v1/query`, `/api/v1/admin/tsdb/delete_series`, `/loki/api/v1/query`, `/ready`, `/metrics` and `/`; 123/400 rate-limited.
+
+**The milestone assertion**: with the demo agent pushing through the edge, Traefik's access log shows **23× 204 on `/api/v1/write`, 83× 204 on `/loki/api/v1/push`, 44× 200 on `/v1/traces`**, all attributed to user `demo` — and `verify-signals.sh` is **7/7 green** with the newest sample 7 seconds old. Every signal traversed Traefik with basic auth, and nothing about the label contract changed.
 
 ---
 

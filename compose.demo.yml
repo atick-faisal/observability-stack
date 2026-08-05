@@ -7,9 +7,9 @@
 # The agent files are used unmodified — that is the point of the demo. What is
 # app-specific lives here: the three `obs.*` labels on each container, and the
 # agent's own settings, which a real app repo would put in observability/.env.agent
-# instead. They are inline because none of them is a secret at this stage: the
-# URLs are in-network and the credentials are ignored until Traefik enforces them
-# at M6.
+# instead. They are inline because none of them is a secret: the URLs are
+# in-network and the credential is demo/demo, which .env.server.example ships the
+# matching hash for. `make demo-up EDGE=1` is where it is actually enforced.
 
 volumes:
   demo_db_data: {}

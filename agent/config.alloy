@@ -294,6 +294,11 @@ otelcol.exporter.otlphttp "obs" {
 	client {
 		endpoint = sys.env("OBS_TRACES_URL")
 		auth     = otelcol.auth.basic.ingest.handler
+
+		tls {
+			// Local only — see the note on prometheus.remote_write below.
+			insecure_skip_verify = sys.env("OBS_INGEST_TLS_INSECURE") == "true"
+		}
 	}
 }
 
@@ -323,6 +328,17 @@ prometheus.remote_write "obs" {
 		basic_auth {
 			username = sys.env("OBS_INGEST_USER")
 			password = sys.env("OBS_INGEST_PASSWORD")
+		}
+
+		// Unset, and therefore false, anywhere real. It exists so the stack's own
+		// end-to-end test can push through Traefik on a laptop, where Let's
+		// Encrypt cannot have issued for a domain whose DNS points at the VPS and
+		// Traefik falls back to a self-signed certificate. Turning it on in
+		// production would leave basic auth as the only thing between the
+		// credentials and anyone on the path, which is no protection at all —
+		// they would be readable by whoever terminated the connection.
+		tls_config {
+			insecure_skip_verify = sys.env("OBS_INGEST_TLS_INSECURE") == "true"
 		}
 
 		queue_config {
@@ -355,6 +371,11 @@ loki.write "obs" {
 		basic_auth {
 			username = sys.env("OBS_INGEST_USER")
 			password = sys.env("OBS_INGEST_PASSWORD")
+		}
+
+		// Local only — see the note on prometheus.remote_write above.
+		tls_config {
+			insecure_skip_verify = sys.env("OBS_INGEST_TLS_INSECURE") == "true"
 		}
 	}
 }

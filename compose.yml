@@ -78,6 +78,26 @@ services:
       traefik.http.routers.obs-ingest-prom.tls.certresolver: "letsencrypt"
       traefik.http.routers.obs-ingest-prom.middlewares: "obs-ingest-auth@docker,obs-ingest-ratelimit@docker"
       traefik.http.services.obs-ingest-prom.loadbalancer.server.port: "9090"
+      # Both ingest middlewares are defined here and referenced as @docker from
+      # loki and tempo. Traefik reads a definition off any labelled container, so
+      # one copy is enough; a router naming a middleware that does not exist fails
+      # closed with a 404 rather than serving unauthenticated.
+      #
+      # INGEST_USERS is user:bcrypt-hash, comma-separated for more than one, and
+      # the hash must be written with $$ doubled — Compose interpolates values it
+      # reads from --env-file, so a single $ is eaten. scripts/add-ingest-user.sh
+      # prints the line already doubled; scripts/verify-ingest.sh proves it, since
+      # a mis-escaped hash is a 401 indistinguishable from a wrong password.
+      traefik.http.middlewares.obs-ingest-auth.basicauth.users: ${INGEST_USERS:?set INGEST_USERS in .env.server — scripts/add-ingest-user.sh mints one}
+      # Strips Authorization before proxying. Prometheus and Loki have no use for
+      # it, and it would otherwise reach them and their logs.
+      traefik.http.middlewares.obs-ingest-auth.basicauth.removeheader: "true"
+      # Per client IP, and a blast-radius guard rather than a quota: one agent in
+      # a retry loop is indistinguishable from an attack, and the cost of being
+      # wrong here is dropped samples that the agent's WAL will replay.
+      traefik.http.middlewares.obs-ingest-ratelimit.ratelimit.average: "100"
+      traefik.http.middlewares.obs-ingest-ratelimit.ratelimit.burst: "200"
+      traefik.http.middlewares.obs-ingest-ratelimit.ratelimit.period: "1s"
     networks:
       - obs
       - edge

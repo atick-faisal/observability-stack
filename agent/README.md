@@ -60,6 +60,17 @@ by keeping them in one file that both halves read.
 that leaves it unset reports `socket.gethostname()`, which inside a container is the container id
 — so its traces will disagree with its own metrics, which carry the agent's value.
 
+`OBS_INGEST_USER` / `OBS_INGEST_PASSWORD` are one credential per app+env, minted on the server
+with `scripts/add-ingest-user.sh <app>-<env>`. All three writers send it. The username is what
+identifies this app in the server's access log, so push volume can be attributed and one app can
+be rotated without touching any other.
+
+`OBS_INGEST_TLS_INSECURE` disables certificate verification on all three writers. It exists for
+one purpose — letting the stack's own end-to-end test push through Traefik on a laptop, where
+Let's Encrypt cannot have issued a certificate for a domain whose DNS points at the VPS. Setting
+it against a real endpoint makes basic auth worthless, since the credentials become readable by
+whoever terminates the connection.
+
 ## What it collects
 
 | Source | Signal | Discovered by |
