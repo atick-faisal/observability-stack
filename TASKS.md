@@ -341,7 +341,11 @@ all. The three `tracesToMetrics` queries return data with `$__tags` expanded to
 `app="demo",service="api",env="local"`; `/slow` reports a p95 of 1.92s, which is the load
 generator's configured delay.
 
-- [ ] **Left for you: the round trip by hand in Grafana.** Everything it depends on is asserted programmatically above, but the clicks themselves are not: Explore → Prometheus → `fastapi_requests_duration_seconds_bucket` with exemplars on → click an exemplar → Tempo trace → the span's **Logs for this span** → its **View Trace in Tempo** derived field → back to the same trace, and the span's three **Metrics** links non-empty. Blocked on the Grafana admin credential (see M2's open item).
+- [x] **The round trip, by hand in Grafana.** Explore → Prometheus → `fastapi_requests_duration_seconds_bucket` with exemplars on → exemplar → Tempo trace → the span's links → Loki line → **View Trace in Tempo** → back to the same trace. Confirmed end to end.
+
+  **Grafana 13 has no "Logs for this span" button.** Trace→logs, trace→metrics and span links are all collapsed behind one blue **Links** dropdown at the top-right of the expanded span detail. Following an older walkthrough, the reasonable conclusion is that `tracesToLogsV2` is misconfigured — it is not. `GET /api/datasources/uid/tempo` in the logged-in browser tab is the fastest way to separate "config missing" from "UI moved"; the config Grafana stores can also be read from `grafana.db` without credentials at all.
+
+  Fresh traces confirmed carrying `http.request.method` / `url.path` / `server.address` in the UI. Worth noting that Tempo's 7-day retention means Explore's default window still shows pre-M5 traces with the old attribute names — narrow to the last 15 minutes before concluding the semconv opt-in did not take.
 
 ---
 
