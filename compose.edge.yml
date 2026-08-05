@@ -8,7 +8,7 @@
 # the existing proxy's network instead and deploy compose.yml on its own.
 #
 # It is also how the routing and auth in compose.yml's labels get exercised
-# locally: `make edge-up` runs this against *.localhost, which is what
+# locally: `make demo-up EDGE=1` runs this against *.localhost, which is what
 # scripts/verify-ingest.sh talks to. Expect ACME failures in the log in that mode
 # — Let's Encrypt cannot issue for .localhost, so Traefik serves its built-in
 # self-signed certificate and verify-ingest.sh uses curl -k. That is the only

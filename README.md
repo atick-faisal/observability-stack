@@ -72,10 +72,10 @@ setup_observability(app, engine=engine)
 | [`sdk/obstack/README.md`](./sdk/obstack/README.md) | The Python SDK: settings, metric names, what one call gets you. |
 | [`agent/README.md`](./agent/README.md) | The agent: labels to add, what it collects, what will bite you. |
 | [`demo/`](./demo/) | A worked example of the four steps above — copy it when onboarding. |
-| `docs/onboarding-an-app.md` | The four-step diff in detail. *(M10)* |
-| `docs/deploy-vps.md` | Provisioning, DNS, first `up`. *(M10)* |
-| `docs/local-dev.md` | The demo stack, and macOS caveats. *(M10)* |
-| `docs/operations.md` | Retention, backup/restore, cardinality. *(M10)* |
+| [`docs/onboarding-an-app.md`](./docs/onboarding-an-app.md) | The four-step diff in detail. |
+| [`docs/deploy-vps.md`](./docs/deploy-vps.md) | Provisioning, DNS, first `up`, clock sync. |
+| [`docs/local-dev.md`](./docs/local-dev.md) | The demo stack, the verify scripts, macOS caveats. |
+| [`docs/operations.md`](./docs/operations.md) | Retention, backup/restore, cardinality, upgrades. |
 
 ## Quickstart
 
