@@ -86,6 +86,7 @@ observability-stack/
 ├─ demo/app/  demo/loadgen/
 ├─ scripts/  add-ingest-user.sh verify-ingest.sh verify-signals.sh verify-dashboards.sh
 │            verify-errors.sh verify-resilience.sh backup.sh restore.sh
+│            resolve-digests.sh
 └─ docs/  labels.md onboarding-an-app.md deploy-vps.md local-dev.md operations.md
 ```
 
@@ -359,7 +360,12 @@ Mac caveats for `docs/local-dev.md`: `prometheus.exporter.unix` reports the Dock
 
 `prom/prometheus:v3.11.3` · `grafana/loki:3.7.1` · `grafana/tempo:2.10.5` · `grafana/grafana:13.0.1` · `grafana/alloy:v1.16.1` · `quay.io/prometheuscommunity/postgres-exporter:v0.19.1` · `ghcr.io/google/cadvisor:v0.57.0` (the `gcr.io/cadvisor` mirror stopped publishing after v0.47.x) · `traefik:v3.5` · `glitchtip/glitchtip:6` · `postgres:16-alpine` (GlitchTip) · `valkey/valkey:8-alpine` · `postgres:18-alpine` (demo) · `python:3.13-slim`.
 
-The first seven are exactly what the reference proves in production. Pin resolved digests for `traefik`, `glitchtip`, `valkey` at M1/M8 and record them in `docs/operations.md` — `:6` and `:v3.5` are floating tags.
+The first seven are exactly what the reference proves in production. ~~Pin resolved digests for `traefik`, `glitchtip`, `valkey` at M1/M8~~ — **done at M10**, not M1/M8, and `scripts/resolve-digests.sh` does the resolving because the obvious ways to do it are both wrong:
+
+- `docker manifest inspect -v` reports one `Descriptor` **per platform**, first entry `linux/amd64`. Pinning that gives a compose file that runs on the VPS and cannot start on an arm64 Mac. What must be pinned is the multi-arch **index** digest — the registry's `Docker-Content-Digest` with the index media types in `Accept`, since without them the registry converts the response down to one platform and returns *that* digest.
+- `docker buildx imagetools inspect` returns the right thing but authenticates through the Docker credential helper, which needs an unlocked login keychain on macOS and fails in any non-interactive session. Anonymous registry calls need no credentials and behave the same in CI.
+
+Of the three, only `glitchtip/glitchtip:6` is dangerous rather than untidy: `:6` is a whole minor series and `glitchtip-migrate` runs Django migrations on every `up`, so an unattended bump rewrites the schema of the database holding every error ever reported. `postgres:16-alpine` and `postgres:18-alpine` stay floating on purpose — they move only within a major, the demo one is disposable, and pinning GlitchTip's database would add a second upgrade schedule that has to be kept compatible with the first by hand. Reasoning recorded in `docs/operations.md`; drift is reported by `resolve-digests.sh --check`, which never re-pins on its own.
 
 ---
 

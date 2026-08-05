@@ -34,7 +34,12 @@ volumes:
   glitchtip_uploads: {}
 
 x-glitchtip-app: &glitchtip-app
-  image: glitchtip/glitchtip:6
+  # Digest-pinned, and of the three pins this is the one that matters: `:6` is a
+  # whole minor series, and glitchtip-migrate runs Django migrations on every
+  # `up`. An unattended minor bump therefore rewrites the schema of the database
+  # holding every error ever reported, and migrations do not run backwards.
+  # Re-pin deliberately, with a backup taken first: ./scripts/resolve-digests.sh
+  image: glitchtip/glitchtip:6@sha256:95e0e2d6b1bc18446902ae0cb47910cc55d7c0d6756ee901b0cd8dce9f8ef5a9
   env_file:
     - path: .env.glitchtip
       required: true
@@ -84,7 +89,10 @@ services:
       start_period: 30s
 
   glitchtip-valkey:
-    image: valkey/valkey:8-alpine
+    # Digest-pinned. `:8-alpine` floats within the major, so this one is only
+    # patch-level drift — but it is GlitchTip's queue, and a queue that changes
+    # underneath a pinned app version is the kind of variable worth removing.
+    image: valkey/valkey:8-alpine@sha256:a038175878d66b9d274fbf8be73c0305e93798b83917647f167e18cef3c71eec
     restart: unless-stopped
     networks:
       - glitchtip
