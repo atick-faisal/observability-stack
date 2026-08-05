@@ -349,23 +349,57 @@ generator's configured delay.
 
 ---
 
-## M6 — Traefik + ingest auth
+## M6 — Edge and ingest auth
 
-- [ ] `server/traefik/traefik.yml` — entrypoints, LE HTTP-01 resolver, file + docker providers (`exposedByDefault: false`), JSON access log
-- [ ] `server/traefik/dynamic/middlewares.yml` — `ingest-auth` (basicAuth `usersFile`, `removeHeader: true`), `ingest-ratelimit`, `secure-headers`
-- [ ] Router labels: `grafana.<domain>`; `ingest.<domain>` × 3 native paths → prometheus / loki / tempo
-- [ ] Remove host port bindings from prometheus/loki/tempo (keep `127.0.0.1` for on-box debugging)
-- [ ] `scripts/add-ingest-user.sh` (`htpasswd -nbB`, appends, chmod 0600)
+The deployment target turned out to be a Hetzner VPS **already running Dokploy**, which
+already runs Traefik on `:80`/`:443` with a working Let's Encrypt resolver. That invalidated
+most of the original checklist, which assumed the stack brought its own proxy and owned the
+box. Recorded below as it was actually built. Domain is `obs.atick.dev` (DNS at name.com),
+nested so one name covers every service this stack will add.
+
+### 6a — packaging and routing
+
+- [x] `server/{prometheus,loki,tempo,grafana}/Dockerfile` — each COPYs its own config in
+- [x] `compose.yml` is now the **deployed** shape: `build:`, Traefik labels, **no published ports, no bind mounts**
+- [x] `compose.local.yml` — `127.0.0.1` ports and bind-mounted config, added by `make up` / `make demo-up`
+- [x] Router labels: `grafana.${OBS_DOMAIN}`; `ingest.${OBS_DOMAIN}` × 3 native paths → prometheus / loki / tempo
+- [x] `obs-secure-headers` middleware (HSTS, nosniff, referrer-policy) on Grafana
+- [x] `compose.edge.yml` — our own Traefik, for a host with no proxy; static config as CLI args
+- [x] `compose.demo.edge.yml` + `make demo-up EDGE=1` — routes the demo agent through the edge
+- [x] `make config-check` renders the deployed shape without needing the external network to exist
+
+**Measured, where reading the documentation first would have been wrong:**
+
+- [x] **`include:` cannot override anything.** The plan was `compose.dokploy.yml` importing `compose.yml` and adding network membership. Compose rejects it: `services.tempo conflicts with imported resource`, and the same for networks. `include:` is strictly additive.
+- [x] **`external:` interpolates, which is what replaced it.** `external: ${OBS_EDGE_EXTERNAL:-false}` renders as a plain bridge by default and as `external: true` with the variable set — verified with `docker compose config` both ways. Two variables, no second compose file, and the deploy points straight at `compose.yml`.
+- [x] **`extends:` was not an option either** — it explicitly drops `depends_on`, which would have silently broken tempo's wait on prometheus.
+- [x] **Grafana's dashboards could not be baked at `/var/lib/grafana/dashboards`.** That path is inside the `grafana_data` volume, and a named volume only inherits image content when it is *first* created — on the existing volume the baked dashboards would have been shadowed and silently absent. Moved to `/etc/grafana/dashboards`, which no volume covers, and `provisioning/dashboards/provider.yaml` updated to match.
+- [x] **Traefik's static config sources are mutually exclusive** (file *or* CLI *or* env). A `server/traefik/traefik.yml` therefore could not have read `ACME_EMAIL` from `.env.server`; CLI args can, so the file was never created.
+- [x] **Local edge runs were hitting production Let's Encrypt.** With a real `OBS_DOMAIN` whose DNS does not point at the laptop, every validation fails — and LE counts 5 failed validations per hostname per hour against you. `make demo-up EDGE=1` now pins `ACME_CASERVER` to the staging directory.
+- [x] **`ingest.<domain>` does not resolve inside a container.** Docker's DNS knows nothing about it, and a resolver that does answer for `.localhost` answers `127.0.0.1` — the agent talking to itself. Traefik carries network aliases for both hostnames instead.
+- [x] Baked configs verified by extracting them from the images (`docker create` + `cp`, since loki and tempo are distroless and have no shell) and diffing against the repo — identical for all four.
+
+**Verified**: `make config-check` OK · `make demo-up` then `verify-signals.sh` **7/7 green**, unchanged by the packaging switch · through the edge, `https://grafana.obs.atick.dev/api/health` returns Grafana's health JSON with HSTS/nosniff/referrer-policy applied, `http://` 301s to it, and the three ingest routers **fail closed with 404** because 6b's auth middleware does not exist yet.
+
+### 6b — ingest authentication
+
+- [ ] `obs-ingest-auth` (basicauth `users` from `${INGEST_USERS}`, `removeheader`) and `obs-ingest-ratelimit`, both label-defined
+- [ ] `scripts/add-ingest-user.sh` — `htpasswd -nbB`, emitting the hash **already `$$`-doubled**
 - [ ] `scripts/verify-ingest.sh`
-- [ ] Switch the demo agent to HTTPS + credentials
+- [ ] `OBS_INGEST_TLS_INSECURE` in `config.alloy`, documented as local-only
+- [ ] `INGEST_USERS` in `.env.server.example`
+
+`usersFile` was specified in PLAN §7 precisely to avoid `$$`-doubling bcrypt hashes, but it needs
+a path readable inside *Traefik's* container and we no longer own that container. The doubling
+moves to a script and a test instead.
 
 **Verify**:
 ```bash
-curl -o /dev/null -w '%{http_code}\n' -u u:p https://ingest.localhost/api/v1/write -d ''   # 400 = auth passed
-curl -o /dev/null -w '%{http_code}\n'        https://ingest.localhost/api/v1/write -d ''   # 401
-curl -o /dev/null -w '%{http_code}\n'        https://ingest.localhost/graph                # 404
+make demo-up EDGE=1 && ./scripts/verify-ingest.sh
 ```
-Then re-run `verify-signals.sh` — all five steps still pass over HTTPS.
+400 with a correct credential (auth passed, empty body rejected), 401 without and with a wrong
+one, 404 for any path with no router. Then `verify-signals.sh` again — all seven still green,
+with every signal now having traversed Traefik with basic auth.
 
 ---
 

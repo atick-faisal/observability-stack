@@ -1,8 +1,42 @@
 name: observability
 
+# The server stack, as it is deployed. Nothing is published to the host and no
+# configuration is bind-mounted: each service builds a three-line image that COPYs
+# its own config in. That is what makes the stack deployable from git by something
+# that re-clones the working tree on every deploy (Dokploy does), and it makes a
+# config change recreate the container, which a bind-mount change does not.
+#
+# Locally, add compose.local.yml for 127.0.0.1 ports and bind-mounted config:
+#   make up / make demo-up do this for you.
+#
+# The traefik.* labels are inert without a Traefik reading them — and Traefik
+# ignores anything not on its own network — so one copy serves both an edge proxy
+# that already exists on the host and our own (compose.edge.yml). This file is
+# what a deploy points at; nothing else is needed to deploy it.
+
 networks:
+  # Private. Inter-service traffic (tempo → prometheus remote-write, grafana →
+  # everything) and the demo's app containers.
   obs:
     driver: bridge
+  # The network the edge proxy dials these containers on. A plain bridge by
+  # default; on a host where something else already runs Traefik, point it at
+  # that proxy's network instead — for Dokploy, in its environment UI:
+  #
+  #   OBS_EDGE_NETWORK=dokploy-network
+  #   OBS_EDGE_EXTERNAL=true
+  #
+  # Two variables rather than a second compose file because Compose's `include:`
+  # is strictly additive — it rejects a file that redeclares any service or
+  # network it imported, so an overlay could not have attached the network.
+  #
+  # Note the trade-off this makes on a shared host: anything else on the edge
+  # network can reach these backends directly, bypassing the basic auth Traefik
+  # applies. Same trust boundary as PLAN §7's stated limitation — a single-owner
+  # box — but it is a real one, and it is why `obs` stays separate.
+  edge:
+    name: ${OBS_EDGE_NETWORK:-observability_edge}
+    external: ${OBS_EDGE_EXTERNAL:-false}
 
 volumes:
   prometheus_data: {}
@@ -10,16 +44,22 @@ volumes:
   tempo_data: {}
   grafana_data: {}
 
+x-obs-labels: &obs-labels
+  # The agent tails every container on the host by default, which is right on an
+  # app host. Here the server and the demo share one box, so without this Loki
+  # would ingest its own logs under app=demo. Stack self-monitoring is out of
+  # scope for v1 (PLAN §10).
+  obs.logs: "false"
+  traefik.enable: "true"
+  # Which of the two networks Traefik should dial the container on. Without it,
+  # Traefik picks one arbitrarily and half the routes 504 intermittently.
+  traefik.docker.network: ${OBS_EDGE_NETWORK:-observability_edge}
+
 services:
-  # Ports bind to 127.0.0.1 only. The ingest endpoints are unauthenticated at
-  # this layer; Traefik fronts them with basic auth at M6.
   prometheus:
-    image: prom/prometheus:v3.11.3
+    build: ./server/prometheus
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:9090:9090"
     volumes:
-      - ./server/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     command:
       - --config.file=/etc/prometheus/prometheus.yml
@@ -28,14 +68,19 @@ services:
       - --storage.tsdb.retention.size=25GB
       - --web.enable-remote-write-receiver
       - --enable-feature=exemplar-storage
-    # The agent tails every container on the host by default, which is right on
-    # an app host. Here the server and the demo share one box, so without this
-    # Loki would ingest its own logs under app=demo. Stack self-monitoring is
-    # out of scope for v1 (PLAN §10).
     labels:
-      obs.logs: "false"
+      <<: *obs-labels
+      # Native upstream path, unrewritten: swapping Prometheus for Mimir later is
+      # then only a change of this router's service. Anything on ingest.<domain>
+      # that matches no router 404s.
+      traefik.http.routers.obs-ingest-prom.rule: "Host(`ingest.${OBS_DOMAIN:-localhost}`) && PathPrefix(`/api/v1/write`)"
+      traefik.http.routers.obs-ingest-prom.entrypoints: "websecure"
+      traefik.http.routers.obs-ingest-prom.tls.certresolver: "letsencrypt"
+      traefik.http.routers.obs-ingest-prom.middlewares: "obs-ingest-auth@docker,obs-ingest-ratelimit@docker"
+      traefik.http.services.obs-ingest-prom.loadbalancer.server.port: "9090"
     networks:
       - obs
+      - edge
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy"]
       interval: 30s
@@ -44,50 +89,52 @@ services:
       start_period: 30s
 
   loki:
-    image: grafana/loki:3.7.1
+    build: ./server/loki
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:3100:3100"
     volumes:
-      - ./server/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
       - loki_data:/loki
     command: -config.file=/etc/loki/local-config.yaml
-    # Not collected, as above.
     labels:
-      obs.logs: "false"
+      <<: *obs-labels
+      traefik.http.routers.obs-ingest-loki.rule: "Host(`ingest.${OBS_DOMAIN:-localhost}`) && PathPrefix(`/loki/api/v1/push`)"
+      traefik.http.routers.obs-ingest-loki.entrypoints: "websecure"
+      traefik.http.routers.obs-ingest-loki.tls.certresolver: "letsencrypt"
+      traefik.http.routers.obs-ingest-loki.middlewares: "obs-ingest-auth@docker,obs-ingest-ratelimit@docker"
+      traefik.http.services.obs-ingest-loki.loadbalancer.server.port: "3100"
     networks:
       - obs
+      - edge
     # No healthcheck: the image is distroless and ships only /usr/bin/loki —
     # no shell, no wget, no curl, so there is nothing to run. Readiness is
     # http://localhost:3100/ready, checked from the host.
 
   tempo:
-    image: grafana/tempo:2.10.5
+    build: ./server/tempo
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:3200:3200"
-      - "127.0.0.1:4317:4317"
-      - "127.0.0.1:4318:4318"
     volumes:
-      - ./server/tempo/tempo-config.yaml:/etc/tempo/config.yaml:ro
       - tempo_data:/var/tempo
     command: -config.file=/etc/tempo/config.yaml
     depends_on:
       prometheus:
         condition: service_healthy
-    # Not collected, as above.
     labels:
-      obs.logs: "false"
+      <<: *obs-labels
+      # OTLP/HTTP, not gRPC: gRPC through Traefik needs h2c passthrough and
+      # end-to-end HTTP/2, materially more fragile than an HTTP/1.1 POST (PLAN §7).
+      traefik.http.routers.obs-ingest-tempo.rule: "Host(`ingest.${OBS_DOMAIN:-localhost}`) && PathPrefix(`/v1/traces`)"
+      traefik.http.routers.obs-ingest-tempo.entrypoints: "websecure"
+      traefik.http.routers.obs-ingest-tempo.tls.certresolver: "letsencrypt"
+      traefik.http.routers.obs-ingest-tempo.middlewares: "obs-ingest-auth@docker,obs-ingest-ratelimit@docker"
+      traefik.http.services.obs-ingest-tempo.loadbalancer.server.port: "4318"
     networks:
       - obs
+      - edge
     # No healthcheck: distroless, same as loki. Readiness is
     # http://localhost:3200/ready, checked from the host.
 
   grafana:
-    image: grafana/grafana:13.0.1
+    build: ./server/grafana
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:3000:3000"
     environment:
       GF_SECURITY_ADMIN_USER: ${GF_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:?set GF_ADMIN_PASSWORD in .env.server}
@@ -103,8 +150,6 @@ services:
       GF_LOG_LEVEL: warn
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./server/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./server/grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       prometheus:
         condition: service_healthy
@@ -112,11 +157,23 @@ services:
         condition: service_started
       tempo:
         condition: service_started
-    # Not collected, as above.
     labels:
-      obs.logs: "false"
+      <<: *obs-labels
+      traefik.http.routers.obs-grafana.rule: "Host(`grafana.${OBS_DOMAIN:-localhost}`)"
+      traefik.http.routers.obs-grafana.entrypoints: "websecure"
+      traefik.http.routers.obs-grafana.tls.certresolver: "letsencrypt"
+      traefik.http.routers.obs-grafana.middlewares: "obs-secure-headers@docker"
+      traefik.http.services.obs-grafana.loadbalancer.server.port: "3000"
+      # Defined here rather than alongside the ingest middlewares because it is
+      # the only one Grafana uses, and a middleware is defined wherever it is
+      # convenient — Traefik reads the definition off any labelled container.
+      traefik.http.middlewares.obs-secure-headers.headers.stsSeconds: "31536000"
+      traefik.http.middlewares.obs-secure-headers.headers.stsIncludeSubdomains: "true"
+      traefik.http.middlewares.obs-secure-headers.headers.contentTypeNosniff: "true"
+      traefik.http.middlewares.obs-secure-headers.headers.referrerPolicy: "strict-origin-when-cross-origin"
     networks:
       - obs
+      - edge
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health"]
       interval: 30s

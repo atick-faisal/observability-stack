@@ -1,6 +1,10 @@
 COMPOSE       ?= docker compose
 SERVER_ENV    := --env-file .env.server
-SERVER_FILES  := $(SERVER_ENV) -f compose.yml
+# compose.local.yml is what publishes the 127.0.0.1 ports and bind-mounts the
+# configs. compose.yml on its own is the deployed shape: no ports, config baked
+# into the images.
+LOCAL_FILES   := -f compose.yml -f compose.local.yml
+SERVER_FILES  := $(SERVER_ENV) $(LOCAL_FILES)
 # The demo runs agent/ unmodified — that is what makes "copy this directory into
 # your app repo" a tested claim rather than a hope. OBS_AGENT_DIR is needed
 # because Compose resolves relative paths against the first -f file's directory.
@@ -9,14 +13,22 @@ ifeq ($(shell uname -s),Darwin)
 AGENT_FILES   += -f agent/compose.agent.macos.yml
 endif
 DEMO_ENV      := OBS_AGENT_DIR=./agent
-DEMO_FILES    := $(SERVER_ENV) -f compose.yml -f compose.demo.yml $(AGENT_FILES)
+DEMO_FILES    := $(SERVER_ENV) $(LOCAL_FILES) -f compose.demo.yml $(AGENT_FILES)
 DEMO_PROFILES := --profile postgres --profile containers
+
+# EDGE=1 routes the demo agent through Traefik on *.localhost instead of straight
+# at the backends, so the labels, the basic auth and the path routing are all
+# exercised by the same verify-signals.sh that passes on the direct path.
+ifdef EDGE
+DEMO_FILES    += -f compose.edge.yml -f compose.demo.edge.yml
+DEMO_ENV      += ACME_CASERVER=https://acme-staging-v02.api.letsencrypt.org/directory
+endif
 SDK_DIR       := sdk/obskit
 DEMO_DIRS     := demo/app demo/loadgen
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down logs demo-up demo-down demo-logs demo-verify lint test env-check
+.PHONY: help up down logs demo-up demo-down demo-logs demo-verify verify-ingest config-check lint test env-check
 
 env-check:
 	@test -f .env.server || { echo "missing .env.server — cp .env.server.example .env.server"; exit 1; }
@@ -25,8 +37,8 @@ help: ## List available targets
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) \
 		| awk -F':.*?## ' '{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
 
-up: env-check ## Start the server stack (traefik, prometheus, loki, tempo, grafana)
-	$(COMPOSE) $(SERVER_FILES) up -d
+up: env-check ## Start the server stack (prometheus, loki, tempo, grafana)
+	$(COMPOSE) $(SERVER_FILES) up -d --build
 
 down: ## Stop the server stack, keeping volumes
 	$(COMPOSE) $(SERVER_FILES) down
@@ -47,8 +59,17 @@ demo-down: ## Stop the demo stack, removing only the demo's own volumes
 demo-logs: ## Tail demo stack logs (SVC=alloy to narrow)
 	$(DEMO_ENV) $(COMPOSE) $(DEMO_FILES) $(DEMO_PROFILES) logs -f --tail=100 $(SVC)
 
-demo-verify: ## Assert all five signals arrive from the demo app
+demo-verify: ## Assert every signal arrives from the demo app
 	./scripts/verify-signals.sh
+
+verify-ingest: ## Assert the edge authenticates and routes (needs: make demo-up EDGE=1)
+	./scripts/verify-ingest.sh
+
+# Renders the deployed shape — no ports, no bind mounts, edge network external —
+# without needing that network to exist here. This is exactly what a deploy runs.
+config-check: env-check ## Render the deployed compose shape and check it resolves
+	@OBS_EDGE_NETWORK=dokploy-network OBS_EDGE_EXTERNAL=true \
+		$(COMPOSE) $(SERVER_ENV) -f compose.yml config >/dev/null && echo "compose.yml (deployed shape) OK"
 
 lint: ## Type-check and lint the SDK and the demo
 	cd $(SDK_DIR) && uv run mypy src && uv run ruff check .

@@ -1,0 +1,84 @@
+# Our own Traefik, for a VPS with no edge proxy already on :80/:443.
+#
+#   docker compose -f compose.yml -f compose.edge.yml up -d
+#
+# Not needed where something else already terminates TLS — a second ACME client
+# contending for :443 buys nothing, and on a single box the isolation argument is
+# imaginary because the box dying takes both. There, point OBS_EDGE_NETWORK at
+# the existing proxy's network instead and deploy compose.yml on its own.
+#
+# It is also how the routing and auth in compose.yml's labels get exercised
+# locally: `make edge-up` runs this against *.localhost, which is what
+# scripts/verify-ingest.sh talks to. Expect ACME failures in the log in that mode
+# — Let's Encrypt cannot issue for .localhost, so Traefik serves its built-in
+# self-signed certificate and verify-ingest.sh uses curl -k. That is the only
+# difference between the local run and the real one.
+#
+# The static configuration is CLI arguments rather than a traefik.yml because
+# Traefik's three static config sources (file, CLI, env) are mutually exclusive,
+# and only the CLI form lets Compose interpolate ACME_EMAIL out of .env.server.
+
+volumes:
+  traefik_acme: {}
+
+services:
+  traefik:
+    image: traefik:v3.5
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Read-only, and no access to anything but the socket. Traefik needs it to
+      # watch container labels; it never starts or stops anything.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_acme:/acme
+    command:
+      - --global.checknewversion=false
+      - --global.sendanonymoususage=false
+      - --api.dashboard=false
+      - --log.level=INFO
+      # JSON, so it parses with the same stage.json the agent applies to app logs.
+      - --accesslog=true
+      - --accesslog.format=json
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      # Nothing is routed unless it says traefik.enable=true. The demo's own
+      # containers sit on the same daemon and must not become routes.
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=${OBS_EDGE_NETWORK:-observability_edge}
+      # HTTP-01, so no DNS provider credentials are needed. It requires :80 to be
+      # reachable from the internet, which the redirect above keeps open.
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:?set ACME_EMAIL in .env.server}
+      - --certificatesresolvers.letsencrypt.acme.storage=/acme/acme.json
+      # Overridden to the staging CA by `make demo-up EDGE=1`. Local runs use the
+      # real OBS_DOMAIN, whose DNS does not point here, so every validation fails
+      # — and Let's Encrypt counts 5 failed validations per hostname per hour
+      # against you on the production CA. Staging's limits are far looser and its
+      # certificates are untrusted, which costs nothing when the test already
+      # passes -k.
+      - --certificatesresolvers.letsencrypt.acme.caserver=${ACME_CASERVER:-https://acme-v02.api.letsencrypt.org/directory}
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+    labels:
+      # Not collected — see compose.yml.
+      obs.logs: "false"
+    networks:
+      # `edge` is where it dials the backends, pinned above so it never picks
+      # `obs` and dials them twice over.
+      edge:
+        aliases:
+          - ingest.${OBS_DOMAIN:-localhost}
+          - grafana.${OBS_DOMAIN:-localhost}
+      # `obs` is where the demo's agent lives, and the aliases are what let it
+      # push to the edge by the same hostname a remote host would use. Without
+      # them `ingest.localhost` inside a container does not reach Traefik: Docker's
+      # DNS knows nothing about it, and where a resolver does answer for .localhost
+      # it answers 127.0.0.1 — the agent talking to itself.
+      obs:
+        aliases:
+          - ingest.${OBS_DOMAIN:-localhost}
+          - grafana.${OBS_DOMAIN:-localhost}

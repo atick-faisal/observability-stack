@@ -1,0 +1,26 @@
+# Routes the demo's agent through Traefik instead of straight at the backends.
+# Added by `make demo-up EDGE=1`, together with compose.edge.yml.
+#
+# This is the whole diff between a local app and a deployed one: three URLs and
+# two credentials. The agent image, config.alloy and every label are identical —
+# which is the claim PLAN §7 makes about onboarding, tested rather than asserted.
+#
+# It is a separate file rather than a branch in compose.demo.yml because Compose
+# has no conditionals, and separate from compose.edge.yml because that file is the
+# production edge and must not name a service that only the demo has.
+
+services:
+  alloy:
+    environment:
+      # ${OBS_DOMAIN} rather than a hardcoded localhost, so this exercises the
+      # same hostnames production uses. compose.edge.yml gives Traefik network
+      # aliases for them, so they resolve inside the network regardless of DNS.
+      OBS_PROM_URL: https://ingest.${OBS_DOMAIN:-localhost}/api/v1/write
+      OBS_LOKI_URL: https://ingest.${OBS_DOMAIN:-localhost}/loki/api/v1/push
+      OBS_TRACES_URL: https://ingest.${OBS_DOMAIN:-localhost}
+      # Local only. Traefik has no certificate for a domain whose DNS does not
+      # point here, so it serves its built-in self-signed one.
+      OBS_INGEST_TLS_INSECURE: "true"
+    depends_on:
+      traefik:
+        condition: service_started

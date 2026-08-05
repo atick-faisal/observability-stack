@@ -20,13 +20,17 @@ services:
       OBS_APP: demo
       OBS_ENV: local
       OBS_HOST: demo-host
-      # Direct at M4. M6 re-points all three at https://ingest.<domain> and adds
-      # a real credential; nothing else about the agent changes.
-      OBS_PROM_URL: http://prometheus:9090/api/v1/write
-      OBS_LOKI_URL: http://loki:3100/loki/api/v1/push
-      OBS_TRACES_URL: http://tempo:4318
-      OBS_INGEST_USER: demo
-      OBS_INGEST_PASSWORD: demo
+      # Direct by default, which keeps the local loop fast and independent of the
+      # edge. `make demo-up EDGE=1` overrides all three with
+      # https://ingest.localhost/... and turns on OBS_INGEST_TLS_INSECURE, which is
+      # the whole diff between the local path and the deployed one — proof that
+      # onboarding an app is three URLs and two credentials, as PLAN §7 claims.
+      OBS_PROM_URL: ${OBS_PROM_URL:-http://prometheus:9090/api/v1/write}
+      OBS_LOKI_URL: ${OBS_LOKI_URL:-http://loki:3100/loki/api/v1/push}
+      OBS_TRACES_URL: ${OBS_TRACES_URL:-http://tempo:4318}
+      OBS_INGEST_USER: ${OBS_INGEST_USER:-demo}
+      OBS_INGEST_PASSWORD: ${OBS_INGEST_PASSWORD:-demo}
+      OBS_INGEST_TLS_INSECURE: ${OBS_INGEST_TLS_INSECURE:-false}
       # Not strictly needed here — nothing joins two networks — but it keeps the
       # knob exercised, and the value shows the form: <project>_<network>.
       OBS_DOCKER_NETWORK: observability_obs

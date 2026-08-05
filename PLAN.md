@@ -62,18 +62,19 @@ Hard rules, documented in `docs/labels.md`:
 ```
 observability-stack/
 ├─ PLAN.md  TASKS.md  README.md  Makefile  .gitignore
-├─ compose.yml                     # server: traefik, prometheus, loki, tempo, grafana
+├─ compose.yml                     # server, as deployed: build:, traefik labels, no ports
+├─ compose.local.yml               # local: 127.0.0.1 ports + bind-mounted config
+├─ compose.edge.yml                # opt-in traefik, for a host with no proxy already
 ├─ compose.glitchtip.yml           # server: glitchtip web/worker/migrate + own pg + valkey
 ├─ compose.demo.yml                # local e2e: demo app + pg + agent
+├─ compose.demo.edge.yml           # local e2e: agent pushes through the edge instead
 ├─ .env.server.example  .env.glitchtip.example
 ├─ server/
-│  ├─ traefik/traefik.yml                    # entrypoints, LE resolver, providers
-│  ├─ traefik/dynamic/middlewares.yml        # ingest-auth, ratelimit, secure-headers
-│  ├─ traefik/secrets/.gitkeep               # ingest.htpasswd (gitignored)
-│  ├─ prometheus/prometheus.yml
-│  ├─ loki/loki-config.yaml
-│  ├─ tempo/tempo-config.yaml
-│  └─ grafana/provisioning/{datasources,dashboards,alerting}/
+│  ├─ prometheus/{Dockerfile,prometheus.yml}
+│  ├─ loki/{Dockerfile,loki-config.yaml}
+│  ├─ tempo/{Dockerfile,tempo-config.yaml}
+│  └─ grafana/Dockerfile
+│     grafana/provisioning/{datasources,dashboards,alerting}/
 │     grafana/dashboards/{Applications,Databases,Infrastructure}/*.json
 ├─ agent/                          # ← copied verbatim into any app repo
 │  ├─ compose.agent.yml  config.alloy  .env.agent.example
@@ -171,7 +172,11 @@ Carry over verbatim from the reference (correct and hard-won): postgres_exporter
 
 ## 4. Ingress and auth
 
-Traefik static config: `web` (:80 → redirect) and `websecure` (:443), file provider on `dynamic/`, docker provider with `exposedByDefault: false`, LE HTTP-01 resolver.
+Traefik static config: `web` (:80 → redirect) and `websecure` (:443), docker provider with `exposedByDefault: false`, LE HTTP-01 resolver. It lives in `compose.edge.yml` as CLI arguments rather than a `traefik.yml` — Traefik's three static-config sources (file, CLI, env) are **mutually exclusive**, and only the CLI form lets Compose interpolate `ACME_EMAIL` out of `.env.server`.
+
+**Routing is container labels in `compose.yml`, not a file provider.** Labels are inert without a Traefik reading them, and Traefik ignores anything not on its own network, so one copy of them serves both our own edge and one that already exists on the host. `OBS_EDGE_NETWORK` / `OBS_EDGE_EXTERNAL` point the `edge` network at whatever proxy is already there — on a Dokploy host, `dokploy-network`. Compose's `include:` is strictly additive and rejects a file redeclaring anything it imported, so two variables do what an overlay file cannot.
+
+**Second stated limitation, from that**: on a shared edge network, anything else attached to it reaches the ingest backends directly, bypassing the basic auth below. `obs` stays a separate private network so only the four services and the demo are on it, but the edge network is as trusted as the host. Single-owner box, same boundary as the limitation stated further down.
 
 | Host / path | Backend | Middlewares |
 |---|---|---|
@@ -181,20 +186,18 @@ Traefik static config: `web` (:80 → redirect) and `websecure` (:443), file pro
 | `ingest.<domain>` + `PathPrefix(/loki/api/v1/push)` | loki:3100 | ingest-auth, ratelimit |
 | `ingest.<domain>` + `PathPrefix(/v1/traces)` | tempo:4318 | ingest-auth, ratelimit |
 
-Paths are the **native upstream paths**, no rewriting — swapping Prometheus for Mimir later is just a change of the router's service. Anything else on `ingest.<domain>` matches no router → 404. Backend ports bind `127.0.0.1` only.
+Paths are the **native upstream paths**, no rewriting — swapping Prometheus for Mimir later is just a change of the router's service. Anything else on `ingest.<domain>` matches no router → 404. **Nothing publishes a host port**; `compose.local.yml` adds `127.0.0.1` bindings for local work only, so on the VPS the authenticated path is the only path.
 
-Credentials: **one per app+env**, basic auth, file-backed.
+Credentials: **one per app+env**, basic auth, defined as a label.
 
 ```yaml
-http:
-  middlewares:
-    ingest-auth:
-      basicAuth:
-        usersFile: /secrets/ingest.htpasswd
-        removeHeader: true
+traefik.http.middlewares.obs-ingest-auth.basicauth.users: ${INGEST_USERS}
+traefik.http.middlewares.obs-ingest-auth.basicauth.removeheader: "true"
 ```
 
-`usersFile` rather than inline `users:` is deliberate — bcrypt hashes contain `$`, which Docker Compose interpolates, forcing error-prone `$$`-doubling in labels. `scripts/add-ingest-user.sh <app>-<env>` runs `htpasswd -nbB` and appends (0600, gitignored). Per-app credentials mean you can rotate one app in isolation, and the username appears in Traefik access logs for volume attribution.
+This was originally specified as `usersFile`, to avoid `$`-doubling bcrypt hashes: Compose interpolates values it reads from `--env-file`, so a hash has to be written with `$$`. That reasoning no longer survives, because `usersFile` needs a path readable inside **Traefik's** container, and where the proxy is not ours we do not control its mounts. So the doubling is handled where it can be tested instead: `scripts/add-ingest-user.sh <app>-<env>` runs `htpasswd -nbB` and prints the line already doubled, and `scripts/verify-ingest.sh` asserts a correct credential returns 400 and a wrong one 401 — the failure this trades against is a 401 indistinguishable from a wrong password.
+
+Per-app credentials mean you can rotate one app in isolation, and the username appears in Traefik access logs for volume attribution.
 
 **Stated limitation**: basic auth authenticates the sender but does not enforce that its `app` label matches its credential. Acceptable for a single-owner fleet. Upgrade path when it isn't: a per-credential Traefik `headers` middleware injecting `X-Scope-OrgID`, plus `auth_enabled: true` on Loki and Prometheus → Mimir. This is exactly the swap the URL-level design preserves.
 
