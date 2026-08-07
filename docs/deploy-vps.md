@@ -185,15 +185,25 @@ to `http://<key>@glitchtip-web:8000/1` without leaving the host.
 file per service, so add a second one pointing at `compose.glitchtip.yml`. It renders on its own;
 `make glitchtip-config-check` asserts that, and is worth running before you push.
 
-Its environment is everything from `.env.glitchtip`, plus four values that service needs to know
-independently of the LGTM one:
+Its environment is everything from `.env.glitchtip`, plus four values describing where it runs.
+In shape A those come from `.env.server`; here there is no `.env.server`, and nothing supplies
+them — so `.env.glitchtip.example` carries them commented out, for this case:
 
 ```
 OBS_DOMAIN=example.com
+GLITCHTIP_DOMAIN=https://errors.example.com
 OBS_EDGE_NETWORK=dokploy-network
 OBS_EDGE_EXTERNAL=true
-GLITCHTIP_DOMAIN=https://errors.example.com
 ```
+
+> **Do not uncomment them in shape A.** `.env.glitchtip` is passed as the later `--env-file`, so
+> a copy here overrides `.env.server` silently, and the two drift.
+>
+> **Do not skip them in shape B.** Every one has a default that is right locally and wrong on a
+> VPS, and none of them fails the render. Rendered with them unset you get
+> ``Host(`errors.localhost`)``, an `observability_edge` bridge the platform's Traefik is not on,
+> and `http://localhost:8001` as the base of every DSN GlitchTip issues — a deploy that comes up
+> healthy and is unreachable.
 
 > **A separate service is a separate Compose project, so `obs` is project-local.**
 > `glitchtip-web:8000` is *not* reachable from the LGTM project's containers — apps report over
