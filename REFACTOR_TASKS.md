@@ -95,10 +95,15 @@ Two things found while verifying:
   Pushing the demo at the VPS is now `make demo-up REMOTE=1`, mirroring `EDGE=1`; push-only,
   since the VPS's query APIs are not routed. `agent/.env.agent` is absent rather than rewritten,
   so the `${OBS_INGEST_USER:-demo}` defaults apply and a fresh clone comes up with no setup.
-- [ ] **`verify-resilience.sh`'s drain step waits on metrics only**, then checks logs immediately.
+- [x] **`verify-resilience.sh`'s drain step waits on metrics only**, then checks logs immediately.
   The `loki.write` WAL replay is slower, so checks 5 and 6 can false-negative on a short outage —
   observed once, with the lines present in Loki when queried a minute later, and clean on a
   re-run. Worth making the drain wait per-signal.
+
+  Fixed: the drain step now polls Prometheus and Loki independently against the same `t1+120`
+  boundary, each with its own pass/fail line. Check 6 is not polled directly — it looks up its
+  trace_id from an early Loki log line first, so it inherits the fix once Loki's WAL replay is
+  correctly gated. No separate Tempo-side wait was needed.
 
 ---
 
@@ -198,9 +203,6 @@ Independent of each other and of everything above; land in any order. Behaviour 
       structurally cannot fail on, and the case that motivated raising the out-of-order window in
       P0. One agent replays in order into a head whose max time is when it went down; only a second
       agent's replay lands against live writes.
-- [ ] **Make `verify-resilience.sh`'s drain wait per-signal**, not on metrics alone. The
-      `loki.write` WAL replay lags the `prometheus.remote_write` one, so checks 5 and 6 can report
-      a gap that is not there — a false negative in the one test that exists to catch a real one.
 - [ ] **`mem_limit` on every service** (§B2), with the sizing recorded in `docs/operations.md`,
       plus the note that a limit converts "the box dies" into "one service restarts and replays
       its WAL"

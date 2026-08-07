@@ -160,40 +160,73 @@ inner_end=$((t1 - margin))
 
 # ── 3. drain ────────────────────────────────────────────────────────────────
 
-check "drain — waiting for the agent to reconnect and replay"
+check "drain — waiting for each signal to reconnect and replay"
 
-# remote_write backs off up to 5m, so the reconnect is not immediate and polling
-# is the honest way to wait for it.
+# remote_write and loki.write each back off up to 5m, so the reconnect is not
+# immediate and polling is the honest way to wait for it. They do not finish
+# together — measured once, Loki's WAL replay landed noticeably after
+# Prometheus's — so this polls both independently rather than waiting on one
+# and assuming the other is done underneath it. That assumption produced a
+# false negative on checks 5 and 6 on a short outage: the lines were in Loki a
+# minute later, and a re-run was clean.
 #
-# The condition is the *newest* bucket the assertions below need, not one from
-# inside the outage. The WAL replays in order, so a sample from the middle of the
-# outage proves the replay started, not that it finished — waiting on that and
-# then asserting reports "19/20 buckets, there is a hole" for a window that turns
-# out to be complete a minute later. Measured: on a 901s outage the middle of the
-# window was back after 372s and the end of it roughly a minute after that.
+# Each condition is the *newest* bucket/line the assertions below need, not one
+# from inside the outage. Both WALs replay in order, so a sample from the
+# middle of the outage proves the replay started, not that it finished —
+# waiting on that and then asserting reports "19/20 buckets, there is a hole"
+# for a window that turns out to be complete a minute later. Measured: on a
+# 901s outage the middle of the metrics window was back after 372s and the end
+# of it roughly a minute after that.
 #
-# Waiting for the last bucket is the same thing as waiting for the agent to catch
-# up with the present, and it cannot be satisfied early or by live traffic: t1+120
-# has not happened yet when the polling starts, so the query is empty until both
-# the clock and the replay have passed it. It subsumes the wall-clock wait this
-# used to do, and it covers Loki and Tempo too — they drain faster than the WAL.
+# Waiting for the last bucket/line is the same thing as waiting for each agent
+# component to catch up with the present, and it cannot be satisfied early or
+# by live traffic: t1+120 has not happened yet when the polling starts, so
+# both queries are empty until the clock and the respective replay have passed
+# it. It subsumes the wall-clock wait this used to do.
+#
+# Check 6 (traces) is not polled here directly: it resolves a trace by looking
+# up its trace_id from an early Loki log line first, so once Loki's condition
+# below is satisfied, the line it needs is already there too — the WAL replays
+# in order, so reaching the far edge of the window implies the earlier lines
+# arrived first.
 catchup=$((t1 + 120))
 deadline=$(($(date +%s) + DRAIN_TIMEOUT))
-drained=0
+metrics_drained=0
+logs_drained=0
 while [[ $(date +%s) -lt $deadline ]]; do
-	n=$(curl -sG --max-time 10 "$PROM_URL/api/v1/query" \
-		--data-urlencode "query=count_over_time(fastapi_requests_total{app=\"$APP\",service=\"$SERVICE\"}[1m])" \
-		--data-urlencode "time=$catchup" | jq -r '.data.result | length' 2>/dev/null)
-	if [[ ${n:-0} -gt 0 ]]; then
-		drained=1
-		break
+	if [[ $metrics_drained -eq 0 ]]; then
+		n=$(curl -sG --max-time 10 "$PROM_URL/api/v1/query" \
+			--data-urlencode "query=count_over_time(fastapi_requests_total{app=\"$APP\",service=\"$SERVICE\"}[1m])" \
+			--data-urlencode "time=$catchup" | jq -r '.data.result | length' 2>/dev/null)
+		if [[ ${n:-0} -gt 0 ]]; then
+			metrics_drained=1
+			metrics_drained_at=$(($(date +%s) - t1))
+		fi
 	fi
+	if [[ $logs_drained -eq 0 ]]; then
+		n=$(curl -sG --max-time 10 "$LOKI_URL/loki/api/v1/query_range" \
+			--data-urlencode "query={app=\"$APP\",service=\"$SERVICE\"}" \
+			--data-urlencode "start=${catchup}000000000" \
+			--data-urlencode "end=$((catchup + 60))000000000" \
+			--data-urlencode "direction=forward" --data-urlencode "limit=1" |
+			jq -r '.data.result | length' 2>/dev/null)
+		if [[ ${n:-0} -gt 0 ]]; then
+			logs_drained=1
+			logs_drained_at=$(($(date +%s) - t1))
+		fi
+	fi
+	[[ $metrics_drained -eq 1 && $logs_drained -eq 1 ]] && break
 	sleep 10
 done
-if [[ $drained -eq 1 ]]; then
-	pass "replayed up to the end of the window after $(($(date +%s) - t1))s"
+if [[ $metrics_drained -eq 1 ]]; then
+	pass "metrics replayed up to the end of the window after ${metrics_drained_at}s"
 else
-	fail "the replay had not reached $(hhmmss "$catchup") after ${DRAIN_TIMEOUT}s — the rest will fail for that reason"
+	fail "the metrics replay had not reached $(hhmmss "$catchup") after ${DRAIN_TIMEOUT}s — check 4 will fail for that reason"
+fi
+if [[ $logs_drained -eq 1 ]]; then
+	pass "logs replayed up to the end of the window after ${logs_drained_at}s"
+else
+	fail "the loki.write replay had not reached $(hhmmss "$catchup") after ${DRAIN_TIMEOUT}s — checks 5 and 6 will fail for that reason"
 fi
 
 # ── 4. the assertions ───────────────────────────────────────────────────────
