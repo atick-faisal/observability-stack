@@ -90,14 +90,19 @@ All three writers buffer to disk, under `--storage.path` in the `alloy_data` vol
 with the **original timestamps** — so an outage leaves a continuous line rather than a gap, and
 `docker volume rm` on that volume is the one action that throws the buffer away.
 
-| Signal | Mechanism | Roughly how long | The server-side window that has to match |
+| Signal | Mechanism | Roughly how long | The server-side window, which must be at least as wide |
 |---|---|---|---|
-| metrics | `prometheus.remote_write` WAL | 8h (`max_keepalive_time`) | `--storage.tsdb.out_of_order_time_window=2h` |
+| metrics | `prometheus.remote_write` WAL | 8h (`max_keepalive_time`) | `out_of_order_time_window: 8h` |
 | logs | `loki.write` WAL | 8h (`max_segment_age`), 20 retries ≈ 1h per batch | `reject_old_samples_max_age: 168h` |
 | traces | `otelcol` sending queue on `otelcol.storage.file` | 10 000 batches | none — Tempo accepts any timestamp |
 
 The server-side column is the half people forget. A buffer whose replay the server rejects as
 too old is worse than no buffer, because it looks like it worked.
+
+**These numbers travel together.** Raising a buffer here without raising the matching window on
+the server buys nothing past the old window, silently. The metrics pair was `8h` against `2h`
+until it was reconciled, and it took a second agent to expose — one agent replays in order and
+barely uses the out-of-order path. `docs/operations.md` §1 has the full reasoning.
 
 `--stability.level=public-preview` in `compose.agent.yml` is required by exactly one component,
 `otelcol.storage.file`, which is what puts the trace queue on disk instead of in memory. The flag

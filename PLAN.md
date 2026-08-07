@@ -311,7 +311,7 @@ Provider: file, `foldersFromFilesStructure: true`, `updateIntervalSeconds: 30`, 
 - **Prometheus**: `--storage.tsdb.retention.time=30d` + `--storage.tsdb.retention.size=25GB`; keep `--web.enable-remote-write-receiver` and `--enable-feature=exemplar-storage`. Add:
   ```yaml
   storage:
-    tsdb: { out_of_order_time_window: 2h }
+    tsdb: { out_of_order_time_window: 8h }   # raised from 2h post-v1; see docs/operations.md §1
     exemplars: { max_exemplars: 200000 }
   ```
   **Without `out_of_order_time_window`, every sample an agent buffered during a VPS outage is rejected as too-old and you get a permanent gap.** This is the single most likely production surprise.
@@ -372,7 +372,7 @@ Of the three, only `glitchtip/glitchtip:6` is dangerous rather than untidy: `:6`
 
 ## 10. Risks
 
-1. ~~**Out-of-order rejection after an agent outage**~~ — verified at M9: a fifteen-minute outage with the app still serving leaves every 60s bucket of `fastapi_requests_total` populated. `out_of_order_time_window: 2h` is not what does the work in the single-agent case — the agent replays in order into a head whose max time is the moment it went down — but it is what keeps a *second* agent's replay from being rejected against the first's live writes, which is the shape any second app host takes.
+1. ~~**Out-of-order rejection after an agent outage**~~ — verified at M9: a fifteen-minute outage with the app still serving leaves every 60s bucket of `fastapi_requests_total` populated. `out_of_order_time_window` is not what does the work in the single-agent case — the agent replays in order into a head whose max time is the moment it went down — but it is what keeps a *second* agent's replay from being rejected against the first's live writes, which is the shape any second app host takes. **That second case is why the window was later raised from `2h` to `8h`**, to match the agent's `max_keepalive_time`: at `2h` an outage longer than two hours on one of two app hosts was a permanent gap, and the single-agent test this item was closed on structurally cannot fail on it.
 2. ~~**Alloy's `loki.write` WAL sits behind the experimental stability gate**~~ — **wrong as written, and measured at M9**: the block is `generally-available` in Alloy 1.16.1 and needs no flag at all. It was experimental when this line was written. What the WAL does *not* fix on its own is the endpoint's retry budget: the default 10 retries on the same backoff curve give up after roughly nine minutes, so a batch was still dropped inside the very outage the WAL is for. `max_backoff_retries = 20` carries it past an hour.
 3. ~~**Traces are not durably buffered**~~ — fixed at M9 rather than accepted, because "accepted" understated it: the default `retry_on_failure.max_elapsed_time` is five minutes, after which spans are discarded *silently*. `otelcol.storage.file` puts the sending queue on disk under `--storage.path`, and `max_elapsed_time = "0s"` makes the queue rather than a timer the thing that bounds it. This is the one component in `config.alloy` that is not generally-available, and the only reason `--stability.level=public-preview` is passed — a much weaker gate than the `experimental` this document assumed in item 2.
 4. **Basic auth does not enforce label integrity** (§4) — documented, with the `X-Scope-OrgID` upgrade path.

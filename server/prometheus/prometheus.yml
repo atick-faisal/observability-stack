@@ -8,7 +8,23 @@ storage:
     # Agents buffer samples locally while this VPS is down. Without a window,
     # everything they replay on reconnect is rejected as too old and the gap
     # is permanent. See TASKS.md M9.
-    out_of_order_time_window: 2h
+    #
+    # The invariant: **this must be at least the agent's max_keepalive_time**
+    # (agent/config.alloy, 8h). The agent is the authoritative number — it is the
+    # one that says how long an outage can run — so this follows it, and moving
+    # either without the other reintroduces the hole.
+    #
+    # It was 2h against an 8h buffer, which looks survivable and is not. A single
+    # agent replays in order into a head whose max time is the moment it went
+    # down, so it barely uses the out-of-order path at all. The window is what
+    # keeps a *second* agent's replay from being rejected against the first's
+    # live writes — and two app hosts is the premise of this repo, not an edge
+    # case. Past 2h the samples were dropped and the agent reported success.
+    #
+    # Widening is close to free in steady state: the out-of-order head holds only
+    # samples actually received out of order, so it costs memory during the
+    # replay it exists for and nothing the rest of the time.
+    out_of_order_time_window: 8h
   exemplars:
     max_exemplars: 200000
 

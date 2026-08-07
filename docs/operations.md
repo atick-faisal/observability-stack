@@ -28,14 +28,33 @@ The agent buffers all three signals to disk through an outage and replays them *
 original timestamps**. A server that rejects that replay as too old is worse than no buffer,
 because it looks like it worked — the agent reports success and the gap is permanent.
 
-| Signal | Agent holds | Server must accept |
-|---|---|---|
-| metrics | 8h WAL | `out_of_order_time_window: 2h` (`prometheus.yml`) |
-| logs | 8h WAL, 20 retries ≈ 1h per batch | `reject_old_samples_max_age: 168h` (`loki-config.yaml`) |
-| traces | 10 000 batches on disk | nothing — Tempo accepts any timestamp |
+**The agent's buffer is the authoritative number.** It is the one that says how long an outage
+can run; each server-side window follows it, and must be at least as wide.
+
+| Signal | Agent holds | Server accepts | Margin |
+|---|---|---|---|
+| metrics | 8h WAL (`max_keepalive_time`) | `out_of_order_time_window: 8h` (`prometheus.yml`) | exactly equal |
+| logs | 8h WAL (`max_segment_age`), 20 retries ≈ 1h per batch | `reject_old_samples_max_age: 168h` (`loki-config.yaml`) | 21× |
+| traces | 10 000 batches on disk | any timestamp — Tempo has no window | unbounded |
 
 Shortening either server-side value without shortening the agent's buffer is how you get a
 silent hole. `make verify-resilience` is the regression test.
+
+> **The metrics row was `8h` against `2h` until this was reconciled**, and the reason it never
+> showed up is worth keeping. A single agent replays *in order* into a head whose max time is the
+> moment it went down, so it barely touches the out-of-order path — the 2h window was almost never
+> the thing being tested. What the window actually protects is a **second** agent's replay landing
+> against the first agent's live writes, which is the multi-app case, and multi-app is the premise
+> of this stack rather than an edge case. With two app hosts, an outage longer than two hours on
+> one of them was a permanent gap that nothing reported.
+>
+> Prometheus moved rather than the agent because widening is close to free: the out-of-order head
+> holds only samples actually received out of order, so it costs head memory during the replay it
+> exists for and nothing in steady state. Lowering the agent to 2h would have been the other
+> defensible choice, at the cost of replay depth.
+>
+> `make verify-resilience` uses one agent, so it passed throughout and still cannot fail on this.
+> The two-agent case is tracked in `REFACTOR_TASKS.md` P4.
 
 ### When disk gets tight
 

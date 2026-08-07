@@ -386,9 +386,11 @@ prometheus.remote_write "obs" {
 		}
 	}
 
-	// Buffers samples locally while the VPS is unreachable. The server's
-	// out_of_order_time_window has to be at least as generous or the replay is
-	// rejected as too old and the gap is permanent.
+	// Buffers samples locally while the VPS is unreachable. This is the
+	// authoritative number of the pair — it says how long an outage can run —
+	// and the server's out_of_order_time_window follows it, currently also 8h.
+	// Raise this without raising that and everything past the server's window is
+	// rejected as too old: a permanent gap, reported as a success.
 	wal {
 		truncate_frequency = "2h"
 		max_keepalive_time = "8h"

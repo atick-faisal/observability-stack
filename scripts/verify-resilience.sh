@@ -16,7 +16,7 @@
 # Three separate mechanisms have to work for that, one per signal, and each has
 # its own server-side window that has to be at least as generous:
 #
-#   metrics  prometheus.remote_write wal    ↔  tsdb.out_of_order_time_window 2h
+#   metrics  prometheus.remote_write wal    ↔  tsdb.out_of_order_time_window 8h
 #   logs     loki.write wal                 ↔  reject_old_samples_max_age 168h
 #   traces   otelcol sending_queue on disk  ↔  (none — Tempo takes any timestamp)
 #
