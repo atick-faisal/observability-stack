@@ -46,7 +46,11 @@ endif
 # overlay the same Compose project as everything else — `down` here would otherwise
 # take Grafana with it.
 GLITCHTIP_FILES := -f compose.glitchtip.yml -f compose.glitchtip.local.yml
-GT_FILES        := $(SERVER_FILES) $(GLITCHTIP_FILES)
+# compose.glitchtip.yml interpolates its settings rather than reading .env.glitchtip
+# with `env_file:` — see that file's header for why. So the file has to be handed to
+# Compose, and after .env.server, because the later --env-file wins.
+GT_ENV          := --env-file .env.glitchtip
+GT_FILES        := $(SERVER_ENV) $(GT_ENV) $(LOCAL_FILES) $(GLITCHTIP_FILES)
 GT_SVCS         := glitchtip-postgres glitchtip-valkey glitchtip-migrate glitchtip-web glitchtip-worker
 
 SDK_DIR       := sdk/obstack
@@ -54,7 +58,7 @@ DEMO_DIRS     := demo/app demo/loadgen
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down logs demo-up demo-down demo-logs demo-verify verify-ingest verify-dashboards verify-errors verify-resilience backup restore glitchtip-up glitchtip-down glitchtip-logs config-check lint test env-check glitchtip-env-check
+.PHONY: help up down logs demo-up demo-down demo-logs demo-verify verify-ingest verify-dashboards verify-errors verify-resilience backup restore glitchtip-up glitchtip-down glitchtip-logs config-check glitchtip-config-check lint test env-check glitchtip-env-check
 
 env-check:
 	@test -f .env.server || { echo "missing .env.server — cp .env.server.example .env.server"; exit 1; }
@@ -131,6 +135,15 @@ restore: ## Restore a backup — DIR=backups/<stamp>, then add ARGS=--yes
 config-check: env-check ## Render the deployed compose shape and check it resolves
 	@OBS_EDGE_NETWORK=dokploy-network OBS_EDGE_EXTERNAL=true \
 		$(COMPOSE) $(SERVER_ENV) -f compose.yml config >/dev/null && echo "compose.yml (deployed shape) OK"
+
+# compose.glitchtip.yml on its own, with no compose.yml under it — the shape a
+# platform that deploys one file per service renders. It borrows the `obs` and `edge`
+# networks, and until they were declared here too this failed with "refers to
+# undefined network obs" only on the deploy, never locally.
+glitchtip-config-check: glitchtip-env-check ## Render the deployed GlitchTip shape and check it resolves
+	@OBS_EDGE_NETWORK=dokploy-network OBS_EDGE_EXTERNAL=true \
+		$(COMPOSE) $(GT_ENV) -f compose.glitchtip.yml config >/dev/null \
+		&& echo "compose.glitchtip.yml (deployed shape) OK"
 
 lint: ## Type-check and lint the SDK and the demo
 	cd $(SDK_DIR) && uv run mypy src && uv run ruff check .

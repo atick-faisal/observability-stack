@@ -112,13 +112,18 @@ services:
       # the SDK call, the log format — is identical either way.
       OBS_OTLP_ENDPOINT: http://alloy:4317
       # Empty by default, which is what obstack treats as "no error reporting" — the
-      # demo runs unchanged without GlitchTip. With compose.glitchtip.yml up, export
-      # the DSN its UI hands you and `make demo-up` again:
+      # demo runs unchanged without GlitchTip. With one up, export the DSN its UI
+      # hands you and `make demo-up` again. Which DSN depends on where it runs:
       #
-      #   OBS_ERROR_DSN=http://<key>@glitchtip-web:8000/1 make demo-up
+      #   OBS_ERROR_DSN=http://<key>@glitchtip-web:8000/1 make demo-up      # make glitchtip-up
+      #   OBS_ERROR_DSN=https://<key>@errors.<domain>/1 make demo-up        # deployed
       #
-      # The host is the compose service name, not localhost:8001 — this is dialled
-      # from inside the container, over the `obs` network glitchtip-web joins.
+      # The first is the compose service name, not localhost:8001 — this is dialled
+      # from inside the container, over the `obs` network glitchtip-web joins. It only
+      # resolves when GlitchTip is in *this* Compose project; deployed as its own
+      # service it is a separate project with its own `obs`, and the public hostname
+      # is the only way in. GlitchTip generates whichever DSN matches its
+      # GLITCHTIP_DOMAIN, so the UI hands you the right one either way.
       OBS_ERROR_DSN: ${OBS_ERROR_DSN:-}
       DATABASE_URL: postgresql+asyncpg://demo:${DEMO_DB_PASSWORD:-demo}@demo-db:5432/demo
     depends_on:

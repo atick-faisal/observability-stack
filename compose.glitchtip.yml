@@ -1,8 +1,23 @@
-# Error tracking. Overlays compose.yml in the same Compose project, so glitchtip-web
-# lands on the `edge` network the LGTM services already use and the Traefik labels
-# below need no proxy of their own:
+# Error tracking. Deployable two ways, from this one file.
 #
-#   docker compose --env-file .env.server -f compose.yml -f compose.glitchtip.yml up -d
+# Alongside the LGTM stack, in the same Compose project — glitchtip-web then lands on
+# the same `obs` and `edge` networks those services use, so an app on this box can
+# POST events to glitchtip-web:8000 directly:
+#
+#   docker compose --env-file .env.server --env-file .env.glitchtip \
+#     -f compose.yml -f compose.glitchtip.yml up -d
+#
+# Or on its own, as its own project — which is what a platform that deploys one
+# compose file per service (Dokploy, Coolify) gives you:
+#
+#   docker compose --env-file .env.glitchtip -f compose.glitchtip.yml up -d
+#
+# The second shape is why the `obs` and `edge` networks are declared below and not
+# only in compose.yml. They are declared identically in both, so Compose merges them
+# without conflict when the files are overlaid. Note what a separate project costs:
+# its `obs` network is project-local, so glitchtip-web:8000 is *not* reachable from
+# the LGTM project's containers. Apps report over https://errors.<domain> instead,
+# which is what an app on any other host does anyway.
 #
 # Locally, add compose.glitchtip.local.yml for a 127.0.0.1 port — `make glitchtip-up`
 # does that for you. This file publishes nothing, which is the same invariant
@@ -12,12 +27,17 @@
 # It is five more containers and a second Postgres; a stack that only wants metrics,
 # logs and traces should not pay for them.
 #
-# Its secrets come from .env.glitchtip via `env_file:`, which is read by the
-# *container*, not by Compose. That matters: values Compose interpolates need every
-# `$` doubled (see the INGEST_USERS note in .env.server.example), and a SECRET_KEY
-# from `openssl rand -hex 32` or a generated DB password is exactly where that trap
-# bites. Read directly, they are taken literally. agent/compose.agent.yml does the
-# same for postgres_exporter's DATA_SOURCE_* variables.
+# Its settings are interpolated by Compose from .env.glitchtip, or from the
+# environment UI of whatever deploys this. So the `$$`-doubling rule that applies to
+# .env.server applies here too: a single `$` in a value is eaten. `openssl rand -hex
+# 32` cannot produce one, and .env.glitchtip.example asks for an alphanumeric
+# database password for the same reason scripts/add-ingest-user.sh generates one.
+#
+# These were an `env_file:` until GlitchTip had to deploy behind a platform that
+# re-clones the repo, where a gitignored file is never present. `env_file:` was
+# removed rather than kept alongside `environment:`, because Compose ranks
+# `environment:` higher — the file would still be read, discarded, and look
+# authoritative while doing nothing. That is exactly how agent/.env.agent failed.
 
 networks:
   # Private to these five. `obs` carries the LGTM services *and* the demo's app
@@ -26,6 +46,13 @@ networks:
   # web container leaves this network, because only it has to.
   glitchtip:
     driver: bridge
+  # Declared identically in compose.yml; see the header. Present here so this file
+  # renders on its own, which `make glitchtip-config-check` asserts.
+  obs:
+    driver: bridge
+  edge:
+    name: ${OBS_EDGE_NETWORK:-observability_edge}
+    external: ${OBS_EDGE_EXTERNAL:-false}
 
 volumes:
   glitchtip_pg_data: {}
@@ -40,12 +67,45 @@ x-glitchtip-app: &glitchtip-app
   # holding every error ever reported, and migrations do not run backwards.
   # Re-pin deliberately, with a backup taken first: ./scripts/resolve-digests.sh
   image: glitchtip/glitchtip:6@sha256:95e0e2d6b1bc18446902ae0cb47910cc55d7c0d6756ee901b0cd8dce9f8ef5a9
-  env_file:
-    - path: .env.glitchtip
-      required: true
   environment:
-    # Not in the env file: derived from OBS_DOMAIN rather than chosen, and not a
-    # secret. Despite the name it is a full URL — settings.py raises
+    # `:?` rather than a default on everything that has no safe one. A missing value
+    # then fails the render with the message below, instead of booting a container
+    # that half-works — an empty SECRET_KEY invalidates every session, and an
+    # ALLOWED_HOSTS that does not list the public hostname is a 400 on every request
+    # with no clue as to why.
+    SECRET_KEY: ${SECRET_KEY:?generate one with `openssl rand -hex 32`}
+    ALLOWED_HOSTS: ${ALLOWED_HOSTS:?every Host header GlitchTip must answer on, comma-separated}
+    # Assembled from the parts rather than carried as a fourth copy of the same
+    # credential, so it cannot drift from what glitchtip-postgres was created with.
+    # It is a URL: a `#`, `@` or `:` in the password has to be percent-encoded, which
+    # is the other reason to keep that password alphanumeric.
+    DATABASE_URL: postgres://${POSTGRES_USER:-glitchtip}:${POSTGRES_PASSWORD:?set GlitchTip's database password}@glitchtip-postgres:5432/${POSTGRES_DB:-glitchtip}
+    # Celery's broker as well as the cache. An empty string makes GlitchTip fall back
+    # to the database, which works and is slower.
+    VALKEY_URL: ${VALKEY_URL:-redis://glitchtip-valkey:6379/0}
+    # The port GlitchTip listens on inside the container. The Traefik label and the
+    # healthcheck below both assume 8000; change all three together. Named
+    # GLITCHTIP_PORT outside the container because `PORT` is too generic to put in a
+    # shared environment UI.
+    PORT: ${GLITCHTIP_PORT:-8000}
+    # Matched to Prometheus's 30d rather than left at GlitchTip's 90d default: an
+    # error you cannot pull up the metrics, logs and trace for is an error you cannot
+    # investigate, and those expire at 30d / 14d / 7d.
+    GLITCHTIP_RETENTION_DAYS: ${GLITCHTIP_RETENTION_DAYS:-30}
+    # Anyone who can reach errors.<domain> can create an account while this is true.
+    # True for the first signup — that account becomes the first organisation's owner
+    # — then false, and redeploy. Invite everyone else.
+    ENABLE_USER_REGISTRATION: ${ENABLE_USER_REGISTRATION:-true}
+    # consolemail:// prints mail to stdout instead of sending it. Fine locally, not
+    # fine in production: password-reset links are mail, so with no real transport
+    # the only account recovery is a shell on the box.
+    EMAIL_URL: ${EMAIL_URL:-consolemail://}
+    DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-errors@example.com}
+    # min,max concurrency. Unset means one worker per CPU core, which on a shared VPS
+    # is how GlitchTip ends up competing with Prometheus for memory.
+    CELERY_WORKER_AUTOSCALE: ${CELERY_WORKER_AUTOSCALE:-1,3}
+    # Derived from OBS_DOMAIN rather than chosen, and not a secret. Despite the name
+    # it is a full URL — settings.py raises
     # ImproperlyConfigured unless it starts with http or https. It is what GlitchTip
     # builds outbound links and generated DSNs from, and its scheme is what decides
     # whether session and CSRF cookies get the Secure flag.
@@ -69,11 +129,14 @@ services:
   glitchtip-postgres:
     image: postgres:16-alpine
     restart: unless-stopped
-    # POSTGRES_DB / _USER / _PASSWORD come from the same file GlitchTip reads its
-    # DATABASE_URL from, so the two cannot drift apart in two places.
-    env_file:
-      - path: .env.glitchtip
-        required: true
+    # The same three values DATABASE_URL above is assembled from, so the cluster this
+    # creates and the URL GlitchTip dials cannot drift apart. A dedicated role and
+    # database, not the `postgres` superuser: GlitchTip needs no rights beyond its
+    # own schema.
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-glitchtip}
+      POSTGRES_USER: ${POSTGRES_USER:-glitchtip}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set GlitchTip's database password}
     volumes:
       - glitchtip_pg_data:/var/lib/postgresql/data
     networks:
