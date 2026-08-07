@@ -16,34 +16,48 @@ Independent of everything else. **All of it before the GlitchTip Dokploy service
 (§ Sequencing), because P0.1 and P0.2 are what make that service correct on a host where it might
 one day be the only thing running.
 
-- [ ] **GlitchTip gets its own headers middleware** (§A5). Define `obs-glitchtip-headers` on the
+- [x] **GlitchTip gets its own headers middleware** (§A5). Define `obs-glitchtip-headers` on the
       `glitchtip-web` container in `compose.glitchtip.yml` with the same four settings Grafana's
       `obs-secure-headers` carries (`compose.yml:190-193`), and point
       `traefik.http.routers.obs-glitchtip.middlewares` at it instead of `obs-secure-headers@docker`.
-- [ ] **`.env.glitchtip.example` carries the four deploy-shape variables uncommented** (§A4) —
+- [x] **`.env.glitchtip.example` carries the four deploy-shape variables uncommented** (§A4) —
       `OBS_DOMAIN`, `GLITCHTIP_DOMAIN`, `OBS_EDGE_NETWORK`, `OBS_EDGE_EXTERNAL`. Delete the
       "Deploying GlitchTip on its own" preamble that explains when to uncomment them; it documents
       a trap that this change removes.
-- [ ] **`GLITCHTIP_DOMAIN` leaves `.env.server.example`** (`:27`) — exactly one compose file reads
+- [x] **`GLITCHTIP_DOMAIN` leaves `.env.server.example`** (`:27`) — exactly one compose file reads
       it and it is not this stack's.
-- [ ] **`make glitchtip-up` stops passing `.env.server`** — drop `$(SERVER_ENV)` from `GT_FILES`
-      (`Makefile:53`). Each `<unit>-up` passes exactly one `--env-file`. Same for
-      `glitchtip-config-check`, which already does.
-- [ ] **Log rotation on every service** (§B1). An `x-obs-logging` anchor beside `x-obs-labels`
+- [x] **`make glitchtip-up` stops passing `.env.server`** — and `compose.yml` with it, which was
+      not in the original plan. `GT_FILES` carried `$(LOCAL_FILES)`, and `compose.yml` declares
+      `${INGEST_USERS:?…}` and `${GF_ADMIN_PASSWORD:?…}`, so dropping only the env file aborts the
+      render. `GT_FILES` is now the two GlitchTip files and one `--env-file`, which is also what a
+      platform deploying `compose.glitchtip.yml` alone runs.
+
+      Consequence: the project name no longer comes from `compose.yml:1`, so it is set as
+      `COMPOSE_PROJECT_NAME=$(PROJECT)` on the command line — this is what keeps `glitchtip-web` on
+      the LGTM stack's `obs` network. Deliberately *not* a `name:` in `compose.glitchtip.yml`, per
+      §A7. `PROJECT := observability` landed here rather than in P2 since the variable was needed;
+      the `demo-down` volume names now build from it too.
+- [x] **Log rotation on every service** (§B1). An `x-obs-logging` anchor beside `x-obs-labels`
       carrying `driver: json-file` with `max-size` and `max-file`, applied in `compose.yml`,
       `compose.glitchtip.yml`, `compose.edge.yml`, `compose.demo.yml` and
       `agent/compose.agent.yml`. The agent file matters most — it is copied into app repos.
-- [ ] **Document the `daemon.json` default** (§B1) — `log-driver` / `log-opts` in the deploy guide,
-      so a container added later inherits a bound.
-- [ ] **Reconcile the out-of-order window with the agent's WAL** (§B3). Decide which of
-      `out_of_order_time_window: 2h` (`server/prometheus/prometheus.yml`) and
-      `max_keepalive_time: 8h` (`agent/config.alloy`) is authoritative, and change the other to
-      match. *Behaviour change — the only one in P0.*
-- [ ] **Rewrite `docs/operations.md` §1's buffer table** so it states the relationship its own
-      heading claims to enforce, and record which number is authoritative and why.
-- [ ] `agent/README.md`'s buffer/window table gets the same correction.
+      10 MB × 3. `compose.demo.yml` only needed it on the three services it introduces; `alloy`,
+      `cadvisor` and `postgres_exporter` are overlays on the agent file and inherit it from there.
+- [x] **Document the `daemon.json` default** (§B1) — `log-driver` / `log-opts` in the deploy guide,
+      so a container added later inherits a bound. In `docs/deploy-vps.md` §1, since it is a
+      property of the box rather than of a deploy.
+- [x] **Reconcile the out-of-order window with the agent's WAL** (§B3). **Prometheus moved**:
+      `out_of_order_time_window: 2h` → `8h`, matching the agent's `max_keepalive_time`. The agent's
+      buffer is authoritative because it is the number that says how long an outage can run, and
+      widening is close to free — the out-of-order head holds only samples actually received out of
+      order. *Behaviour change — the only one in P0.*
+- [x] **Rewrite `docs/operations.md` §1's buffer table** so it states the relationship its own
+      heading claims to enforce, and record which number is authoritative and why. Gained a margin
+      column. `PLAN.md` §9 and §10 risk 1 carried the old value and now point at the change.
+- [x] `agent/README.md`'s buffer/window table gets the same correction, plus the
+      `agent/config.alloy` comment at the WAL block.
 
-**Verify**:
+**Verify** — done, all green:
 ```bash
 # GlitchTip renders and routes with no LGTM stack and no .env.server anywhere
 make glitchtip-config-check
@@ -52,15 +66,33 @@ docker compose --env-file .env.glitchtip -f compose.glitchtip.yml config \
 docker compose --env-file .env.glitchtip -f compose.glitchtip.yml config \
   | grep 'obs-secure-headers' && echo "FAIL: still depends on the LGTM stack"
 
+# ...and still joins the LGTM project's network when run here
+make glitchtip-up
+docker network inspect observability_obs --format '{{range .Containers}}{{.Name}} {{end}}'
+./scripts/verify-errors.sh
+
 # Rotation reaches every container, in both stacks
 docker compose --env-file .env.server -f compose.yml -f compose.local.yml config \
   | grep -c 'max-size'
 docker compose --env-file .env.glitchtip -f compose.glitchtip.yml config \
   | grep -c 'max-size'
+docker inspect --format '{{.Name}} {{.HostConfig.LogConfig.Config}}' $(docker ps -q)
 
-make demo-up && make demo-verify        # nothing regressed
-make verify-resilience                  # the window change is the thing this test exists for
+make demo-up && make demo-verify && make verify-dashboards   # nothing regressed
+OUTAGE_SECONDS=120 make verify-resilience
 ```
+
+Two things found while verifying, neither caused by P0 and neither fixed here:
+
+- **`agent/.env.agent` points the local demo at the VPS.** Since `9d33693` that file feeds
+  interpolation, and it holds `https://ingest.obs.atick.dev` plus a real credential — so
+  `make demo-up` makes the demo a *production* pusher and `make demo-verify` queries an empty
+  `127.0.0.1:9090`. Verification here was run with the file moved aside. It is gitignored and
+  local, but it means the repo's headline local loop does not work from this working tree.
+- **`verify-resilience.sh`'s drain step waits on metrics only**, then checks logs immediately.
+  The `loki.write` WAL replay is slower, so checks 5 and 6 can false-negative on a short outage —
+  observed once, with the lines present in Loki when queried a minute later, and clean on a
+  re-run. Worth making the drain wait per-signal.
 
 ---
 
@@ -135,8 +167,10 @@ grep -rn "make up\b\|make down\b\|demo-verify\|config-check" --include="*.md" --
       which is the only one the `$$` trap applies to.
 - [ ] `git mv docs/deploy-vps.md docs/deploy-server.md` (§A10)
 - [ ] `git mv docs/onboarding-an-app.md docs/onboard-app.md` (§A10)
-- [ ] **Collapse `docs/deploy-server.md` §7's shape-A/shape-B split** — it exists only because the
-      env files were entangled, which P0 fixed
+- [x] **Collapse `docs/deploy-server.md` §7's shape-A/shape-B split** — it exists only because the
+      env files were entangled, which P0 fixed. Done in P0: the split had become actively wrong
+      ("Do not uncomment them in shape A" inverted), so it was rewritten there rather than left to
+      mislead for three phases. Only the filename part of this item is outstanding.
 - [ ] **Document the `EDGE=1` DNS-shadowing trap** (§A10) — a leftover `EDGE=1` Traefik holds
       network aliases for `ingest.${OBS_DOMAIN}` and `grafana.${OBS_DOMAIN}`, so once `.env.lgtm`
       holds a real domain it hijacks those names in Docker DNS and pushes fail against its
@@ -154,6 +188,13 @@ grep -rn "make up\b\|make down\b\|demo-verify\|config-check" --include="*.md" --
 
 Independent of each other and of everything above; land in any order. Behaviour changes throughout.
 
+- [ ] **A second agent in `make verify-resilience`** (§B3) — the case the single-agent test
+      structurally cannot fail on, and the case that motivated raising the out-of-order window in
+      P0. One agent replays in order into a head whose max time is when it went down; only a second
+      agent's replay lands against live writes.
+- [ ] **Make `verify-resilience.sh`'s drain wait per-signal**, not on metrics alone. The
+      `loki.write` WAL replay lags the `prometheus.remote_write` one, so checks 5 and 6 can report
+      a gap that is not there — a false negative in the one test that exists to catch a real one.
 - [ ] **`mem_limit` on every service** (§B2), with the sizing recorded in `docs/operations.md`,
       plus the note that a limit converts "the box dies" into "one service restarts and replays
       its WAL"
