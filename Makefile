@@ -13,7 +13,24 @@ ifeq ($(shell uname -s),Darwin)
 AGENT_FILES   += -f agent/compose.agent.macos.yml
 endif
 DEMO_ENV      := OBS_AGENT_DIR=./agent
-DEMO_FILES    := $(SERVER_ENV) $(LOCAL_FILES) -f compose.demo.yml $(AGENT_FILES)
+# agent/.env.agent is the file a real app host puts the agent's settings in, and
+# compose.agent.yml loads it with `env_file:`. That alone does nothing here:
+# compose.demo.yml sets the same keys under `environment:`, which Compose ranks
+# above env_file, so the file was read and discarded — authoritative-looking and
+# inert. Rotating a credential in it changed nothing and failed as a 401, which
+# on the server is indistinguishable from a mis-escaped hash.
+#
+# Passing it as a second --env-file makes it feed *interpolation* instead, so the
+# ${OBS_INGEST_USER:-demo} defaults in compose.demo.yml give way to it. Later
+# --env-file wins, hence the position after SERVER_ENV. Absent, the defaults
+# apply and a fresh clone still comes up with no setup, which is what makes
+# running agent/ unmodified a tested claim. Shell env still beats both.
+#
+# Caveat: Compose interpolates these values, so a literal $ in a password would
+# be eaten. scripts/add-ingest-user.sh generates alphanumeric passwords for this
+# reason, among others.
+DEMO_ENV_FILE := $(if $(wildcard agent/.env.agent),--env-file agent/.env.agent,)
+DEMO_FILES    := $(SERVER_ENV) $(DEMO_ENV_FILE) $(LOCAL_FILES) -f compose.demo.yml $(AGENT_FILES)
 DEMO_PROFILES := --profile postgres --profile containers
 
 # EDGE=1 routes the demo agent through Traefik on *.localhost instead of straight
