@@ -1,6 +1,6 @@
 # Deploying the server
 
-One VPS serves every app. This is the half that receives; [`onboarding-an-app.md`](./onboarding-an-app.md)
+One VPS serves every app. This is the half that receives; [`onboard-app.md`](./onboard-app.md)
 is the half that sends.
 
 The whole deployed shape is `compose.lgtm.yml` on its own — nothing published, each service building a
@@ -261,7 +261,7 @@ a deployed one, run it on the VPS or check the UI.
 ## 8. After the first deploy
 
 - [`operations.md`](./operations.md) — retention, backups, cardinality, upgrades.
-- [`onboarding-an-app.md`](./onboarding-an-app.md) — pointing the first app at `ingest.<domain>`.
+- [`onboard-app.md`](./onboard-app.md) — pointing the first app at `ingest.<domain>`.
 
 Back up before you need to: `make backup` covers the two things that cannot be rebuilt from git,
 `grafana.db` and GlitchTip's database. Dashboards are files in this repo, so the irreplaceable

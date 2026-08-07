@@ -105,6 +105,16 @@ serves its built-in self-signed certificate and the script uses `curl -k`. `ACME
 overridden to the staging CA in this mode, because the production CA counts 5 failed validations
 per hostname per hour against you.
 
+> **The DNS-shadowing trap.** `compose.edge.yml` gives its Traefik container network aliases for
+> `ingest.${OBS_DOMAIN}` and `grafana.${OBS_DOMAIN}` on the `obs` network, so the demo agent can
+> reach it by the same hostname a real deploy would use. If `.env.lgtm`'s `OBS_DOMAIN` is ever
+> set to a real domain locally — testing against production-shaped values, say — and an `EDGE=1`
+> Traefik is left running, Docker's embedded DNS resolves that real hostname to the local,
+> self-signed Traefik for **any** other container on the `obs` network, including a real agent
+> pointed at the VPS. The push then fails against a self-signed certificate, which presents as a
+> server-side certificate problem rather than the local shadowing it actually is.
+> `make demo-down` before switching `OBS_DOMAIN` or dropping `EDGE=1` avoids it.
+
 ```bash
 make verify-resilience    # ~22 minutes
 ```

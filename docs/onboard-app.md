@@ -30,7 +30,7 @@ edited — if you find yourself editing it, that is a bug in the label conventio
 
 `.env.agent` is read *inside* the container, not interpolated by Compose — so a `$` in the
 password needs no escaping here. (The server's `.env.lgtm` is the opposite; see
-[`deploy-vps.md`](./deploy-vps.md) §3.)
+[`deploy-server.md`](./deploy-server.md) §3.)
 
 Then run it alongside your app:
 

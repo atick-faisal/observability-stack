@@ -211,22 +211,22 @@ grep -rn "make up\b\|make down\b\|make logs\b\|demo-verify\|config-check" --incl
 
 ## P3 — Documentation
 
-- [ ] **The `OBS_*` three-tier table into `docs/labels.md`** (§A9) — app identity, agent config,
+- [x] **The `OBS_*` three-tier table into `docs/labels.md`** (§A9) — app identity, agent config,
       deploy shape; who reads each and when. The third tier is the only one Compose interpolates,
       which is the only one the `$$` trap applies to.
-- [ ] `git mv docs/deploy-vps.md docs/deploy-server.md` (§A10)
-- [ ] `git mv docs/onboarding-an-app.md docs/onboard-app.md` (§A10)
+- [x] `git mv docs/deploy-vps.md docs/deploy-server.md` (§A10)
+- [x] `git mv docs/onboarding-an-app.md docs/onboard-app.md` (§A10)
 - [x] **Collapse `docs/deploy-server.md` §7's shape-A/shape-B split** — it exists only because the
       env files were entangled, which P0 fixed. Done in P0: the split had become actively wrong
       ("Do not uncomment them in shape A" inverted), so it was rewritten there rather than left to
       mislead for three phases. Only the filename part of this item is outstanding.
-- [ ] **Document the `EDGE=1` DNS-shadowing trap** (§A10) — a leftover `EDGE=1` Traefik holds
+- [x] **Document the `EDGE=1` DNS-shadowing trap** (§A10) — a leftover `EDGE=1` Traefik holds
       network aliases for `ingest.${OBS_DOMAIN}` and `grafana.${OBS_DOMAIN}`, so once `.env.lgtm`
       holds a real domain it hijacks those names in Docker DNS and pushes fail against its
       self-signed certificate, presenting as a server-side certificate problem
-- [ ] **Document the project-name asymmetry** (§A7) in `docs/operations.md`, *including* the
+- [x] **Document the project-name asymmetry** (§A7) in `docs/operations.md`, *including* the
       warning not to "fix" it by adding `name:` to `compose.glitchtip.yml`
-- [ ] Update the documentation table in `README.md` for the two renamed files
+- [x] Update the documentation table in `README.md` for the two renamed files
 
 **Verify**: read `docs/labels.md` and `docs/deploy-server.md` end to end; every link in
 `README.md`'s table resolves; `grep -rn "deploy-vps\|onboarding-an-app" .` is clean.

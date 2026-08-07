@@ -174,7 +174,24 @@ The digest pinned is always the multi-arch **index**, not a platform manifest �
 3. `make verify-config`, then `make lgtm-up --build`.
 4. Watch for `level=error` on a clean boot. Zero is the standard the stack holds itself to.
 
-## 6. The `$` trap
+## 6. Project-name asymmetry between the two stacks
+
+`compose.lgtm.yml:1` declares `name: observability`. `compose.glitchtip.yml` deliberately does
+not — see its header comment.
+
+Deployed as its own standalone service (its own Dokploy/Coolify entry), `compose.glitchtip.yml`'s
+project name comes from whatever the platform names that service, since there is no `name:` to
+fall back on. Set it explicitly on the platform side rather than leaving it to a default.
+
+**Do not "fix" this by adding `name:` to `compose.glitchtip.yml`.** Locally, `make glitchtip-up`
+sets `COMPOSE_PROJECT_NAME=observability` on the command line specifically so GlitchTip's
+containers join the LGTM stack's `obs` network — the only thing that makes `glitchtip-web:8000`
+reachable from an app on the same box. A `name:` in the file would fight that: on an overlay of
+multiple compose files, the last file's `name` wins, so it would silently start a second,
+disconnected project instead of joining the first. The file has to take its project name from
+whatever deploys it, which is precisely why it has none of its own.
+
+## 7. The `$` trap
 
 Compose interpolates values it reads from `--env-file`. So in **`.env.lgtm`**:
 
@@ -193,7 +210,7 @@ Two consequences:
 **`.env.glitchtip` is the opposite.** It is handed to containers via `env_file:` and is *not*
 interpolated, so a `$` there is literal. Two files, two rules — which is why they are two files.
 
-## 7. Health and first response
+## 8. Health and first response
 
 ```bash
 curl -sf localhost:9090/-/healthy      # prometheus
@@ -223,7 +240,7 @@ Note that Loki keeps serving `/loki/api/v1/labels` and `/metrics` throughout, so
 
 | Symptom | First thing to check |
 |---|---|
-| One app's metrics stop, logs continue | That app's ingest credential, and its `expose:` — see `onboarding-an-app.md`. |
+| One app's metrics stop, logs continue | That app's ingest credential, and its `expose:` — see `onboard-app.md`. |
 | Everything from one host stops | The clock on that host. Loki rejects future-dated samples outright. |
 | `duplicate sample for timestamp` | A container on two networks, scraped twice. Set `OBS_DOCKER_NETWORK` on that agent. |
 | Logs arrive with a seventh stream label | `discover_service_name` re-enabled somewhere. It must stay `[]`. |
@@ -232,7 +249,7 @@ Note that Loki keeps serving `/loki/api/v1/labels` and `/metrics` throughout, so
 Traefik's access log is JSON and names the ingest user on every request, so push volume is
 attributable per app and a 401 tells you which credential.
 
-## 8. Out of scope for v1
+## 9. Out of scope for v1
 
 Listed so their absence reads as a decision rather than an oversight:
 

@@ -51,7 +51,7 @@ volumes:
 # prometheus_data, loki_data and tempo_data.
 #
 # 30 MB per container is a ceiling, not a target. Set the same defaults in
-# /etc/docker/daemon.json (docs/deploy-vps.md §1) so a container added later inherits
+# /etc/docker/daemon.json (docs/deploy-server.md §1) so a container added later inherits
 # a bound rather than needing to remember one.
 x-obs-logging: &obs-logging
   driver: json-file

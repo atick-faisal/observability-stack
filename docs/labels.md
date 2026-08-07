@@ -355,3 +355,19 @@ sum(rate(fastapi_requests_total{app="asset-management", service="api", env="prod
 That identity is what a dashboard variable substitutes into, what an exemplar carries from a
 metric to a trace, and what a derived field carries from a log line back to a trace. It works
 because the four names never change spelling.
+
+## 8. `OBS_*` is three namespaces
+
+Every environment variable in this repo starts `OBS_`, and it is tempting to read that as one
+thing. It is three, with different readers and different failure modes:
+
+| Tier | Examples | Read by | Read when |
+|---|---|---|---|
+| App identity | `OBS_APP`, `OBS_SERVICE`, `OBS_ENV`, `OBS_HOST` | the SDK, inside the container | at app start |
+| Agent config | `OBS_PROM_URL`, `OBS_INGEST_*`, `OBS_DOCKER_NETWORK` | Alloy's `sys.env()`, inside the container | at agent start |
+| Deploy shape | `OBS_DOMAIN`, `OBS_EDGE_NETWORK`, `OBS_EDGE_EXTERNAL` | Compose, at render time | at `up` |
+
+The first two tiers are read *inside* a container, from whatever process reads `.env` files
+there — a `$` in one of those values is literal. The third tier is not observability
+configuration at all; it is placement, and it is the only tier Compose itself interpolates —
+which makes it the only one the `$$`-doubling trap (`docs/operations.md` §7) applies to.
