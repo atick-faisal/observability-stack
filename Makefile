@@ -1,4 +1,8 @@
 COMPOSE       ?= docker compose
+# Declared in compose.yml, and needed here because the GlitchTip targets no longer
+# pass compose.yml — see GT_ENVIRON — and because `docker volume rm` needs the
+# prefix Compose builds volume names from.
+PROJECT       := observability
 SERVER_ENV    := --env-file .env.server
 # compose.local.yml is what publishes the 127.0.0.1 ports and bind-mounts the
 # configs. compose.yml on its own is the deployed shape: no ports, config baked
@@ -42,16 +46,32 @@ DEMO_ENV      += ACME_CASERVER=https://acme-staging-v02.api.letsencrypt.org/dire
 endif
 # GlitchTip is five more containers and a second Postgres, so it is opt-in: its own
 # compose file, its own env file, its own targets. Nothing in `up` or `demo-up`
-# pulls it in. GT_SVCS is named explicitly on every command because these files
-# overlay the same Compose project as everything else — `down` here would otherwise
-# take Grafana with it.
+# pulls it in.
 GLITCHTIP_FILES := -f compose.glitchtip.yml -f compose.glitchtip.local.yml
 # compose.glitchtip.yml interpolates its settings rather than reading .env.glitchtip
 # with `env_file:` — see that file's header for why. So the file has to be handed to
-# Compose, and after .env.server, because the later --env-file wins.
+# Compose.
+#
+# One unit, one --env-file, and no other unit's compose file: what runs here is what
+# a platform deploying compose.glitchtip.yml on its own runs. compose.yml used to be
+# in this list, which meant .env.server had to be too — it declares
+# ${INGEST_USERS:?...} and ${GF_ADMIN_PASSWORD:?...}, so its absence aborts the
+# render — and .env.glitchtip then silently shadowed whatever the two files shared.
 GT_ENV          := --env-file .env.glitchtip
-GT_FILES        := $(SERVER_ENV) $(GT_ENV) $(LOCAL_FILES) $(GLITCHTIP_FILES)
+GT_FILES        := $(GT_ENV) $(GLITCHTIP_FILES)
 GT_SVCS         := glitchtip-postgres glitchtip-valkey glitchtip-migrate glitchtip-web glitchtip-worker
+# The project name is what keeps these containers on the same `obs` network as the
+# LGTM stack, which is the only thing that makes glitchtip-web:8000 reachable from an
+# app on this box. It comes from compose.yml's `name:` when that file is on the
+# command line; here it is not, so it would otherwise come from the directory name.
+#
+# Set here rather than as `name:` in compose.glitchtip.yml on purpose. That file has
+# to take its project name from whatever deploys it — a `name:` would pin the VPS to
+# this repo's local choice, and on any overlay the last file's `name` wins.
+#
+# COMPOSE_IGNORE_ORPHANS because the LGTM containers carry this project's label and
+# are not in these files, so Compose would offer to remove them.
+GT_ENVIRON      := COMPOSE_PROJECT_NAME=$(PROJECT) COMPOSE_IGNORE_ORPHANS=true
 
 SDK_DIR       := sdk/obstack
 DEMO_DIRS     := demo/app demo/loadgen
@@ -87,7 +107,7 @@ demo-up: env-check ## Start the server stack plus the local end-to-end demo
 # which is only ever created once.
 demo-down: ## Stop the demo stack, removing only the demo's own volumes
 	$(DEMO_ENV) $(COMPOSE) $(DEMO_FILES) $(DEMO_PROFILES) down
-	-docker volume rm -f observability_demo_db_data observability_alloy_data
+	-docker volume rm -f $(PROJECT)_demo_db_data $(PROJECT)_alloy_data
 
 demo-logs: ## Tail demo stack logs (SVC=alloy to narrow)
 	$(DEMO_ENV) $(COMPOSE) $(DEMO_FILES) $(DEMO_PROFILES) logs -f --tail=100 $(SVC)
@@ -101,17 +121,17 @@ verify-ingest: ## Assert the edge authenticates and routes (needs: make demo-up 
 verify-dashboards: ## Assert every panel on every dashboard has data (needs: make demo-up)
 	./scripts/verify-dashboards.sh
 
-glitchtip-up: env-check glitchtip-env-check ## Start GlitchTip alongside the server stack, on :8001
-	COMPOSE_IGNORE_ORPHANS=true $(COMPOSE) $(GT_FILES) up -d $(GT_SVCS)
+glitchtip-up: glitchtip-env-check ## Start GlitchTip on :8001 — 5 containers, its own Postgres, joins the LGTM stack's obs network
+	$(GT_ENVIRON) $(COMPOSE) $(GT_FILES) up -d $(GT_SVCS)
 
-# Not `down`: these files overlay the `observability` project, so a plain down would
-# stop Prometheus, Loki, Tempo and Grafana too. Volumes are kept — glitchtip_pg_data
-# is every error ever reported.
+# Not `down`: it removes every container carrying the project label, which is
+# Prometheus, Loki, Tempo and Grafana too — the file list does not narrow that.
+# Volumes are kept either way; glitchtip_pg_data is every error ever reported.
 glitchtip-down: ## Stop and remove the GlitchTip containers, keeping their volumes
-	COMPOSE_IGNORE_ORPHANS=true $(COMPOSE) $(GT_FILES) rm -sf $(GT_SVCS)
+	$(GT_ENVIRON) $(COMPOSE) $(GT_FILES) rm -sf $(GT_SVCS)
 
 glitchtip-logs: ## Tail GlitchTip logs (SVC=glitchtip-worker to narrow)
-	COMPOSE_IGNORE_ORPHANS=true $(COMPOSE) $(GT_FILES) logs -f --tail=100 $(or $(SVC),$(GT_SVCS))
+	$(GT_ENVIRON) $(COMPOSE) $(GT_FILES) logs -f --tail=100 $(or $(SVC),$(GT_SVCS))
 
 verify-errors: ## Assert an unhandled exception reaches GlitchTip (needs: glitchtip-up, demo-up)
 	./scripts/verify-errors.sh

@@ -169,25 +169,10 @@ settings live in `.env.glitchtip`, which is only ever GlitchTip's — nothing in
 cp .env.glitchtip.example .env.glitchtip     # SECRET_KEY, POSTGRES_PASSWORD, ALLOWED_HOSTS
 ```
 
-`compose.glitchtip.yml` deploys in either of the two edge shapes from §4, and which one you are
-in decides how it is brought up.
-
-**Shape A — alongside the LGTM stack, one project.**
-
-```bash
-make glitchtip-up
-```
-
-`glitchtip-web` joins the same `obs` network as everything else, so an app on this box can report
-to `http://<key>@glitchtip-web:8000/1` without leaving the host.
-
-**Shape B — as its own service on an existing platform.** Dokploy and Coolify deploy one compose
-file per service, so add a second one pointing at `compose.glitchtip.yml`. It renders on its own;
-`make glitchtip-config-check` asserts that, and is worth running before you push.
-
-Its environment is everything from `.env.glitchtip`, plus four values describing where it runs.
-In shape A those come from `.env.server`; here there is no `.env.server`, and nothing supplies
-them — so `.env.glitchtip.example` carries them commented out, for this case:
+**`.env.glitchtip` is the whole environment.** Nothing is supplied by `.env.server`, including the
+four values that describe *where* GlitchTip runs — `OBS_DOMAIN`, `GLITCHTIP_DOMAIN`,
+`OBS_EDGE_NETWORK` and `OBS_EDGE_EXTERNAL`. They are duplicated between the two files because two
+independently deployed services means two environments, and each has to say where it runs.
 
 ```
 OBS_DOMAIN=example.com
@@ -196,23 +181,30 @@ OBS_EDGE_NETWORK=dokploy-network
 OBS_EDGE_EXTERNAL=true
 ```
 
-> **Do not uncomment them in shape A.** `.env.glitchtip` is passed as the later `--env-file`, so
-> a copy here overrides `.env.server` silently, and the two drift.
->
-> **Do not skip them in shape B.** Every one has a default that is right locally and wrong on a
-> VPS, and none of them fails the render. Rendered with them unset you get
-> ``Host(`errors.localhost`)``, an `observability_edge` bridge the platform's Traefik is not on,
-> and `http://localhost:8001` as the base of every DSN GlitchTip issues — a deploy that comes up
-> healthy and is unreachable.
+> **Do not skip them.** Every one has a default that is right locally and wrong on a VPS, and none
+> of them fails the render. Rendered with them unset you get ``Host(`errors.localhost`)``, an
+> `observability_edge` bridge the platform's Traefik is not on, and `http://localhost:8001` as the
+> base of every DSN GlitchTip issues — a deploy that comes up healthy and is unreachable.
+
+`GLITCHTIP_DOMAIN` is what DSNs and outbound links are generated from, and its scheme decides
+whether session cookies get the `Secure` flag. Its host must be `errors.${OBS_DOMAIN}`, which is
+what the Traefik label routes and what `ALLOWED_HOSTS` has to list.
+
+**On an existing platform.** Dokploy and Coolify deploy one compose file per service, so add a
+second service pointing at `compose.glitchtip.yml` and paste `.env.glitchtip` into its environment.
+It renders and routes on its own — `make glitchtip-config-check` asserts that, and is worth running
+before you push.
 
 > **A separate service is a separate Compose project, so `obs` is project-local.**
 > `glitchtip-web:8000` is *not* reachable from the LGTM project's containers — apps report over
 > `https://errors.<domain>` instead, which is what an app on any other host does anyway. Nothing
-> in the stack depends on the in-network path; it is a convenience of shape A.
+> in the stack depends on the in-network path.
 
-Either way, `GLITCHTIP_DOMAIN` is what DSNs and outbound links are generated from, and its scheme
-decides whether session cookies get the `Secure` flag. In shape A it belongs in `.env.server`; in
-shape B, in the GlitchTip service's own environment.
+**On the same box, one project.** `make glitchtip-up` is the local shape: it passes
+`COMPOSE_PROJECT_NAME=observability`, so `glitchtip-web` joins the same `obs` network as everything
+else and an app here can report to `http://<key>@glitchtip-web:8000/1` without leaving the host.
+The project name is set on the command line rather than as `name:` in `compose.glitchtip.yml`,
+because that file has to take its name from whatever deploys it.
 
 Leave `ENABLE_USER_REGISTRATION=true` for the first signup, which becomes the first
 organisation's owner, then set it false and bring it up again. Invite everyone else. With it

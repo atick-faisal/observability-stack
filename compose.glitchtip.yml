@@ -204,10 +204,19 @@ services:
       traefik.http.routers.obs-glitchtip.rule: "Host(`errors.${OBS_DOMAIN:-localhost}`)"
       traefik.http.routers.obs-glitchtip.entrypoints: "websecure"
       traefik.http.routers.obs-glitchtip.tls.certresolver: "letsencrypt"
-      # Defined on the grafana container in compose.yml. Traefik reads a middleware
-      # definition off whichever container carries it, so one copy serves both.
-      traefik.http.routers.obs-glitchtip.middlewares: "obs-secure-headers@docker"
+      traefik.http.routers.obs-glitchtip.middlewares: "obs-glitchtip-headers@docker"
       traefik.http.services.obs-glitchtip.loadbalancer.server.port: "8000"
+      # The same four settings compose.yml puts on the grafana container as
+      # obs-secure-headers, deliberately duplicated rather than referenced.
+      # Traefik reads a middleware definition off whichever container carries it,
+      # so referencing Grafana's copy works — but only while both stacks share one
+      # Traefik on one box. Deployed as its own service, that middleware does not
+      # exist and Traefik fails the router closed with a 404. Four label lines are
+      # what make this file stand alone in function as well as in syntax.
+      traefik.http.middlewares.obs-glitchtip-headers.headers.stsSeconds: "31536000"
+      traefik.http.middlewares.obs-glitchtip-headers.headers.stsIncludeSubdomains: "true"
+      traefik.http.middlewares.obs-glitchtip-headers.headers.contentTypeNosniff: "true"
+      traefik.http.middlewares.obs-glitchtip-headers.headers.referrerPolicy: "strict-origin-when-cross-origin"
     healthcheck:
       # The image ships no curl or wget, but it is a Python image by construction.
       test:
