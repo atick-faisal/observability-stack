@@ -171,7 +171,7 @@ The digest pinned is always the multi-arch **index**, not a platform manifest â€
 
 1. `make backup` first. For GlitchTip this is not optional â€” migrations do not run backwards.
 2. Change the tag *and* the digest together. A tag with a stale digest is a lie in the file.
-3. `make config-check`, then `make up --build`.
+3. `make verify-config`, then `make lgtm-up --build`.
 4. Watch for `level=error` on a clean boot. Zero is the standard the stack holds itself to.
 
 ## 6. The `$` trap

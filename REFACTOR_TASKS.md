@@ -174,27 +174,37 @@ repo *as it is now* must not.
 
 ## P2 — Makefile conventions
 
-- [ ] Lifecycle targets become `<unit>-<verb>` (§A6): `lgtm-up`, `lgtm-down`, `lgtm-logs`; drop
+- [x] Lifecycle targets become `<unit>-<verb>` (§A6): `lgtm-up`, `lgtm-down`, `lgtm-logs`; drop
       bare `up` / `down` / `logs`
-- [ ] `demo-verify` → `verify-signals` (§A6) — it already runs `verify-signals.sh`
-- [ ] `config-check` + `glitchtip-config-check` → one `verify-config` rendering both deployed shapes
-- [ ] **No `edge-up`** — `make lgtm-up EDGE=1` is the spelling, because `compose.edge.yml` cannot
-      render standalone (§A4, §A6)
-- [ ] `PROJECT := observability` variable; build the volume names in the `demo-down` recipe from it
-      (`Makefile:90`) instead of hardcoding `observability_demo_db_data` /
-      `observability_alloy_data` (§A6)
-- [ ] Every `##` help text states what the target *composes* — `demo-up` starts the LGTM stack, the
-      agent and the demo app, and nothing currently says so
-- [ ] Update the target names quoted in `README.md`, `docs/local-dev.md`, `docs/deploy-vps.md`,
-      `docs/onboarding-an-app.md` and every script header that names one
+- [x] `demo-verify` → `verify-signals` (§A6) — it already runs `verify-signals.sh`
+- [x] `config-check` + `glitchtip-config-check` → one `verify-config` rendering both deployed shapes.
+      Now depends on both `env-check` and `glitchtip-env-check`, so checking either shape needs both
+      env files present — a narrowing worth naming, since A4/A5 were deliberate about each unit's
+      compose file standing alone. The compose files themselves are unaffected; only this
+      convenience wrapper is combined, per this item's own instruction.
+- [x] **No `edge-up`** — `make lgtm-up EDGE=1` is the spelling, because `compose.edge.yml` cannot
+      render standalone (§A4, §A6). Already the case; nothing to add.
+- [x] `PROJECT := observability` variable; build the volume names in the `demo-down` recipe from it
+      instead of hardcoding `observability_demo_db_data` / `observability_alloy_data` (§A6).
+      Landed in P0 already (see that section) — needed there because `glitchtip-up` no longer had
+      `compose.lgtm.yml`'s `name:` to inherit a project name from.
+- [x] Every `##` help text states what the target *composes* — `demo-up` starts the LGTM stack, the
+      agent and the demo app, and nothing currently says so. Also landed in P0/P1; spot-checked all
+      20 targets in this pass, nothing further needed.
+- [x] Update the target names quoted in `README.md`, `docs/local-dev.md`, `docs/deploy-vps.md`,
+      `docs/onboarding-an-app.md` and every script header that names one. No matches in
+      `docs/onboarding-an-app.md`; `docs/operations.md` and `scripts/restore.sh` /
+      `scripts/add-ingest-user.sh` also needed the rename and are not listed above but were caught
+      by grep.
 
-**Verify**:
+**Verify** — done, all green:
 ```bash
 make help                                   # every target listed, every unit named
 make lgtm-up && make lgtm-down
 make demo-up && make verify-signals && make verify-dashboards && make demo-down
 make verify-config
-grep -rn "make up\b\|make down\b\|demo-verify\|config-check" --include="*.md" --include="*.sh" .
+grep -rn "make up\b\|make down\b\|make logs\b\|demo-verify\|config-check" --include="*.md" --include="*.sh" --include=Makefile . \
+  | grep -v REFACTOR_ | grep -v "^./TASKS.md"   # empty — TASKS.md is the historical record, left alone
 ```
 
 ---

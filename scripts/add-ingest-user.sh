@@ -60,6 +60,6 @@ cat <<EOF
 
     $doubled
 
-  Then \`make up\` to re-read it, and ./scripts/verify-ingest.sh to prove it works.
+  Then \`make lgtm-up\` to re-read it, and ./scripts/verify-ingest.sh to prove it works.
 
 EOF

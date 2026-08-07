@@ -84,13 +84,13 @@ setup_observability(app, engine=engine)
 cp .env.lgtm.example .env.lgtm   # set GF_ADMIN_PASSWORD and OBS_DOMAIN
 
 make help          # list targets
-make up            # start the server stack
+make lgtm-up       # start the LGTM stack
 make demo-up       # start the local end-to-end demo (app + db + loadgen)
-make demo-verify   # assert every signal arrives, with the label contract intact
+make verify-signals   # assert every signal arrives, with the label contract intact
 make verify-dashboards   # assert every panel on every dashboard has data
 ```
 
-`make up` adds `compose.lgtm.local.yml`, which publishes Grafana `:3000`, Prometheus `:9090`,
+`make lgtm-up` adds `compose.lgtm.local.yml`, which publishes Grafana `:3000`, Prometheus `:9090`,
 Loki `:3100` and Tempo `:3200` / `:4317` / `:4318` on `127.0.0.1` and bind-mounts the
 configs so an edit takes effect without a rebuild.
 

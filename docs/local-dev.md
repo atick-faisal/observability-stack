@@ -25,7 +25,7 @@ make demo-up
 > ```
 >
 > Push-only. The VPS routes `grafana.<domain>` and three ingest paths and nothing else, so its
-> query APIs are unreachable and `make demo-verify` cannot follow — confirm it in Grafana. It
+> query APIs are unreachable and `make verify-signals` cannot follow — confirm it in Grafana. It
 > arrives labelled `app=demo, env=local`, since `compose.demo.yml` sets identity under
 > `environment:`, which outranks any `--env-file`.
 
@@ -63,7 +63,7 @@ hope. Everything app-specific lives in `compose.demo.yml`.
 The bind mounts are what makes dashboard work bearable: Grafana's file provider re-reads
 `lgtm/grafana/dashboards/` every 30 seconds, so an edit shows up without a rebuild. The
 deployed stack has no such mount and reads the baked copy — which is also why
-`make config-check` exists, to render the deployed shape and prove it still resolves.
+`make verify-config` exists, to render the deployed shape and prove it still resolves.
 
 | | |
 |---|---|
@@ -80,7 +80,7 @@ Each script asserts something different, and each exits non-zero on failure. Run
 stack has been up for a couple of minutes.
 
 ```bash
-make demo-verify          # scripts/verify-signals.sh
+make verify-signals       # scripts/verify-signals.sh
 ```
 Seven checks: metrics arrive with the label contract intact, `pg_up` is present, log streams carry
 exactly the six labels in `labels.md` §3.2, a `trace_id` from a Loki line resolves in Tempo,
@@ -174,8 +174,8 @@ still reports `true`; in Grafana 13 that field reflects the user's permission, n
 provisioning lock, so the write attempt is the only real test.
 
 **Configs** under `lgtm/*/` are bind-mounted locally, so `docker compose restart <svc>` picks
-them up. A `make up` rebuild is only needed to prove the baked-in copy also works — which
-`make config-check` and a `--build` do.
+them up. A `make lgtm-up` rebuild is only needed to prove the baked-in copy also works — which
+`make verify-config` and a `--build` do.
 
 **`config.alloy`** is not bind-mounted; the agent image bakes it. Rebuild with
 `make demo-up` after editing, and watch `make demo-logs SVC=alloy` — `alloy validate` checks the

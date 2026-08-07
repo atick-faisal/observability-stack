@@ -13,12 +13,12 @@
 #
 # The volumes have to exist already, and this script will not create them. Compose
 # stamps its own labels and a config-hash on the volumes it makes, and a volume
-# forged here would either be rejected on the next `up` or silently adopted with
+# forged here would either be rejected on the next `lgtm-up` or silently adopted with
 # the wrong metadata. To restore onto a clean slate:
 #
 #   docker compose ... down
 #   docker volume rm observability_grafana_data          # the ones you are replacing
-#   make up                                              # compose recreates them, empty
+#   make lgtm-up                                         # compose recreates them, empty
 #   ./scripts/restore.sh backups/<stamp> --yes
 #
 # GlitchTip's database is restored with pg_restore --clean --if-exists into the
@@ -132,7 +132,7 @@ printf '\nthis will REPLACE:\n'
 for i in "${!plan_volumes[@]}"; do
 	name="${plan_volumes[$i]}"
 	volume="$(volume_for "$name")"
-	printf '  %-22s → %s\n' "$name" "${volume:-<missing: create it with make up first>}"
+	printf '  %-22s → %s\n' "$name" "${volume:-<missing: create it with make lgtm-up first>}"
 done
 [[ $has_pgdump -eq 1 ]] && printf '  %-22s → pg_restore --clean --if-exists into the running container\n' "glitchtip database"
 
@@ -152,7 +152,7 @@ for i in "${!plan_volumes[@]}"; do
 
 	volume="$(volume_for "$name")"
 	if [[ -z $volume ]]; then
-		err "$name — volume does not exist; run make up once so compose creates it, then re-run"
+		err "$name — volume does not exist; run make lgtm-up once so compose creates it, then re-run"
 		continue
 	fi
 	if [[ ! -f "$srcdir/$archive" ]]; then

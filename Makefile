@@ -36,7 +36,7 @@ DEMO_ENV      := OBS_AGENT_DIR=./agent
 #
 # That mechanism is also a loaded gun, which is why REMOTE=1 below exists: fill
 # agent/.env.agent with a VPS URL and the demo silently becomes a production
-# pusher, `make demo-verify` queries an empty local Prometheus, and nothing on
+# pusher, `make verify-signals` queries an empty local Prometheus, and nothing on
 # screen says why. Point the demo at the VPS with the flag, not with the filename.
 DEMO_ENV_FILE := $(if $(wildcard agent/.env.agent),--env-file agent/.env.agent,)
 DEMO_FILES    := $(SERVER_ENV) $(DEMO_ENV_FILE) $(LOCAL_FILES) -f compose.demo.yml $(AGENT_FILES)
@@ -46,7 +46,7 @@ DEMO_PROFILES := --profile postgres --profile containers
 # — the only way to exercise the real ingest path, credentials and TLS from here.
 #
 # Push-only: the VPS routes grafana.<domain> and three ingest PathPrefixes and
-# nothing else, so its query APIs are not reachable and `make demo-verify` cannot
+# nothing else, so its query APIs are not reachable and `make verify-signals` cannot
 # follow. Confirm the push in Grafana. scripts/verify-deployed.sh is the assertion
 # that belongs here and does not exist yet (REFACTOR_TASKS.md P4).
 #
@@ -66,7 +66,7 @@ DEMO_FILES    += -f compose.edge.yml -f compose.demo.edge.yml
 DEMO_ENV      += ACME_CASERVER=https://acme-staging-v02.api.letsencrypt.org/directory
 endif
 # GlitchTip is five more containers and a second Postgres, so it is opt-in: its own
-# compose file, its own env file, its own targets. Nothing in `up` or `demo-up`
+# compose file, its own env file, its own targets. Nothing in `lgtm-up` or `demo-up`
 # pulls it in.
 GLITCHTIP_FILES := -f compose.glitchtip.yml -f compose.glitchtip.local.yml
 # compose.glitchtip.yml interpolates its settings rather than reading .env.glitchtip
@@ -99,7 +99,7 @@ DEMO_DIRS     := demo/app demo/loadgen
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down logs demo-up demo-down demo-logs demo-verify verify-ingest verify-dashboards verify-errors verify-resilience backup restore glitchtip-up glitchtip-down glitchtip-logs config-check glitchtip-config-check lint test env-check glitchtip-env-check remote-check
+.PHONY: help lgtm-up lgtm-down lgtm-logs demo-up demo-down demo-logs verify-signals verify-ingest verify-dashboards verify-errors verify-resilience backup restore glitchtip-up glitchtip-down glitchtip-logs verify-config lint test env-check glitchtip-env-check remote-check
 
 env-check:
 	@test -f .env.lgtm || { echo "missing .env.lgtm — cp .env.lgtm.example .env.lgtm"; exit 1; }
@@ -119,13 +119,13 @@ help: ## List available targets
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) \
 		| awk -F':.*?## ' '{printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
-up: env-check ## Start the server stack (prometheus, loki, tempo, grafana)
+lgtm-up: env-check ## Start the LGTM stack (prometheus, loki, tempo, grafana)
 	$(COMPOSE) $(SERVER_FILES) up -d --build
 
-down: ## Stop the server stack, keeping volumes
+lgtm-down: ## Stop the LGTM stack, keeping volumes
 	$(COMPOSE) $(SERVER_FILES) down
 
-logs: ## Tail server stack logs (SVC=grafana to narrow)
+lgtm-logs: ## Tail LGTM stack logs (SVC=grafana to narrow)
 	$(COMPOSE) $(SERVER_FILES) logs -f --tail=100 $(SVC)
 
 demo-up: env-check remote-check ## Start the LGTM stack, the agent and the demo app (EDGE=1 through Traefik, REMOTE=1 pushes at the VPS)
@@ -141,7 +141,7 @@ demo-down: ## Stop the demo stack, removing only the demo's own volumes
 demo-logs: ## Tail demo stack logs (SVC=alloy to narrow)
 	$(DEMO_ENV) $(COMPOSE) $(DEMO_FILES) $(DEMO_PROFILES) logs -f --tail=100 $(SVC)
 
-demo-verify: ## Assert every signal arrives from the demo app
+verify-signals: ## Assert every signal arrives from the demo app
 	./scripts/verify-signals.sh
 
 verify-ingest: ## Assert the edge authenticates and routes (needs: make demo-up EDGE=1)
@@ -179,17 +179,15 @@ restore: ## Restore a backup — DIR=backups/<stamp>, then add ARGS=--yes
 	@test -n "$(DIR)" || { echo "usage: make restore DIR=backups/<stamp> [ARGS=--yes]"; exit 1; }
 	./scripts/restore.sh $(DIR) $(ARGS)
 
-# Renders the deployed shape — no ports, no bind mounts, edge network external —
+# Renders both deployed shapes — no ports, no bind mounts, edge network external —
 # without needing that network to exist here. This is exactly what a deploy runs.
-config-check: env-check ## Render the deployed compose shape and check it resolves
+# compose.glitchtip.yml is rendered on its own, with no compose.lgtm.yml under it —
+# the shape a platform that deploys one file per service renders. It borrows the
+# `obs` and `edge` networks, and until they were declared here too this failed with
+# "refers to undefined network obs" only on the deploy, never locally.
+verify-config: env-check glitchtip-env-check ## Render both deployed compose shapes and check they resolve
 	@OBS_EDGE_NETWORK=dokploy-network OBS_EDGE_EXTERNAL=true \
 		$(COMPOSE) $(SERVER_ENV) -f compose.lgtm.yml config >/dev/null && echo "compose.lgtm.yml (deployed shape) OK"
-
-# compose.glitchtip.yml on its own, with no compose.lgtm.yml under it — the shape a
-# platform that deploys one file per service renders. It borrows the `obs` and `edge`
-# networks, and until they were declared here too this failed with "refers to
-# undefined network obs" only on the deploy, never locally.
-glitchtip-config-check: glitchtip-env-check ## Render the deployed GlitchTip shape and check it resolves
 	@OBS_EDGE_NETWORK=dokploy-network OBS_EDGE_EXTERNAL=true \
 		$(COMPOSE) $(GT_ENV) -f compose.glitchtip.yml config >/dev/null \
 		&& echo "compose.glitchtip.yml (deployed shape) OK"

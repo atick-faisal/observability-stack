@@ -140,7 +140,7 @@ anyway". On a single box the isolation argument is imaginary — the box dying t
 Check what a deploy will actually render, without needing that network to exist locally:
 
 ```bash
-make config-check
+make verify-config
 ```
 
 ## 5. Verify the deploy
@@ -221,8 +221,8 @@ what the Traefik label routes and what `ALLOWED_HOSTS` has to list.
 
 **On an existing platform.** Dokploy and Coolify deploy one compose file per service, so add a
 second service pointing at `compose.glitchtip.yml` and paste `.env.glitchtip` into its environment.
-It renders and routes on its own — `make glitchtip-config-check` asserts that, and is worth running
-before you push.
+It renders and routes on its own — `make verify-config` checks both deployed shapes, including
+this one, and is worth running before you push.
 
 > **A separate service is a separate Compose project, so `obs` is project-local.**
 > `glitchtip-web:8000` is *not* reachable from the LGTM project's containers — apps report over
