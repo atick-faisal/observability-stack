@@ -82,14 +82,20 @@ make demo-up && make demo-verify && make verify-dashboards   # nothing regressed
 OUTAGE_SECONDS=120 make verify-resilience
 ```
 
-Two things found while verifying, neither caused by P0 and neither fixed here:
+Two things found while verifying:
 
-- **`agent/.env.agent` points the local demo at the VPS.** Since `9d33693` that file feeds
-  interpolation, and it holds `https://ingest.obs.atick.dev` plus a real credential — so
-  `make demo-up` makes the demo a *production* pusher and `make demo-verify` queries an empty
-  `127.0.0.1:9090`. Verification here was run with the file moved aside. It is gitignored and
-  local, but it means the repo's headline local loop does not work from this working tree.
-- **`verify-resilience.sh`'s drain step waits on metrics only**, then checks logs immediately.
+- [x] **The env files mixed local and deployed values** — `.env.server` was local while
+  `.env.glitchtip` and `agent/.env.agent` had been filled in for the VPS, and `make` loads all
+  three by name, so the deployed values were the ones in force locally. `make demo-up` made the
+  demo a *production* pusher and `make demo-verify` queried an empty `127.0.0.1:9090`, with
+  nothing on screen to explain it.
+
+  **Rule added: everything the Makefile reads is local.** Deployed values live beside it as
+  `.env.<unit>.production`, read by nothing — a paste buffer for the platform's environment UI.
+  Pushing the demo at the VPS is now `make demo-up REMOTE=1`, mirroring `EDGE=1`; push-only,
+  since the VPS's query APIs are not routed. `agent/.env.agent` is absent rather than rewritten,
+  so the `${OBS_INGEST_USER:-demo}` defaults apply and a fresh clone comes up with no setup.
+- [ ] **`verify-resilience.sh`'s drain step waits on metrics only**, then checks logs immediately.
   The `loki.write` WAL replay is slower, so checks 5 and 6 can false-negative on a short outage —
   observed once, with the lines present in Loki when queried a minute later, and clean on a
   re-run. Worth making the drain wait per-signal.
