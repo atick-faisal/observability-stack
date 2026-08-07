@@ -9,6 +9,26 @@ cp .env.server.example .env.server    # set GF_ADMIN_PASSWORD; OBS_DOMAIN can st
 make demo-up
 ```
 
+> **Every env file the Makefile reads is local.** `.env.server`, `.env.glitchtip` and
+> `agent/.env.agent` hold local values and nothing else. What goes into a deploy lives beside them
+> with a `.production` suffix — `.env.glitchtip.production`, `agent/.env.agent.production` — and is
+> read by nothing: a paste buffer for the platform's environment UI, and a record of what was
+> pasted. Both halves are gitignored by the `.env*` rule.
+>
+> This is not tidiness. `agent/.env.agent` is loaded automatically by `make demo-up`, so a VPS
+> URL in it turns the demo into a production pusher and leaves every verify script querying an
+> empty local Prometheus — a failure with nothing on screen to explain it. Point the demo at the
+> VPS with the flag instead:
+>
+> ```bash
+> make demo-up REMOTE=1        # reads agent/.env.agent.production
+> ```
+>
+> Push-only. The VPS routes `grafana.<domain>` and three ingest paths and nothing else, so its
+> query APIs are unreachable and `make demo-verify` cannot follow — confirm it in Grafana. It
+> arrives labelled `app=demo, env=local`, since `compose.demo.yml` sets identity under
+> `environment:`, which outranks any `--env-file`.
+
 Grafana is on <http://localhost:3000>. Don't check anything until Loki says it is ready — **poll,
 do not sleep**:
 

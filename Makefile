@@ -33,9 +33,30 @@ DEMO_ENV      := OBS_AGENT_DIR=./agent
 # Caveat: Compose interpolates these values, so a literal $ in a password would
 # be eaten. scripts/add-ingest-user.sh generates alphanumeric passwords for this
 # reason, among others.
+#
+# That mechanism is also a loaded gun, which is why REMOTE=1 below exists: fill
+# agent/.env.agent with a VPS URL and the demo silently becomes a production
+# pusher, `make demo-verify` queries an empty local Prometheus, and nothing on
+# screen says why. Point the demo at the VPS with the flag, not with the filename.
 DEMO_ENV_FILE := $(if $(wildcard agent/.env.agent),--env-file agent/.env.agent,)
 DEMO_FILES    := $(SERVER_ENV) $(DEMO_ENV_FILE) $(LOCAL_FILES) -f compose.demo.yml $(AGENT_FILES)
 DEMO_PROFILES := --profile postgres --profile containers
+
+# REMOTE=1 sends the demo's signals at the deployed stack instead of at localhost
+# — the only way to exercise the real ingest path, credentials and TLS from here.
+#
+# Push-only: the VPS routes grafana.<domain> and three ingest PathPrefixes and
+# nothing else, so its query APIs are not reachable and `make demo-verify` cannot
+# follow. Confirm the push in Grafana. scripts/verify-deployed.sh is the assertion
+# that belongs here and does not exist yet (REFACTOR_TASKS.md P4).
+#
+# Identity is unaffected — compose.demo.yml sets OBS_APP / OBS_ENV / OBS_HOST
+# under `environment:`, which outranks any --env-file — so this arrives on the VPS
+# as app=demo, env=local, which is what a test push should look like.
+ifdef REMOTE
+DEMO_ENV_FILE := --env-file agent/.env.agent.production
+DEMO_FILES    := $(SERVER_ENV) $(DEMO_ENV_FILE) $(LOCAL_FILES) -f compose.demo.yml $(AGENT_FILES)
+endif
 
 # EDGE=1 routes the demo agent through Traefik on *.localhost instead of straight
 # at the backends, so the labels, the basic auth and the path routing are all
@@ -78,10 +99,18 @@ DEMO_DIRS     := demo/app demo/loadgen
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down logs demo-up demo-down demo-logs demo-verify verify-ingest verify-dashboards verify-errors verify-resilience backup restore glitchtip-up glitchtip-down glitchtip-logs config-check glitchtip-config-check lint test env-check glitchtip-env-check
+.PHONY: help up down logs demo-up demo-down demo-logs demo-verify verify-ingest verify-dashboards verify-errors verify-resilience backup restore glitchtip-up glitchtip-down glitchtip-logs config-check glitchtip-config-check lint test env-check glitchtip-env-check remote-check
 
 env-check:
 	@test -f .env.server || { echo "missing .env.server — cp .env.server.example .env.server"; exit 1; }
+
+# EDGE and REMOTE both rewrite the same three URLs, and compose.demo.edge.yml sets
+# them under `environment:`, so EDGE would win silently. Fail instead.
+remote-check:
+	@test -z "$(REMOTE)" -o -f agent/.env.agent.production || { \
+		echo "REMOTE=1 needs agent/.env.agent.production — cp agent/.env.agent.example agent/.env.agent.production and fill in the VPS URLs and credential"; exit 1; }
+	@test -z "$(REMOTE)" -o -z "$(EDGE)" || { \
+		echo "REMOTE=1 and EDGE=1 both set the agent's push URLs — pick one"; exit 1; }
 
 glitchtip-env-check:
 	@test -f .env.glitchtip || { echo "missing .env.glitchtip — cp .env.glitchtip.example .env.glitchtip"; exit 1; }
@@ -99,7 +128,7 @@ down: ## Stop the server stack, keeping volumes
 logs: ## Tail server stack logs (SVC=grafana to narrow)
 	$(COMPOSE) $(SERVER_FILES) logs -f --tail=100 $(SVC)
 
-demo-up: env-check ## Start the server stack plus the local end-to-end demo
+demo-up: env-check remote-check ## Start the LGTM stack, the agent and the demo app (EDGE=1 through Traefik, REMOTE=1 pushes at the VPS)
 	$(DEMO_ENV) $(COMPOSE) $(DEMO_FILES) $(DEMO_PROFILES) up -d --build
 
 # Not `down -v`: that removes every volume in the merged project, including

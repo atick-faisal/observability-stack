@@ -193,7 +193,12 @@ settings live in `.env.glitchtip`, which is only ever GlitchTip's — nothing in
 cp .env.glitchtip.example .env.glitchtip     # SECRET_KEY, POSTGRES_PASSWORD, ALLOWED_HOSTS
 ```
 
-**`.env.glitchtip` is the whole environment.** Nothing is supplied by `.env.server`, including the
+Keep the deployed values in `.env.glitchtip.production` rather than in `.env.glitchtip`. The
+Makefile reads the latter and it holds the local values; the `.production` file is read by nothing
+and exists to be pasted into the platform's environment UI and to record what was pasted. Both are
+gitignored. The same convention applies to `.env.server` and `agent/.env.agent`.
+
+**`.env.glitchtip.production` is the whole environment.** Nothing is supplied by `.env.server`, including the
 four values that describe *where* GlitchTip runs — `OBS_DOMAIN`, `GLITCHTIP_DOMAIN`,
 `OBS_EDGE_NETWORK` and `OBS_EDGE_EXTERNAL`. They are duplicated between the two files because two
 independently deployed services means two environments, and each has to say where it runs.
