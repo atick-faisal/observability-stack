@@ -14,10 +14,6 @@
 
 set -uo pipefail
 
-APP="${OBS_APP:-demo}"
-ENV="${OBS_ENV:-local}"
-HOST="${OBS_HOST:-demo-host}"
-DATNAME="${OBS_DATNAME:-demo}"
 PROM_URL="${PROM_URL:-http://localhost:9090}"
 LOKI_URL="${LOKI_URL:-http://localhost:3100}"
 GRAFANA_URL="${GRAFANA_URL:-http://localhost:3000}"
@@ -72,6 +68,16 @@ for f in "${FILES[@]}"; do
 		| select(. != null and (startswith("$") | not) and (IN("prometheus", "loki", "tempo", "-- Grafana --", "grafana") | not))]
 		| unique | join(", ")' "$f")
 	[[ -z "$bad" ]] || fail "$name: datasource uid outside the provisioned three: $bad"
+
+	# Grafana renders "All" whenever includeAll is set, even over an empty option
+	# list — and with no allValue it then interpolates to "", so a panel filtering
+	# `x=~"$var"` matches nothing. An empty variable and a working one look
+	# identical in the dropdown, which is what made this cost an afternoon on the
+	# live stack. ".+" is exactly the union of the options, because Prometheus
+	# never returns an empty label value.
+	noall=$(jq -r '[(.templating.list // [])[] | select(.includeAll == true)
+		| select((.allValue // "") == "") | .name] | join(", ")' "$f")
+	[[ -z "$noall" ]] || fail "$name: includeAll with no allValue: $noall — \"All\" would interpolate to \"\""
 done
 
 # Grafana keys a dashboard by uid, so two files sharing one means the second
@@ -83,21 +89,50 @@ dupes=$(for f in "${FILES[@]}"; do jq -r '.uid // "«none»"' "$f"; done | sort 
 [[ "$failed" -eq "$before" ]] &&
 	pass "${#FILES[@]} dashboards: schemaVersion 41, editable false, unique uids, known datasources"
 
-# ── 2. every expression returns something ─────────────────────────────────────
-# Dashboard variables are substituted with the demo's values, so this asserts the
-# same thing a human does by opening the dashboard and picking app=demo. $service
-# is multi-valued, which Grafana renders as an alternation — hence api|loadgen
-# rather than a single value, and hence why panels use service=~"$service".
+# ── 2. the variables resolve, and every expression returns something ──────────
+# The panels below are checked with the values the dashboard's own template
+# variables produce, not with constants this script invents. That distinction is
+# the whole point: substituting `$container` with `.*` and asserting the panel
+# returns rows proves the panel, and proves nothing at all about the variable
+# feeding it. The Infrastructure dashboard shipped with a $container whose option
+# list no Grafana had ever resolved, and every panel behind it passed this check
+# on every run.
+#
+# Resolution mirrors what the Prometheus datasource does for
+# label_values(<selector>, <label>): split on the last comma — the label always
+# follows it, so commas inside {} are safe — interpolate the variables already
+# resolved, and ask /api/v1/label/<label>/values.
+VARS=""
+
+# bash 3.2 on macOS has no associative arrays, so this is a NAME<TAB>VALUE string.
+# Longest name first, so a variable cannot eat the prefix of a longer one.
+var_interpolate() {
+	local s="$1" n v
+	while IFS=$'\t' read -r n v; do
+		[[ -n "$n" ]] || continue
+		s="${s//\$$n/$v}"
+	done < <(printf '%s' "$VARS" | awk -F'\t' 'NF { print length($1) "\t" $0 }' | sort -rn | cut -f2-)
+	printf '%s' "$s"
+}
+
+# The window is the dashboards' own default range. Without start/end this
+# endpoint searches the full retention, where a variable that no longer resolves
+# for anyone opening the dashboard still answers.
+resolve_label_values() {
+	local end start
+	end=$(date +%s)
+	start=$((end - 3600))
+	curl -sG --max-time 15 "$PROM_URL/api/v1/label/$1/values" \
+		--data-urlencode "match[]=$2" \
+		--data-urlencode "start=$start" \
+		--data-urlencode "end=$end" | jq -r '.data // [] | .[]'
+}
+
 substitute() {
-	sed -e "s/\$app/$APP/g" \
-		-e "s/\$env/$ENV/g" \
-		-e "s/\$service/api|loadgen/g" \
-		-e "s/\$host/$HOST/g" \
-		-e "s/\$datname/$DATNAME/g" \
-		-e "s/\$container/.*/g" \
-		-e 's/\$__rate_interval/5m/g' \
-		-e 's/\$__interval/1m/g' \
-		-e 's/\$__range/1h/g'
+	var_interpolate "$(cat)" |
+		sed -e 's/\$__rate_interval/5m/g' \
+			-e 's/\$__interval/1m/g' \
+			-e 's/\$__range/1h/g'
 }
 
 promql() {
@@ -118,7 +153,49 @@ logql() {
 
 for f in "${FILES[@]}"; do
 	name="${f#"$DASHBOARD_DIR"/}"
+
+	check "$name — every template variable resolves"
+	VARS=""
+	unresolved=""
+	while IFS=$'\t' read -r vname vmulti vquery; do
+		if [[ "$vquery" != label_values\(*\) ]]; then
+			fail "\$$vname — not a label_values() query: $vquery"
+			unresolved="$unresolved \$$vname"
+			continue
+		fi
+		inner="${vquery#label_values(}"
+		inner="${inner%)}"
+		vlabel="${inner##*,}"
+		vlabel="${vlabel// /}"
+		vselector=$(var_interpolate "${inner%,*}")
+
+		values=$(resolve_label_values "$vlabel" "$vselector" | sort)
+		if [[ -z "$values" ]]; then
+			fail "\$$vname → no values: label_values($vselector,$vlabel)"
+			unresolved="$unresolved \$$vname"
+			continue
+		fi
+
+		# Multi-valued variables are checked as the alternation Grafana builds
+		# when every option is selected, which is both the strictest case and
+		# what allValue=".+" is equivalent to.
+		if [[ "$vmulti" == true ]]; then
+			resolved=$(printf '%s\n' "$values" | paste -sd '|' -)
+		else
+			resolved=$(printf '%s\n' "$values" | head -1)
+		fi
+		VARS="${VARS}${vname}"$'\t'"${resolved}"$'\n'
+		pass "\$$vname → $resolved"
+	done < <(jq -r '(.templating.list // [])[]
+		| select(.type == "query")
+		| [.name, (.multi // false | tostring), (if (.query | type) == "string" then .query else (.query.query // "") end)]
+		| @tsv' "$f")
+
 	check "$name — every panel target returns data"
+	if [[ -n "$unresolved" ]]; then
+		skip "panels not evaluated — unresolved variable(s):$unresolved"
+		continue
+	fi
 
 	# One line per target: panel title, datasource uid, expression. Panels are
 	# addressed by title rather than id because that is what a failure has to
