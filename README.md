@@ -30,7 +30,7 @@ APP HOST                              OBSERVABILITY VPS
 remote-write, Loki push, and Tempo OTLP/HTTP. Nothing else is reachable from outside.
 
 **Agent** — one Alloy container per app host. It discovers scrape targets and log streams from
-Docker labels, runs optional cAdvisor / postgres_exporter via Compose profiles, receives OTLP
+Docker labels, runs optional cAdvisor / postgres-exporter via Compose profiles, receives OTLP
 traces from the local app, and pushes everything to `ingest.<domain>` over HTTPS with basic
 auth and local buffering. The app exposes nothing publicly.
 
@@ -50,7 +50,7 @@ services:
 
 ```bash
 # 2. run the agent alongside the app
-docker compose -f compose.yml -f observability/compose.agent.yml up -d
+docker compose -f compose.lgtm.yml -f observability/compose.agent.yml up -d
 
 # 3. add the SDK
 uv add "obstack[grpc,sqlalchemy] @ git+https://github.com/atick-faisal/observability-stack@v0.1.0#subdirectory=sdk/obstack"
@@ -81,7 +81,7 @@ setup_observability(app, engine=engine)
 ## Quickstart
 
 ```bash
-cp .env.server.example .env.server   # set GF_ADMIN_PASSWORD and OBS_DOMAIN
+cp .env.lgtm.example .env.lgtm   # set GF_ADMIN_PASSWORD and OBS_DOMAIN
 
 make help          # list targets
 make up            # start the server stack
@@ -90,7 +90,7 @@ make demo-verify   # assert every signal arrives, with the label contract intact
 make verify-dashboards   # assert every panel on every dashboard has data
 ```
 
-`make up` adds `compose.local.yml`, which publishes Grafana `:3000`, Prometheus `:9090`,
+`make up` adds `compose.lgtm.local.yml`, which publishes Grafana `:3000`, Prometheus `:9090`,
 Loki `:3100` and Tempo `:3200` / `:4317` / `:4318` on `127.0.0.1` and bind-mounts the
 configs so an edit takes effect without a rebuild.
 
@@ -132,7 +132,7 @@ default set. The TSDBs are opt-in — they are retention-bounded and 25 GB-cappe
 backup should not be tens of gigabytes. Each is copied the way its storage engine allows rather
 than all three the same way; `scripts/backup.sh`'s header says which and why.
 
-**`compose.yml` on its own is the deployed shape**: nothing published, each service
+**`compose.lgtm.yml` on its own is the deployed shape**: nothing published, each service
 building a small image with its config baked in, and Traefik routing driven by container
 labels. That is what a deploy points at. Set `OBS_EDGE_NETWORK` / `OBS_EDGE_EXTERNAL` to
 put it behind a proxy the host already runs, or add `compose.edge.yml` to bring your own.

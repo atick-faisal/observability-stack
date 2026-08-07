@@ -2,8 +2,8 @@
 # alongside the app, so it shares the app's network and can reach the containers
 # it discovers:
 #
-#   docker compose -f compose.yml -f observability/compose.agent.yml up -d
-#   docker compose -f compose.yml -f observability/compose.agent.yml \
+#   docker compose -f compose.lgtm.yml -f observability/compose.agent.yml up -d
+#   docker compose -f compose.lgtm.yml -f observability/compose.agent.yml \
 #     --profile postgres --profile containers up -d
 #
 # Compose resolves relative paths against the *first* -f file's directory, not
@@ -105,7 +105,7 @@ services:
 
   # Discovered by the same obs.* labels as any app container: no static target
   # anywhere, including for the stack's own pieces.
-  postgres_exporter:
+  postgres-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter:v0.19.1
     profiles: [postgres]
     restart: unless-stopped

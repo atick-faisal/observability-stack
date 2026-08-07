@@ -14,10 +14,10 @@ label convention, not in your app.
 cp -r observability-stack/agent your-app/observability
 cp observability/.env.agent.example observability/.env.agent   # fill it in
 
-docker compose -f compose.yml -f observability/compose.agent.yml up -d
+docker compose -f compose.lgtm.yml -f observability/compose.agent.yml up -d
 ```
 
-Add `--profile postgres` for `postgres_exporter`, `--profile containers` for cAdvisor, or both.
+Add `--profile postgres` for `postgres-exporter`, `--profile containers` for cAdvisor, or both.
 
 ## Label your containers
 
@@ -78,7 +78,7 @@ whoever terminates the connection.
 | Any container with `obs.metrics.port` | metrics | Docker labels |
 | `prometheus.exporter.unix` (built in) | host metrics | always on |
 | cAdvisor, profile `containers` | per-container metrics | its own `obs.*` labels |
-| postgres_exporter, profile `postgres` | database metrics | its own `obs.*` labels |
+| postgres-exporter, profile `postgres` | database metrics | its own `obs.*` labels |
 | Every container without `obs.logs="false"` | logs | Docker labels |
 | The app's OTLP on `:4317` / `:4318` | traces | the app points at it |
 
@@ -120,7 +120,7 @@ by taking a `trace_id` off a log line from the outage and looking that up, which
 That script asserts all of this in the server repo by stopping the server for fifteen minutes
 and checking for a hole afterwards.
 
-## postgres_exporter
+## postgres-exporter
 
 The exporter connects as its own least-privilege role, not as the application user. Create it once:
 

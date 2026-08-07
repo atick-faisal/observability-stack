@@ -9,9 +9,9 @@ over, and what to be careful about when upgrading.
 
 | Signal | Kept | Where set | Also capped by |
 |---|---|---|---|
-| Metrics | **30d** | `compose.yml` → `--storage.tsdb.retention.time` | `--storage.tsdb.retention.size=25GB` |
-| Logs | **336h** (14d) | `server/loki/loki-config.yaml` → `limits_config.retention_period` | `ingestion_rate_mb: 16`, burst 32 |
-| Traces | **168h** (7d) | `server/tempo/tempo-config.yaml` → `block_retention` | |
+| Metrics | **30d** | `compose.lgtm.yml` → `--storage.tsdb.retention.time` | `--storage.tsdb.retention.size=25GB` |
+| Logs | **336h** (14d) | `lgtm/loki/loki-config.yaml` → `limits_config.retention_period` | `ingestion_rate_mb: 16`, burst 32 |
+| Traces | **168h** (7d) | `lgtm/tempo/tempo-config.yaml` → `block_retention` | |
 | Errors | **30d** | `.env.glitchtip` → `GLITCHTIP_RETENTION_DAYS` | |
 
 Whichever of time and size hits first wins for Prometheus. Loki's retention needs
@@ -133,7 +133,7 @@ The rules that keep it bounded, from `docs/labels.md`:
 
 ## 4. Do not re-enable Tempo `local-blocks`
 
-`server/tempo/tempo-config.yaml` runs `processors: [service-graphs, span-metrics]` and
+`lgtm/tempo/tempo-config.yaml` runs `processors: [service-graphs, span-metrics]` and
 deliberately omits `local-blocks`. It holds completed parquet blocks in RAM for
 `complete_block_timeout` (1h by default); the reference stack measured **12 GB+** of growth from
 it. Nothing here uses TraceQL metrics queries, which is the only thing it enables.
@@ -176,7 +176,7 @@ The digest pinned is always the multi-arch **index**, not a platform manifest �
 
 ## 6. The `$` trap
 
-Compose interpolates values it reads from `--env-file`. So in **`.env.server`**:
+Compose interpolates values it reads from `--env-file`. So in **`.env.lgtm`**:
 
 - `$$` collapses to a single `$` — measured: `GF_ADMIN_PASSWORD=ab$$cd` reaches the container as
   `ab$cd`.

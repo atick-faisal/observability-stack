@@ -2,7 +2,7 @@
 # want: ports published on the host, and configuration bind-mounted from the
 # working tree instead of baked into the image.
 #
-#   docker compose -f compose.yml -f compose.local.yml up -d
+#   docker compose -f compose.lgtm.yml -f compose.lgtm.local.yml up -d
 #
 # The bind mounts shadow the image's copy of the same files, so an edit here takes
 # effect without a rebuild — which is what makes authoring dashboards bearable,
@@ -18,13 +18,13 @@ services:
     ports:
       - "127.0.0.1:9090:9090"
     volumes:
-      - ./server/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./lgtm/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
 
   loki:
     ports:
       - "127.0.0.1:3100:3100"
     volumes:
-      - ./server/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - ./lgtm/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
 
   tempo:
     ports:
@@ -32,11 +32,11 @@ services:
       - "127.0.0.1:4317:4317"
       - "127.0.0.1:4318:4318"
     volumes:
-      - ./server/tempo/tempo-config.yaml:/etc/tempo/config.yaml:ro
+      - ./lgtm/tempo/tempo-config.yaml:/etc/tempo/config.yaml:ro
 
   grafana:
     ports:
       - "127.0.0.1:3000:3000"
     volumes:
-      - ./server/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./server/grafana/dashboards:/etc/grafana/dashboards:ro
+      - ./lgtm/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./lgtm/grafana/dashboards:/etc/grafana/dashboards:ro

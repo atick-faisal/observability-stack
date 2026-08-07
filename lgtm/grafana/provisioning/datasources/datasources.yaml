@@ -92,7 +92,7 @@ datasources:
           - key: env
         # `$__tags` expands to app="…",service="…",env="…" read off the span, which
         # only matches because Tempo's generator remote_write relabels its own
-        # `service` (service.name) back to ours. See server/tempo/tempo-config.yaml.
+        # `service` (service.name) back to ours. See lgtm/tempo/tempo-config.yaml.
         #
         # span_kind is pinned to server spans: the rate a service *serves*, rather
         # than that plus everything it calls. `span_status` is the span status —

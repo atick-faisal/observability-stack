@@ -112,33 +112,61 @@ Two things found while verifying:
 **One commit**, `git mv` throughout so history follows, with the doc updates included. A
 half-renamed repo is worse than either end (§ Sequencing).
 
-- [ ] `git mv compose.yml compose.lgtm.yml` (§A2)
-- [ ] `git mv compose.local.yml compose.lgtm.local.yml` (§A2)
-- [ ] `git mv server/{prometheus,loki,tempo,grafana} lgtm/` (§A3); update the four `build:` contexts
-      in `compose.lgtm.yml` (`:60,112,132,156`) and the four bind-mount paths in
-      `compose.lgtm.local.yml`
-- [ ] **Delete `server/traefik/`** and its two `.gitignore` lines, plus the dead `letsencrypt/`
+- [x] `git mv compose.yml compose.lgtm.yml` (§A2)
+- [x] `git mv compose.local.yml compose.lgtm.local.yml` (§A2)
+- [x] `git mv server/{prometheus,loki,tempo,grafana} lgtm/` (§A3); update the four `build:` contexts
+      in `compose.lgtm.yml` and the four bind-mount paths in `compose.lgtm.local.yml` — *the plan's
+      cited line numbers (`:60,112,132,156`) were already stale; the actual contexts were at
+      `:75,128,149,174` by the time this landed.*
+- [x] **Delete `server/traefik/`** and its two `.gitignore` lines, plus the dead `letsencrypt/`
       line (§A3). Verified unreferenced outside `.gitignore`.
-- [ ] `git mv .env.server.example .env.lgtm.example`; rename the local `.env.server` to `.env.lgtm`
-      (§A4). Add `ACME_EMAIL`'s "only read when you add `compose.edge.yml`" note.
-- [ ] `Makefile` — `SERVER_ENV := --env-file .env.lgtm`, and the `env-check` message points at the
+- [x] `git mv .env.server.example .env.lgtm.example`; rename the local `.env.server` to `.env.lgtm`
+      (§A4). The "only read when you add `compose.edge.yml`" note on `ACME_EMAIL` already existed
+      pre-P1 ("Only read by `compose.edge.yml`") — nothing to add.
+- [x] `Makefile` — `SERVER_ENV := --env-file .env.lgtm`, and the `env-check` message points at the
       new name
-- [ ] **`postgres_exporter` → `postgres-exporter`** (§A8) in `agent/compose.agent.yml:95` and
-      `compose.demo.yml:51`; prose in `README.md`, `PLAN.md`, `agent/README.md`
-- [ ] Update every `compose.yml` / `compose.local.yml` / `.env.server` / `server/` reference across
-      `README.md`, `agent/README.md`, `docs/`, `PLAN.md`, `TASKS.md`, and the header comments
-      inside every compose file
+- [x] **`postgres_exporter` → `postgres-exporter`** (§A8) — the Compose service key only, in
+      `agent/compose.agent.yml` and `compose.demo.yml`; prose in `README.md`, `PLAN.md`,
+      `agent/README.md`, plus `docs/local-dev.md`, `docs/onboarding-an-app.md`, `docs/labels.md` for
+      consistency (not named by §A8's literal list, but the same service). The Postgres *role*
+      `postgres_exporter` (hardcoded, unquoted, in `agent/postgres-exporter-init.sql`, and read back
+      via `compose.demo.yml`'s `DATA_SOURCE_USER`) is untouched — a hyphen there would parse as SQL
+      subtraction.
+- [x] Update every `compose.yml` / `compose.local.yml` / `.env.server` / `server/` reference across
+      `README.md`, `agent/README.md`, `docs/`, `PLAN.md`, and the header comments inside every
+      compose file. `TASKS.md` left as the historical record it is (per Verify's own exemption).
+      Two internal `server/...` comments inside the *moved* Grafana provisioning files
+      (`lgtm/grafana/provisioning/{datasources,dashboards}/*.yaml`) needed the same fix, caught only
+      by grepping the post-move tree rather than the pre-move reference list.
 
-**Verify**:
+**Verify** — done, all green:
 ```bash
 # No stale references anywhere
 grep -rn "\.env\.server\|compose\.local\.yml\|server/prometheus\|server/loki\|server/tempo\|server/grafana\|server/traefik\|postgres_exporter" \
   --include="*.md" --include="*.yml" --include="*.sh" --include="Makefile" . \
-  | grep -v "^./TASKS.md"        # historical entries there may stay
+  | grep -v "^./TASKS.md" | grep -v "^./REFACTOR_PLAN.md" | grep -v "^./REFACTOR_TASKS.md"
+  # historical entries in those three stay
 
 make config-check && make glitchtip-config-check
 make demo-up && make demo-verify && make verify-dashboards
 ```
+
+Two things found while verifying:
+
+- [x] **`compose.glitchtip.local.yml`'s usage-example comment predated P0.** It still showed
+  `-f compose.yml -f compose.glitchtip.yml -f compose.glitchtip.local.yml`, which stopped matching
+  what `make glitchtip-up` runs once P0 dropped the LGTM compose file from `GT_FILES` (the shared
+  `obs` network now comes from `COMPOSE_PROJECT_NAME`, not from co-including the LGTM file). Rewrote
+  it to mirror `compose.glitchtip.yml`'s own header, which already had the correct invocation.
+- [x] **`PLAN.md` §7 named the wrong env file for `GLITCHTIP_DOMAIN`.** It said the two derived
+  GlitchTip settings came "from `GLITCHTIP_DOMAIN` in `.env.server`" — already wrong since P0 moved
+  `GLITCHTIP_DOMAIN` out of the LGTM env file entirely. A bare rename would have produced the
+  equally-wrong `.env.lgtm`; corrected to `.env.glitchtip` instead.
+- One `make demo-verify` run failed a single check ("no log line carried trace_id in structured
+  metadata") immediately after `demo-up`. Traced to the script's own 90s-lookback window not yet
+  having data that early — `docs/local-dev.md` already says to run these "after the stack has been
+  up for a couple of minutes." Passed 7/7 on retry once the stack had ~5 minutes of uptime; not a
+  rename regression.
 `TASKS.md` records what happened at the time and may keep the old names; everything describing the
 repo *as it is now* must not.
 

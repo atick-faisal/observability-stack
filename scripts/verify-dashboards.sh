@@ -17,7 +17,7 @@ set -uo pipefail
 PROM_URL="${PROM_URL:-http://localhost:9090}"
 LOKI_URL="${LOKI_URL:-http://localhost:3100}"
 GRAFANA_URL="${GRAFANA_URL:-http://localhost:3000}"
-DASHBOARD_DIR="${DASHBOARD_DIR:-server/grafana/dashboards}"
+DASHBOARD_DIR="${DASHBOARD_DIR:-lgtm/grafana/dashboards}"
 
 failed=0
 step=0
@@ -245,9 +245,9 @@ done
 check "Grafana provisioned all of them, in the right folders"
 GF_USER="${GF_ADMIN_USER:-}"
 GF_PASS="${GF_ADMIN_PASSWORD:-}"
-if [[ -z "$GF_USER" && -f .env.server ]]; then
-	GF_USER=$(sed -n 's/^GF_ADMIN_USER=//p' .env.server | tail -1)
-	GF_PASS=$(sed -n 's/^GF_ADMIN_PASSWORD=//p' .env.server | tail -1)
+if [[ -z "$GF_USER" && -f .env.lgtm ]]; then
+	GF_USER=$(sed -n 's/^GF_ADMIN_USER=//p' .env.lgtm | tail -1)
+	GF_PASS=$(sed -n 's/^GF_ADMIN_PASSWORD=//p' .env.lgtm | tail -1)
 fi
 GF_USER="${GF_USER:-admin}"
 

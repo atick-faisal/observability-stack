@@ -11,7 +11,7 @@ This repo is a fresh, application-independent replacement. One deployment on a V
 **Architecture** — two independently deployable halves:
 
 - **Server (VPS)**: Traefik fronts Grafana and GlitchTip on public subdomains, plus a single `ingest.<domain>` host exposing three authenticated paths that proxy to Prometheus remote-write, Loki push, and Tempo OTLP/HTTP. Nothing else is reachable from outside.
-- **Agent (every app host)**: one Alloy container that discovers scrape targets and log streams *from Docker labels*, runs optional cAdvisor / postgres_exporter via Compose profiles, receives OTLP traces from the local app, and pushes everything to `ingest.<domain>` over HTTPS with basic auth and local buffering. The app exposes nothing publicly.
+- **Agent (every app host)**: one Alloy container that discovers scrape targets and log streams *from Docker labels*, runs optional cAdvisor / postgres-exporter via Compose profiles, receives OTLP traces from the local app, and pushes everything to `ingest.<domain>` over HTTPS with basic auth and local buffering. The app exposes nothing publicly.
 
 ```
 APP HOST                              OBSERVABILITY VPS
@@ -63,14 +63,14 @@ Hard rules, documented in `docs/labels.md`:
 observability-stack/
 ├─ PLAN.md  TASKS.md  README.md  LICENSE  Makefile  .gitignore
 ├─ .github/workflows/cd.yml        # tag v*.*.* → checks, build, PyPI, GitHub release
-├─ compose.yml                     # server, as deployed: build:, traefik labels, no ports
-├─ compose.local.yml               # local: 127.0.0.1 ports + bind-mounted config
+├─ compose.lgtm.yml                # server, as deployed: build:, traefik labels, no ports
+├─ compose.lgtm.local.yml          # local: 127.0.0.1 ports + bind-mounted config
 ├─ compose.edge.yml                # opt-in traefik, for a host with no proxy already
 ├─ compose.glitchtip.yml           # server: glitchtip web/worker/migrate + own pg + valkey
 ├─ compose.demo.yml                # local e2e: demo app + pg + agent
 ├─ compose.demo.edge.yml           # local e2e: agent pushes through the edge instead
-├─ .env.server.example  .env.glitchtip.example
-├─ server/
+├─ .env.lgtm.example  .env.glitchtip.example
+├─ lgtm/
 │  ├─ prometheus/{Dockerfile,prometheus.yml}
 │  ├─ loki/{Dockerfile,loki-config.yaml}
 │  ├─ tempo/{Dockerfile,tempo-config.yaml}
@@ -167,17 +167,17 @@ prometheus.remote_write "obs" {
 
 **Traces**: `otelcol.receiver.otlp` (gRPC 4317 + HTTP 4318) → `batch` → `otelcol.exporter.otlphttp` with `otelcol.auth.basic`. The agent does **not** rewrite `host` on spans: `otelcol.processor.attributes` only reaches span attributes and `host` is a *resource* attribute, so it would take an `otelcol.processor.transform` with an OTTL statement string-concatenated from `sys.env`. The app's own value is used instead — see `docs/labels.md` §5 for what that costs.
 
-`compose.agent.yml`: `alloy` always; `cadvisor` under profile `containers`; `postgres_exporter` under profile `postgres`, its `DATA_SOURCE_*` variables read from `.env.agent` inside the container rather than interpolated by Compose (no hardcoded `db`, and no `$`-escaping in passwords). Both optional services carry their own `obs.*` labels and are discovered by the same mechanism as any app container. Host metrics via Alloy's built-in `prometheus.exporter.unix` — no node_exporter container. Recommended wiring is `docker compose -f compose.yml -f observability/compose.agent.yml up`, so the agent shares the app's project network natively and the reference's `external:` network hack disappears.
+`compose.agent.yml`: `alloy` always; `cadvisor` under profile `containers`; `postgres-exporter` under profile `postgres`, its `DATA_SOURCE_*` variables read from `.env.agent` inside the container rather than interpolated by Compose (no hardcoded `db`, and no `$`-escaping in passwords). Both optional services carry their own `obs.*` labels and are discovered by the same mechanism as any app container. Host metrics via Alloy's built-in `prometheus.exporter.unix` — no node_exporter container. Recommended wiring is `docker compose -f compose.lgtm.yml -f observability/compose.agent.yml up`, so the agent shares the app's project network natively and the reference's `external:` network hack disappears.
 
-Carry over verbatim from the reference (correct and hard-won): postgres_exporter's `--collector.stat_checkpointer` (required for PG17+/18, where checkpoint metrics moved out of `pg_stat_bgwriter`) and its sibling collector flags; cAdvisor's `--disable_metrics=advtcp,cpu_topology,...` list and the `id` labeldrop.
+Carry over verbatim from the reference (correct and hard-won): postgres-exporter's `--collector.stat_checkpointer` (required for PG17+/18, where checkpoint metrics moved out of `pg_stat_bgwriter`) and its sibling collector flags; cAdvisor's `--disable_metrics=advtcp,cpu_topology,...` list and the `id` labeldrop.
 
 ---
 
 ## 4. Ingress and auth
 
-Traefik static config: `web` (:80 → redirect) and `websecure` (:443), docker provider with `exposedByDefault: false`, LE HTTP-01 resolver. It lives in `compose.edge.yml` as CLI arguments rather than a `traefik.yml` — Traefik's three static-config sources (file, CLI, env) are **mutually exclusive**, and only the CLI form lets Compose interpolate `ACME_EMAIL` out of `.env.server`.
+Traefik static config: `web` (:80 → redirect) and `websecure` (:443), docker provider with `exposedByDefault: false`, LE HTTP-01 resolver. It lives in `compose.edge.yml` as CLI arguments rather than a `traefik.yml` — Traefik's three static-config sources (file, CLI, env) are **mutually exclusive**, and only the CLI form lets Compose interpolate `ACME_EMAIL` out of `.env.lgtm`.
 
-**Routing is container labels in `compose.yml`, not a file provider.** Labels are inert without a Traefik reading them, and Traefik ignores anything not on its own network, so one copy of them serves both our own edge and one that already exists on the host. `OBS_EDGE_NETWORK` / `OBS_EDGE_EXTERNAL` point the `edge` network at whatever proxy is already there — on a Dokploy host, `dokploy-network`. Compose's `include:` is strictly additive and rejects a file redeclaring anything it imported, so two variables do what an overlay file cannot.
+**Routing is container labels in `compose.lgtm.yml`, not a file provider.** Labels are inert without a Traefik reading them, and Traefik ignores anything not on its own network, so one copy of them serves both our own edge and one that already exists on the host. `OBS_EDGE_NETWORK` / `OBS_EDGE_EXTERNAL` point the `edge` network at whatever proxy is already there — on a Dokploy host, `dokploy-network`. Compose's `include:` is strictly additive and rejects a file redeclaring anything it imported, so two variables do what an overlay file cannot.
 
 **Second stated limitation, from that**: on a shared edge network, anything else attached to it reaches the ingest backends directly, bypassing the basic auth below. `obs` stays a separate private network so only the four services and the demo are on it, but the edge network is as trusted as the host. Single-owner box, same boundary as the limitation stated further down.
 
@@ -189,7 +189,7 @@ Traefik static config: `web` (:80 → redirect) and `websecure` (:443), docker p
 | `ingest.<domain>` + `PathPrefix(/loki/api/v1/push)` | loki:3100 | ingest-auth, ratelimit |
 | `ingest.<domain>` + `PathPrefix(/v1/traces)` | tempo:4318 | ingest-auth, ratelimit |
 
-Paths are the **native upstream paths**, no rewriting — swapping Prometheus for Mimir later is just a change of the router's service. Anything else on `ingest.<domain>` matches no router → 404. **Nothing publishes a host port**; `compose.local.yml` adds `127.0.0.1` bindings for local work only, so on the VPS the authenticated path is the only path.
+Paths are the **native upstream paths**, no rewriting — swapping Prometheus for Mimir later is just a change of the router's service. Anything else on `ingest.<domain>` matches no router → 404. **Nothing publishes a host port**; `compose.lgtm.local.yml` adds `127.0.0.1` bindings for local work only, so on the VPS the authenticated path is the only path.
 
 Credentials: **one per app+env**, basic auth, defined as a label.
 
@@ -322,7 +322,7 @@ Provider: file, `foldersFromFilesStructure: true`, `updateIntervalSeconds: 30`, 
 
 **Not carried over**: `host.docker.internal`, the `${APP_PROJECT_NAME}_default` external network, `http_proxy`/`no_proxy` env plumbing and the proxy-clearing healthcheck prefixes, `user: "0"` on Loki/Tempo (use pre-created volumes with correct ownership), and the shared LGTM/GlitchTip `.env` (now three separate env files).
 
-**GlitchTip's secrets are read by its containers, not interpolated by Compose.** `compose.glitchtip.yml` names `.env.glitchtip` in `env_file:` rather than referencing `${SECRET_KEY}` and `${POSTGRES_PASSWORD}`, so those values never pass through the `${}` layer and the `$$`-doubling that `INGEST_USERS` needs does not apply to them — which matters most for exactly the values most likely to contain a `$`, a generated key and a generated password. Only what is *derived* stays in `environment:`: `GLITCHTIP_DOMAIN` and `CSRF_TRUSTED_ORIGINS`, both from `GLITCHTIP_DOMAIN` in `.env.server`, so a deployment cannot set one and forget the other. Same pattern as the agent's `DATA_SOURCE_*` (§3).
+**GlitchTip's secrets are read by its containers, not interpolated by Compose.** `compose.glitchtip.yml` names `.env.glitchtip` in `env_file:` rather than referencing `${SECRET_KEY}` and `${POSTGRES_PASSWORD}`, so those values never pass through the `${}` layer and the `$$`-doubling that `INGEST_USERS` needs does not apply to them — which matters most for exactly the values most likely to contain a `$`, a generated key and a generated password. Only what is *derived* stays in `environment:`: `GLITCHTIP_DOMAIN` and `CSRF_TRUSTED_ORIGINS`, both from `GLITCHTIP_DOMAIN` in `.env.glitchtip`, so a deployment cannot set one and forget the other. Same pattern as the agent's `DATA_SOURCE_*` (§3).
 
 **GlitchTip gets a third network of its own.** `obs` carries the LGTM services *and* the app containers on the box; GlitchTip's Postgres holds exception payloads — stack traces, request context — from every app that reports there, and belongs on neither. Only `glitchtip-web` joins `obs` (so an app can POST to `glitchtip-web:8000`) and `edge` (so Traefik can route `errors.<domain>`).
 
@@ -332,7 +332,7 @@ Provider: file, `foldersFromFilesStructure: true`, `updateIntervalSeconds: 30`, 
 
 ## 8. Local development
 
-`make demo-up` → `docker compose -f compose.yml -f compose.demo.yml --profile postgres --profile containers up -d`, bringing up the **real server stack** (Traefik included, on `*.localhost`, so the auth path is genuinely exercised) plus:
+`make demo-up` → `docker compose -f compose.lgtm.yml -f compose.demo.yml --profile postgres --profile containers up -d`, bringing up the **real server stack** (Traefik included, on `*.localhost`, so the auth path is genuinely exercised) plus:
 
 - `demo-api` — FastAPI on `python:3.13-slim`, installing `obstack` from the local path so SDK edits are live; routes `/ok`, `/items/{item_id}`, `/slow`, `/boom`, `/db`, plus `/health` passed to `excluded_paths` so probe traffic reaches no metric and no log line; carries the `obs.*` Docker labels. Build context is the repo root with the host layout mirrored inside the image, which is what lets the `obstack` path dependency resolve identically in both places.
 - `demo-db` — `postgres:18-alpine` with the exporter bootstrap SQL applied on first boot. **Postgres 18 moved the data directory**: the volume mounts at `/var/lib/postgresql`, not `/var/lib/postgresql/data`, and the image refuses to start on the old path.

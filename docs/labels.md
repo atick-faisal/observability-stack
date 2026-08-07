@@ -58,7 +58,7 @@ thought about.
 `app`, `env`, and `host` are set once as `external_labels` on the agent's
 `prometheus.remote_write`. Because they are applied at the exit, they land on **every** series
 the agent forwards — the app's own `/metrics`, `node_*` from `prometheus.exporter.unix`,
-`container_*` from cAdvisor, and `pg_*` from postgres_exporter — with no per-job configuration
+`container_*` from cAdvisor, and `pg_*` from postgres-exporter — with no per-job configuration
 and no way to forget one.
 
 `service` comes from discovery relabels, sourced from the `obs.service` Docker label on the

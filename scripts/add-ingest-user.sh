@@ -7,8 +7,8 @@
 #   ./scripts/add-ingest-user.sh myapp-production 'a-password-you-chose'
 #
 # Prints two things: what to put in the app host's observability/.env.agent, and
-# what to append to INGEST_USERS in the server's .env.server. It edits neither —
-# .env.server may already hold other credentials, and a script that rewrites a
+# what to append to INGEST_USERS in the server's .env.lgtm. It edits neither —
+# .env.lgtm may already hold other credentials, and a script that rewrites a
 # secrets file is a script that can lose one.
 #
 # The hash is printed with every $ doubled. That is not decoration: Compose
@@ -55,7 +55,7 @@ cat <<EOF
     OBS_INGEST_USER=$user
     OBS_INGEST_PASSWORD=$password
 
-  On the server, appended to INGEST_USERS in .env.server (comma-separated if it
+  On the server, appended to INGEST_USERS in .env.lgtm (comma-separated if it
   already has entries — note the doubled \$\$, which Compose collapses back):
 
     $doubled

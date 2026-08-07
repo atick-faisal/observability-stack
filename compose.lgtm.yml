@@ -6,7 +6,7 @@ name: observability
 # that re-clones the working tree on every deploy (Dokploy does), and it makes a
 # config change recreate the container, which a bind-mount change does not.
 #
-# Locally, add compose.local.yml for 127.0.0.1 ports and bind-mounted config:
+# Locally, add compose.lgtm.local.yml for 127.0.0.1 ports and bind-mounted config:
 #   make up / make demo-up do this for you.
 #
 # The traefik.* labels are inert without a Traefik reading them — and Traefik
@@ -72,7 +72,7 @@ x-obs-labels: &obs-labels
 
 services:
   prometheus:
-    build: ./server/prometheus
+    build: ./lgtm/prometheus
     restart: unless-stopped
     logging: *obs-logging
     volumes:
@@ -104,7 +104,7 @@ services:
       # reads from --env-file, so a single $ is eaten. scripts/add-ingest-user.sh
       # prints the line already doubled; scripts/verify-ingest.sh proves it, since
       # a mis-escaped hash is a 401 indistinguishable from a wrong password.
-      traefik.http.middlewares.obs-ingest-auth.basicauth.users: ${INGEST_USERS:?set INGEST_USERS in .env.server — scripts/add-ingest-user.sh mints one}
+      traefik.http.middlewares.obs-ingest-auth.basicauth.users: ${INGEST_USERS:?set INGEST_USERS in .env.lgtm — scripts/add-ingest-user.sh mints one}
       # Strips Authorization before proxying. Prometheus and Loki have no use for
       # it, and it would otherwise reach them and their logs.
       traefik.http.middlewares.obs-ingest-auth.basicauth.removeheader: "true"
@@ -125,7 +125,7 @@ services:
       start_period: 30s
 
   loki:
-    build: ./server/loki
+    build: ./lgtm/loki
     restart: unless-stopped
     logging: *obs-logging
     volumes:
@@ -146,7 +146,7 @@ services:
     # http://localhost:3100/ready, checked from the host.
 
   tempo:
-    build: ./server/tempo
+    build: ./lgtm/tempo
     restart: unless-stopped
     logging: *obs-logging
     volumes:
@@ -171,12 +171,12 @@ services:
     # http://localhost:3200/ready, checked from the host.
 
   grafana:
-    build: ./server/grafana
+    build: ./lgtm/grafana
     restart: unless-stopped
     logging: *obs-logging
     environment:
       GF_SECURITY_ADMIN_USER: ${GF_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:?set GF_ADMIN_PASSWORD in .env.server}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:?set GF_ADMIN_PASSWORD in .env.lgtm}
       GF_SERVER_ROOT_URL: ${GF_SERVER_ROOT_URL:-http://localhost:3000}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_AUTH_ANONYMOUS_ENABLED: "false"

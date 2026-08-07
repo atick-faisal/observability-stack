@@ -1,9 +1,6 @@
 # Secrets and environment
 .env*
 !.env*.example
-server/traefik/secrets/*
-!server/traefik/secrets/.gitkeep
-letsencrypt/
 *.htpasswd
 
 # Python

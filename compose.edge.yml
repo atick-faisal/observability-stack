@@ -1,11 +1,11 @@
 # Our own Traefik, for a VPS with no edge proxy already on :80/:443.
 #
-#   docker compose -f compose.yml -f compose.edge.yml up -d
+#   docker compose -f compose.lgtm.yml -f compose.edge.yml up -d
 #
 # Not needed where something else already terminates TLS — a second ACME client
 # contending for :443 buys nothing, and on a single box the isolation argument is
 # imaginary because the box dying takes both. There, point OBS_EDGE_NETWORK at
-# the existing proxy's network instead and deploy compose.yml on its own.
+# the existing proxy's network instead and deploy compose.lgtm.yml on its own.
 #
 # It is also how the routing and auth in compose.yml's labels get exercised
 # locally: `make demo-up EDGE=1` runs this against *.localhost, which is what
@@ -16,11 +16,11 @@
 #
 # The static configuration is CLI arguments rather than a traefik.yml because
 # Traefik's three static config sources (file, CLI, env) are mutually exclusive,
-# and only the CLI form lets Compose interpolate ACME_EMAIL out of .env.server.
+# and only the CLI form lets Compose interpolate ACME_EMAIL out of .env.lgtm.
 
 # --accesslog.format=json below writes one line per request, forever, on Docker's
 # default driver — which has no max-size and no max-file. Of every container in
-# this repo the edge is the one that fills a disk first. Same bound as compose.yml;
+# this repo the edge is the one that fills a disk first. Same bound as compose.lgtm.yml;
 # see there for the /etc/docker/daemon.json default.
 x-obs-logging: &obs-logging
   driver: json-file
@@ -68,7 +68,7 @@ services:
       - --providers.docker.network=${OBS_EDGE_NETWORK:-observability_edge}
       # HTTP-01, so no DNS provider credentials are needed. It requires :80 to be
       # reachable from the internet, which the redirect above keeps open.
-      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:?set ACME_EMAIL in .env.server}
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:?set ACME_EMAIL in .env.lgtm}
       - --certificatesresolvers.letsencrypt.acme.storage=/acme/acme.json
       # Overridden to the staging CA by `make demo-up EDGE=1`. Local runs use the
       # real OBS_DOMAIN, whose DNS does not point here, so every validation fails
@@ -80,7 +80,7 @@ services:
       - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
       - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
     labels:
-      # Not collected — see compose.yml.
+      # Not collected — see compose.lgtm.yml.
       obs.logs: "false"
     networks:
       # `edge` is where it dials the backends, pinned above so it never picks

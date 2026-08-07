@@ -1,4 +1,4 @@
-# Local end-to-end demo. Overlays compose.yml and agent/compose.agent.yml in the
+# Local end-to-end demo. Overlays compose.lgtm.yml and agent/compose.agent.yml in the
 # same Compose project, so these containers join the `obs` network and reach
 # tempo/loki/prometheus by name.
 #
@@ -8,12 +8,12 @@
 # app-specific lives here: the three `obs.*` labels on each container, and the
 # agent's own settings, which a real app repo would put in observability/.env.agent
 # instead. They are inline because none of them is a secret: the URLs are
-# in-network and the credential is demo/demo, which .env.server.example ships the
+# in-network and the credential is demo/demo, which .env.lgtm.example ships the
 # matching hash for. `make demo-up EDGE=1` is where it is actually enforced.
 
 # Only the three services this file *introduces* need it — alloy, cadvisor and
-# postgres_exporter are overlays on agent/compose.agent.yml and take their bound
-# from there. Same values as compose.yml; see there for the daemon.json default.
+# postgres-exporter are overlays on agent/compose.agent.yml and take their bound
+# from there. Same values as compose.lgtm.yml; see there for the daemon.json default.
 x-obs-logging: &obs-logging
   driver: json-file
   options:
@@ -57,7 +57,7 @@ services:
     networks:
       - obs
 
-  postgres_exporter:
+  postgres-exporter:
     environment:
       DATA_SOURCE_URI: demo-db:5432/demo?sslmode=disable
       DATA_SOURCE_USER: postgres_exporter

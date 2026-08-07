@@ -29,16 +29,16 @@ edited — if you find yourself editing it, that is a bug in the label conventio
 | `OBS_INGEST_USER`, `OBS_INGEST_PASSWORD` | The credential minted for this app+env. |
 
 `.env.agent` is read *inside* the container, not interpolated by Compose — so a `$` in the
-password needs no escaping here. (The server's `.env.server` is the opposite; see
+password needs no escaping here. (The server's `.env.lgtm` is the opposite; see
 [`deploy-vps.md`](./deploy-vps.md) §3.)
 
 Then run it alongside your app:
 
 ```bash
-docker compose -f compose.yml -f observability/compose.agent.yml up -d
+docker compose -f compose.lgtm.yml -f observability/compose.agent.yml up -d
 ```
 
-Add `--profile postgres` for `postgres_exporter`, `--profile containers` for cAdvisor, or both.
+Add `--profile postgres` for `postgres-exporter`, `--profile containers` for cAdvisor, or both.
 
 ## 2. Label the containers
 

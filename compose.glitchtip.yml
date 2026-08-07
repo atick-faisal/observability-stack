@@ -17,7 +17,7 @@
 #   docker compose --env-file .env.glitchtip -f compose.glitchtip.yml up -d
 #
 # The second shape is why the `obs` and `edge` networks are declared below and not
-# only in compose.yml. They are declared identically in both, so Compose merges them
+# only in compose.lgtm.yml. They are declared identically in both, so Compose merges them
 # without conflict when the files are overlaid. Note what a separate project costs:
 # its `obs` network is project-local, so glitchtip-web:8000 is *not* reachable from
 # the LGTM project's containers. Apps report over https://errors.<domain> instead,
@@ -25,15 +25,15 @@
 #
 # Locally, add compose.glitchtip.local.yml for a 127.0.0.1 port — `make glitchtip-up`
 # does that for you. This file publishes nothing, which is the same invariant
-# compose.yml holds: errors.<domain> through Traefik is the only way in.
+# compose.lgtm.yml holds: errors.<domain> through Traefik is the only way in.
 #
-# GlitchTip is deliberately a separate file rather than a profile in compose.yml.
+# GlitchTip is deliberately a separate file rather than a profile in compose.lgtm.yml.
 # It is five more containers and a second Postgres; a stack that only wants metrics,
 # logs and traces should not pay for them.
 #
 # Its settings are interpolated by Compose from .env.glitchtip, or from the
 # environment UI of whatever deploys this. So the `$$`-doubling rule that applies to
-# .env.server applies here too: a single `$` in a value is eaten. `openssl rand -hex
+# .env.lgtm applies here too: a single `$` in a value is eaten. `openssl rand -hex
 # 32` cannot produce one, and .env.glitchtip.example asks for an alphanumeric
 # database password for the same reason scripts/add-ingest-user.sh generates one.
 #
@@ -224,7 +224,7 @@ services:
       traefik.http.routers.obs-glitchtip.tls.certresolver: "letsencrypt"
       traefik.http.routers.obs-glitchtip.middlewares: "obs-glitchtip-headers@docker"
       traefik.http.services.obs-glitchtip.loadbalancer.server.port: "8000"
-      # The same four settings compose.yml puts on the grafana container as
+      # The same four settings compose.lgtm.yml puts on the grafana container as
       # obs-secure-headers, deliberately duplicated rather than referenced.
       # Traefik reads a middleware definition off whichever container carries it,
       # so referencing Grafana's copy works — but only while both stacks share one

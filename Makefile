@@ -1,13 +1,13 @@
 COMPOSE       ?= docker compose
-# Declared in compose.yml, and needed here because the GlitchTip targets no longer
-# pass compose.yml — see GT_ENVIRON — and because `docker volume rm` needs the
-# prefix Compose builds volume names from.
+# Declared in compose.lgtm.yml, and needed here because the GlitchTip targets no
+# longer pass compose.lgtm.yml — see GT_ENVIRON — and because `docker volume rm`
+# needs the prefix Compose builds volume names from.
 PROJECT       := observability
-SERVER_ENV    := --env-file .env.server
-# compose.local.yml is what publishes the 127.0.0.1 ports and bind-mounts the
-# configs. compose.yml on its own is the deployed shape: no ports, config baked
+SERVER_ENV    := --env-file .env.lgtm
+# compose.lgtm.local.yml is what publishes the 127.0.0.1 ports and bind-mounts the
+# configs. compose.lgtm.yml on its own is the deployed shape: no ports, config baked
 # into the images.
-LOCAL_FILES   := -f compose.yml -f compose.local.yml
+LOCAL_FILES   := -f compose.lgtm.yml -f compose.lgtm.local.yml
 SERVER_FILES  := $(SERVER_ENV) $(LOCAL_FILES)
 # The demo runs agent/ unmodified — that is what makes "copy this directory into
 # your app repo" a tested claim rather than a hope. OBS_AGENT_DIR is needed
@@ -74,8 +74,8 @@ GLITCHTIP_FILES := -f compose.glitchtip.yml -f compose.glitchtip.local.yml
 # Compose.
 #
 # One unit, one --env-file, and no other unit's compose file: what runs here is what
-# a platform deploying compose.glitchtip.yml on its own runs. compose.yml used to be
-# in this list, which meant .env.server had to be too — it declares
+# a platform deploying compose.glitchtip.yml on its own runs. compose.lgtm.yml used to
+# be in this list, which meant .env.lgtm had to be too — it declares
 # ${INGEST_USERS:?...} and ${GF_ADMIN_PASSWORD:?...}, so its absence aborts the
 # render — and .env.glitchtip then silently shadowed whatever the two files shared.
 GT_ENV          := --env-file .env.glitchtip
@@ -83,7 +83,7 @@ GT_FILES        := $(GT_ENV) $(GLITCHTIP_FILES)
 GT_SVCS         := glitchtip-postgres glitchtip-valkey glitchtip-migrate glitchtip-web glitchtip-worker
 # The project name is what keeps these containers on the same `obs` network as the
 # LGTM stack, which is the only thing that makes glitchtip-web:8000 reachable from an
-# app on this box. It comes from compose.yml's `name:` when that file is on the
+# app on this box. It comes from compose.lgtm.yml's `name:` when that file is on the
 # command line; here it is not, so it would otherwise come from the directory name.
 #
 # Set here rather than as `name:` in compose.glitchtip.yml on purpose. That file has
@@ -102,7 +102,7 @@ DEMO_DIRS     := demo/app demo/loadgen
 .PHONY: help up down logs demo-up demo-down demo-logs demo-verify verify-ingest verify-dashboards verify-errors verify-resilience backup restore glitchtip-up glitchtip-down glitchtip-logs config-check glitchtip-config-check lint test env-check glitchtip-env-check remote-check
 
 env-check:
-	@test -f .env.server || { echo "missing .env.server — cp .env.server.example .env.server"; exit 1; }
+	@test -f .env.lgtm || { echo "missing .env.lgtm — cp .env.lgtm.example .env.lgtm"; exit 1; }
 
 # EDGE and REMOTE both rewrite the same three URLs, and compose.demo.edge.yml sets
 # them under `environment:`, so EDGE would win silently. Fail instead.
@@ -183,9 +183,9 @@ restore: ## Restore a backup — DIR=backups/<stamp>, then add ARGS=--yes
 # without needing that network to exist here. This is exactly what a deploy runs.
 config-check: env-check ## Render the deployed compose shape and check it resolves
 	@OBS_EDGE_NETWORK=dokploy-network OBS_EDGE_EXTERNAL=true \
-		$(COMPOSE) $(SERVER_ENV) -f compose.yml config >/dev/null && echo "compose.yml (deployed shape) OK"
+		$(COMPOSE) $(SERVER_ENV) -f compose.lgtm.yml config >/dev/null && echo "compose.lgtm.yml (deployed shape) OK"
 
-# compose.glitchtip.yml on its own, with no compose.yml under it — the shape a
+# compose.glitchtip.yml on its own, with no compose.lgtm.yml under it — the shape a
 # platform that deploys one file per service renders. It borrows the `obs` and `edge`
 # networks, and until they were declared here too this failed with "refers to
 # undefined network obs" only on the deploy, never locally.

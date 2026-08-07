@@ -3,9 +3,9 @@
 One VPS serves every app. This is the half that receives; [`onboarding-an-app.md`](./onboarding-an-app.md)
 is the half that sends.
 
-The whole deployed shape is `compose.yml` on its own — nothing published, each service building a
+The whole deployed shape is `compose.lgtm.yml` on its own — nothing published, each service building a
 small image with its config baked in, routing driven by container labels. Everything below is
-either filling in `.env.server` or deciding which of two edge shapes you are in.
+either filling in `.env.lgtm` or deciding which of two edge shapes you are in.
 
 ---
 
@@ -67,10 +67,10 @@ authenticated; everything else on that host 404s (§5).
 
 ```bash
 git clone <this-repo> observability-stack && cd observability-stack
-cp .env.server.example .env.server
+cp .env.lgtm.example .env.lgtm
 ```
 
-`.env.server.example` documents every variable inline. Four matter on a first deploy:
+`.env.lgtm.example` documents every variable inline. Four matter on a first deploy:
 
 | Variable | |
 |---|---|
@@ -95,7 +95,7 @@ Then mint one ingest credential per app+env:
 ```
 
 It prints both halves — what goes in the app host's `.env.agent`, and the bcrypt hash to append
-to `INGEST_USERS` here, already `$$`-doubled. It edits neither file: `.env.server` may already
+to `INGEST_USERS` here, already `$$`-doubled. It edits neither file: `.env.lgtm` may already
 hold other credentials, and a script that rewrites a secrets file is a script that can lose one.
 
 **Replace the default `INGEST_USERS` value before this is reachable.** It ships as `demo:demo`,
@@ -108,20 +108,20 @@ Two shapes, and picking the wrong one costs you a fight over `:443`.
 **A — nothing else on the box owns `:80`/`:443`.** Use ours:
 
 ```bash
-docker compose --env-file .env.server -f compose.yml -f compose.edge.yml up -d --build
+docker compose --env-file .env.lgtm -f compose.lgtm.yml -f compose.edge.yml up -d --build
 ```
 
 **B — the host already runs a proxy** (Dokploy, Coolify, an existing Traefik). Deploy
-`compose.yml` alone and point it at that proxy's network:
+`compose.lgtm.yml` alone and point it at that proxy's network:
 
 ```bash
-# in .env.server, or the platform's environment UI
+# in .env.lgtm, or the platform's environment UI
 OBS_EDGE_NETWORK=dokploy-network
 OBS_EDGE_EXTERNAL=true
 ```
 
 ```bash
-docker compose --env-file .env.server -f compose.yml up -d --build
+docker compose --env-file .env.lgtm -f compose.lgtm.yml up -d --build
 ```
 
 The `traefik.*` labels are inert without a Traefik reading them, and Traefik ignores containers
@@ -187,7 +187,7 @@ original timestamps: a skewed host's backlog arrives skewed. Fix the clock befor
 
 GlitchTip is five more containers and a second Postgres, so it is opt-in and separate. Its
 settings live in `.env.glitchtip`, which is only ever GlitchTip's — nothing in it is shared with
-`.env.server`, so it can be handed over or rotated on its own.
+`.env.lgtm`, so it can be handed over or rotated on its own.
 
 ```bash
 cp .env.glitchtip.example .env.glitchtip     # SECRET_KEY, POSTGRES_PASSWORD, ALLOWED_HOSTS
@@ -196,9 +196,9 @@ cp .env.glitchtip.example .env.glitchtip     # SECRET_KEY, POSTGRES_PASSWORD, AL
 Keep the deployed values in `.env.glitchtip.production` rather than in `.env.glitchtip`. The
 Makefile reads the latter and it holds the local values; the `.production` file is read by nothing
 and exists to be pasted into the platform's environment UI and to record what was pasted. Both are
-gitignored. The same convention applies to `.env.server` and `agent/.env.agent`.
+gitignored. The same convention applies to `.env.lgtm` and `agent/.env.agent`.
 
-**`.env.glitchtip.production` is the whole environment.** Nothing is supplied by `.env.server`, including the
+**`.env.glitchtip.production` is the whole environment.** Nothing is supplied by `.env.lgtm`, including the
 four values that describe *where* GlitchTip runs — `OBS_DOMAIN`, `GLITCHTIP_DOMAIN`,
 `OBS_EDGE_NETWORK` and `OBS_EDGE_EXTERNAL`. They are duplicated between the two files because two
 independently deployed services means two environments, and each has to say where it runs.

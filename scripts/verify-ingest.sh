@@ -17,8 +17,8 @@
 
 set -uo pipefail
 
-if [[ -z "${OBS_DOMAIN:-}" && -f .env.server ]]; then
-	OBS_DOMAIN=$(sed -n 's/^OBS_DOMAIN=//p' .env.server | tail -1)
+if [[ -z "${OBS_DOMAIN:-}" && -f .env.lgtm ]]; then
+	OBS_DOMAIN=$(sed -n 's/^OBS_DOMAIN=//p' .env.lgtm | tail -1)
 fi
 DOMAIN="${OBS_DOMAIN:-localhost}"
 EDGE_ADDR="${EDGE_ADDR:-127.0.0.1}"

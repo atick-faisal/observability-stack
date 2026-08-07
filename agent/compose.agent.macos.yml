@@ -1,6 +1,6 @@
 # Local testing on Docker Desktop for Mac only. Never deploy this on a VPS.
 #
-#   docker compose -f compose.yml -f observability/compose.agent.yml \
+#   docker compose -f compose.lgtm.yml -f observability/compose.agent.yml \
 #     -f observability/compose.agent.macos.yml --profile containers up -d
 #
 # Docker Desktop runs containerd with the overlayfs snapshotter, where cAdvisor

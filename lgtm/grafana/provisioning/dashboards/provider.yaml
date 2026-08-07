@@ -17,6 +17,6 @@ providers:
     allowUiUpdates: false
     options:
       # Deliberately not under /var/lib/grafana — that is the data volume, which
-      # shadows anything baked into the image at that path. See server/grafana/Dockerfile.
+      # shadows anything baked into the image at that path. See lgtm/grafana/Dockerfile.
       path: /etc/grafana/dashboards
       foldersFromFilesStructure: true

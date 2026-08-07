@@ -1,8 +1,9 @@
 # Local development overlay for compose.glitchtip.yml. One port, and nothing else.
 #
-#   docker compose -f compose.yml -f compose.glitchtip.yml -f compose.glitchtip.local.yml up -d
+#   COMPOSE_PROJECT_NAME=observability \
+#     docker compose --env-file .env.glitchtip -f compose.glitchtip.yml -f compose.glitchtip.local.yml up -d
 #
-# It is a separate file rather than a few lines in compose.local.yml because that
+# It is a separate file rather than a few lines in compose.lgtm.local.yml because that
 # file loads on every `make up`, and an override naming a service the base does not
 # define fails the render with "no image and no build context".
 #

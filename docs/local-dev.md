@@ -5,11 +5,11 @@ and every verification script in this repo is written against that local run. If
 be demonstrated here, it is not finished.
 
 ```bash
-cp .env.server.example .env.server    # set GF_ADMIN_PASSWORD; OBS_DOMAIN can stay example.com
+cp .env.lgtm.example .env.lgtm    # set GF_ADMIN_PASSWORD; OBS_DOMAIN can stay example.com
 make demo-up
 ```
 
-> **Every env file the Makefile reads is local.** `.env.server`, `.env.glitchtip` and
+> **Every env file the Makefile reads is local.** `.env.lgtm`, `.env.glitchtip` and
 > `agent/.env.agent` hold local values and nothing else. What goes into a deploy lives beside them
 > with a `.production` suffix — `.env.glitchtip.production`, `agent/.env.agent.production` — and is
 > read by nothing: a paste buffer for the platform's environment UI, and a record of what was
@@ -51,17 +51,17 @@ Three compose files plus the agent's, merged into one project called `observabil
 
 | File | Adds |
 |---|---|
-| `compose.yml` | The deployed shape: prometheus, loki, tempo, grafana. No ports, config baked into the images. |
-| `compose.local.yml` | `127.0.0.1` ports, and bind-mounts the configs from the working tree. |
+| `compose.lgtm.yml` | The deployed shape: prometheus, loki, tempo, grafana. No ports, config baked into the images. |
+| `compose.lgtm.local.yml` | `127.0.0.1` ports, and bind-mounts the configs from the working tree. |
 | `compose.demo.yml` | `demo-api`, `demo-db`, `demo-loadgen`, and the agent's settings. |
-| `agent/compose.agent.yml` | Alloy, cAdvisor, `postgres_exporter` — **used unmodified**. |
+| `agent/compose.agent.yml` | Alloy, cAdvisor, `postgres-exporter` — **used unmodified**. |
 
 That last point is the reason the demo exists. `agent/` is what you copy into a real app repo, so
 running it here without edits is what makes "copy this directory" a tested claim rather than a
 hope. Everything app-specific lives in `compose.demo.yml`.
 
 The bind mounts are what makes dashboard work bearable: Grafana's file provider re-reads
-`server/grafana/dashboards/` every 30 seconds, so an edit shows up without a rebuild. The
+`lgtm/grafana/dashboards/` every 30 seconds, so an edit shows up without a rebuild. The
 deployed stack has no such mount and reads the baked copy — which is also why
 `make config-check` exists, to render the deployed shape and prove it still resolves.
 
@@ -167,13 +167,13 @@ the registry anonymously for that reason.
 
 ## Working on the stack itself
 
-**Dashboards** are files in `server/grafana/dashboards/<Folder>/`. Edit, wait 30s, reload. They
+**Dashboards** are files in `lgtm/grafana/dashboards/<Folder>/`. Edit, wait 30s, reload. They
 are provisioned `allowUiUpdates: false`, so the UI will not save over them — a `POST` to
 `/api/dashboards/db` returns `400 Cannot save provisioned dashboard`. Note that `meta.canSave`
 still reports `true`; in Grafana 13 that field reflects the user's permission, not the
 provisioning lock, so the write attempt is the only real test.
 
-**Configs** under `server/*/` are bind-mounted locally, so `docker compose restart <svc>` picks
+**Configs** under `lgtm/*/` are bind-mounted locally, so `docker compose restart <svc>` picks
 them up. A `make up` rebuild is only needed to prove the baked-in copy also works — which
 `make config-check` and a `--build` do.
 
