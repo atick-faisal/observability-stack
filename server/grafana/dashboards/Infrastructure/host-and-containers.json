@@ -668,7 +668,7 @@
           "query": "label_values(node_uname_info,app)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "sort": 1,
         "type": "query"
@@ -687,7 +687,7 @@
           "query": "label_values(node_uname_info{app=\"$app\"},env)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "sort": 1,
         "type": "query"
@@ -707,15 +707,16 @@
           "query": "label_values(node_uname_info{app=\"$app\",env=\"$env\"},host)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "sort": 1,
         "type": "query"
       },
       {
+        "allValue": ".+",
         "current": {},
         "datasource": { "type": "prometheus", "uid": "prometheus" },
-        "definition": "label_values(container_memory_working_set_bytes{app=\"$app\",env=\"$env\"},name)",
+        "definition": "label_values(container_memory_working_set_bytes{app=\"$app\",env=\"$env\",host=\"$host\"},name)",
         "description": "The fourth variable is the container name, not the service: cAdvisor labels every series it emits `service=\"cadvisor\"` regardless of what it is observing, so the shared `$service` chain stops here.",
         "includeAll": true,
         "label": "Container",
@@ -724,10 +725,10 @@
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(container_memory_working_set_bytes{app=\"$app\",env=\"$env\"},name)",
+          "query": "label_values(container_memory_working_set_bytes{app=\"$app\",env=\"$env\",host=\"$host\"},name)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "sort": 1,
         "type": "query"

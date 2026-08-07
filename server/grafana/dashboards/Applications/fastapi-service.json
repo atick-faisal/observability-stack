@@ -522,7 +522,7 @@
           "query": "label_values(fastapi_app_info,app)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "sort": 1,
         "type": "query"
@@ -541,12 +541,13 @@
           "query": "label_values(fastapi_app_info{app=\"$app\"},env)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "sort": 1,
         "type": "query"
       },
       {
+        "allValue": ".+",
         "current": {},
         "datasource": { "type": "prometheus", "uid": "prometheus" },
         "definition": "label_values(fastapi_app_info{app=\"$app\",env=\"$env\"},service)",
@@ -560,7 +561,7 @@
           "query": "label_values(fastapi_app_info{app=\"$app\",env=\"$env\"},service)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "sort": 1,
         "type": "query"

@@ -694,7 +694,7 @@
           "query": "label_values(pg_up,app)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "sort": 1,
         "type": "query"
@@ -713,12 +713,13 @@
           "query": "label_values(pg_up{app=\"$app\"},env)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "sort": 1,
         "type": "query"
       },
       {
+        "allValue": ".+",
         "current": {},
         "datasource": { "type": "prometheus", "uid": "prometheus" },
         "definition": "label_values(pg_stat_database_numbackends{app=\"$app\",env=\"$env\"},datname)",
@@ -733,7 +734,7 @@
           "query": "label_values(pg_stat_database_numbackends{app=\"$app\",env=\"$env\"},datname)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "sort": 1,
         "type": "query"
