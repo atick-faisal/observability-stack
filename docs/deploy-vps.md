@@ -60,10 +60,9 @@ cp .env.server.example .env.server
 > Measured: `GF_ADMIN_PASSWORD=ab$$cd` reaches Grafana as `ab$cd`. What you type is not what
 > gets set, and because the admin user is created exactly once, the first login failure is also
 > the point at which fixing it means destroying `grafana_data`. The same trap applies to
-> `INGEST_USERS`, where it is handled for you — see §5.
->
-> `.env.glitchtip` is **not** interpolated (it is handed to containers via `env_file:`), so `$`
-> there is literal. Two files, two rules; that difference is why they are two files.
+> `INGEST_USERS`, where it is handled for you — see §5, and to `.env.glitchtip` (§7). One rule,
+> everywhere: **anything Compose reads from an `--env-file` or an environment UI is interpolated.**
+> Keep generated secrets alphanumeric and it never fires.
 
 Then mint one ingest credential per app+env:
 
@@ -162,22 +161,71 @@ original timestamps: a skewed host's backlog arrives skewed. Fix the clock befor
 
 ## 7. Error tracking, optionally
 
-GlitchTip is five more containers and a second Postgres, so it is opt-in and separate.
+GlitchTip is five more containers and a second Postgres, so it is opt-in and separate. Its
+settings live in `.env.glitchtip`, which is only ever GlitchTip's — nothing in it is shared with
+`.env.server`, so it can be handed over or rotated on its own.
 
 ```bash
 cp .env.glitchtip.example .env.glitchtip     # SECRET_KEY, POSTGRES_PASSWORD, ALLOWED_HOSTS
+```
+
+`compose.glitchtip.yml` deploys in either of the two edge shapes from §4, and which one you are
+in decides how it is brought up.
+
+**Shape A — alongside the LGTM stack, one project.**
+
+```bash
 make glitchtip-up
 ```
 
-Set `GLITCHTIP_DOMAIN=https://errors.<domain>` in `.env.server` — DSNs and outbound links are
-generated from it, and its scheme decides whether session cookies get the `Secure` flag.
+`glitchtip-web` joins the same `obs` network as everything else, so an app on this box can report
+to `http://<key>@glitchtip-web:8000/1` without leaving the host.
+
+**Shape B — as its own service on an existing platform.** Dokploy and Coolify deploy one compose
+file per service, so add a second one pointing at `compose.glitchtip.yml`. It renders on its own;
+`make glitchtip-config-check` asserts that, and is worth running before you push.
+
+Its environment is everything from `.env.glitchtip`, plus four values that service needs to know
+independently of the LGTM one:
+
+```
+OBS_DOMAIN=example.com
+OBS_EDGE_NETWORK=dokploy-network
+OBS_EDGE_EXTERNAL=true
+GLITCHTIP_DOMAIN=https://errors.example.com
+```
+
+> **A separate service is a separate Compose project, so `obs` is project-local.**
+> `glitchtip-web:8000` is *not* reachable from the LGTM project's containers — apps report over
+> `https://errors.<domain>` instead, which is what an app on any other host does anyway. Nothing
+> in the stack depends on the in-network path; it is a convenience of shape A.
+
+Either way, `GLITCHTIP_DOMAIN` is what DSNs and outbound links are generated from, and its scheme
+decides whether session cookies get the `Secure` flag. In shape A it belongs in `.env.server`; in
+shape B, in the GlitchTip service's own environment.
 
 Leave `ENABLE_USER_REGISTRATION=true` for the first signup, which becomes the first
-organisation's owner, then set it false and `make glitchtip-up` again. Invite everyone else.
+organisation's owner, then set it false and bring it up again. Invite everyone else. With it
+false from the start there is no way in short of `manage.py createsuperuser` on the box.
 
 Set a real `EMAIL_URL` before anyone depends on this. The default `consolemail://` prints mail
 to the container's stdout, and password-reset links are mail — with no transport, the only
-account recovery is a shell on the box.
+account recovery is a shell on the box. It is also the one value here you did not generate, so
+it is where the `$$` rule from §3 actually bites — as does percent-encoding a `#` or `@`, since
+it is a URL.
+
+Verify:
+
+```bash
+curl -sI https://errors.<domain> | head -1        # 200, Let's Encrypt chain
+curl -s  https://errors.<domain>/_health/         # ok
+```
+
+Then register, create an organisation and a project, and point an app at the DSN it hands you.
+`scripts/verify-errors.sh` asserts the whole path end to end — an unhandled exception in the demo
+becoming an issue tagged with the same `app`/`env`/`host` the dashboards filter by — but it reads
+through `docker compose exec` and `localhost:8001`, so it only checks a **local** GlitchTip. For
+a deployed one, run it on the VPS or check the UI.
 
 ## 8. After the first deploy
 
