@@ -4,8 +4,12 @@
 # the same `obs` and `edge` networks those services use, so an app on this box can
 # POST events to glitchtip-web:8000 directly:
 #
-#   docker compose --env-file .env.server --env-file .env.glitchtip \
-#     -f compose.yml -f compose.glitchtip.yml up -d
+#   COMPOSE_PROJECT_NAME=observability \
+#     docker compose --env-file .env.glitchtip -f compose.glitchtip.yml up -d
+#
+# The project name is what puts it in that project, and it is set on the command line
+# rather than as `name:` here — this file has to take its name from whatever deploys
+# it. `make glitchtip-up` does exactly the above.
 #
 # Or on its own, as its own project — which is what a platform that deploys one
 # compose file per service (Dokploy, Coolify) gives you:
@@ -60,6 +64,17 @@ volumes:
   # release artifact, the worker reads it.
   glitchtip_uploads: {}
 
+# Docker's default json-file driver has no max-size and no max-file, so a container
+# log grows until the disk is full. These five carry obs.logs: "false", so nothing
+# ships them, nothing reads them and nothing truncates them — and they share a disk
+# with glitchtip_pg_data, which is every error ever reported. See compose.yml for
+# the /etc/docker/daemon.json default that catches anything added later.
+x-obs-logging: &obs-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 x-glitchtip-app: &glitchtip-app
   # Digest-pinned, and of the three pins this is the one that matters: `:6` is a
   # whole minor series, and glitchtip-migrate runs Django migrations on every
@@ -67,6 +82,7 @@ x-glitchtip-app: &glitchtip-app
   # holding every error ever reported, and migrations do not run backwards.
   # Re-pin deliberately, with a backup taken first: ./scripts/resolve-digests.sh
   image: glitchtip/glitchtip:6@sha256:95e0e2d6b1bc18446902ae0cb47910cc55d7c0d6756ee901b0cd8dce9f8ef5a9
+  logging: *obs-logging
   environment:
     # `:?` rather than a default on everything that has no safe one. A missing value
     # then fails the render with the message below, instead of booting a container
@@ -129,6 +145,7 @@ services:
   glitchtip-postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *obs-logging
     # The same three values DATABASE_URL above is assembled from, so the cluster this
     # creates and the URL GlitchTip dials cannot drift apart. A dedicated role and
     # database, not the `postgres` superuser: GlitchTip needs no rights beyond its
@@ -157,6 +174,7 @@ services:
     # underneath a pinned app version is the kind of variable worth removing.
     image: valkey/valkey:8-alpine@sha256:a038175878d66b9d274fbf8be73c0305e93798b83917647f167e18cef3c71eec
     restart: unless-stopped
+    logging: *obs-logging
     networks:
       - glitchtip
     labels:

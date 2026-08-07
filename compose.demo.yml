@@ -11,6 +11,15 @@
 # in-network and the credential is demo/demo, which .env.server.example ships the
 # matching hash for. `make demo-up EDGE=1` is where it is actually enforced.
 
+# Only the three services this file *introduces* need it — alloy, cadvisor and
+# postgres_exporter are overlays on agent/compose.agent.yml and take their bound
+# from there. Same values as compose.yml; see there for the daemon.json default.
+x-obs-logging: &obs-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 volumes:
   demo_db_data: {}
 
@@ -62,6 +71,7 @@ services:
   demo-db:
     image: postgres:18-alpine
     restart: unless-stopped
+    logging: *obs-logging
     environment:
       POSTGRES_USER: demo
       # Local only: no host port is published, so this reaches nothing off-box.
@@ -92,6 +102,7 @@ services:
       context: .
       dockerfile: demo/app/Dockerfile
     restart: unless-stopped
+    logging: *obs-logging
     ports:
       - "127.0.0.1:8000:8000"
     expose:
@@ -149,6 +160,7 @@ services:
       context: .
       dockerfile: demo/loadgen/Dockerfile
     restart: unless-stopped
+    logging: *obs-logging
     expose:
       - "9101"
     environment:

@@ -10,6 +10,17 @@
 # against this file's. OBS_AGENT_DIR is how this file stays copyable: it defaults
 # to the recommended ./observability, and the demo in this repo sets ./agent.
 
+# Docker's default json-file driver has no max-size and no max-file, so a container
+# log grows until the disk is full — on the app host, next to the app it is there
+# to watch. This file is copied into app repos, so the bound travels with it.
+# Better still, set the same defaults in /etc/docker/daemon.json on that host, so
+# the app's own containers inherit one too.
+x-obs-logging: &obs-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 volumes:
   alloy_data: {}
 
@@ -17,6 +28,7 @@ services:
   alloy:
     image: grafana/alloy:v1.16.1
     restart: unless-stopped
+    logging: *obs-logging
     ports:
       # UI and debug endpoint. On-box only.
       - "127.0.0.1:12345:12345"
@@ -61,6 +73,7 @@ services:
     image: ghcr.io/google/cadvisor:v0.57.0
     profiles: [containers]
     restart: unless-stopped
+    logging: *obs-logging
     expose:
       - "8080"
     # Linux-native. No privileged: true, and no containerd socket — both are
@@ -96,6 +109,7 @@ services:
     image: quay.io/prometheuscommunity/postgres-exporter:v0.19.1
     profiles: [postgres]
     restart: unless-stopped
+    logging: *obs-logging
     expose:
       - "9187"
     env_file:

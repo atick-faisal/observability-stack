@@ -21,6 +21,30 @@ either filling in `.env.server` or deciding which of two edge shapes you are in.
 
 Nothing in the stack needs root beyond Docker itself, and no service runs as `user: "0"`.
 
+### Bound the log files before anything else
+
+Docker's default `json-file` driver has **no `max-size` and no `max-file`** — a container log grows
+until the disk is full. Every compose file here sets a 10 MB × 3 bound per service, but that only
+covers services this repo declares. Set the daemon default too, so anything added later inherits
+one:
+
+```json
+// /etc/docker/daemon.json
+{
+  "log-driver": "json-file",
+  "log-opts": { "max-size": "10m", "max-file": "3" }
+}
+```
+
+```bash
+sudo systemctl restart docker      # existing containers keep their old setting until recreated
+```
+
+This matters more here than on a typical box. Every stack container carries `obs.logs: "false"`, so
+the agent does not ship these logs — nothing reads them and nothing truncates them, and they
+accumulate unobserved on the same disk as `prometheus_data`, `loki_data`, `tempo_data` and
+GlitchTip's Postgres. Traefik with `--accesslog.format=json` is the fastest writer of the set.
+
 ## 2. DNS
 
 Three A records, all pointing at the VPS:
