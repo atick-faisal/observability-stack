@@ -29,6 +29,8 @@ services:
     image: grafana/alloy:v1.16.1
     restart: unless-stopped
     logging: *obs-logging
+    # docs/operations.md §10 has the sizing rationale.
+    mem_limit: 256m
     ports:
       # UI and debug endpoint. On-box only.
       - "127.0.0.1:12345:12345"
@@ -74,6 +76,7 @@ services:
     profiles: [containers]
     restart: unless-stopped
     logging: *obs-logging
+    mem_limit: 128m
     expose:
       - "8080"
     # Linux-native. No privileged: true, and no containerd socket — both are
@@ -110,6 +113,7 @@ services:
     profiles: [postgres]
     restart: unless-stopped
     logging: *obs-logging
+    mem_limit: 64m
     expose:
       - "9187"
     env_file:

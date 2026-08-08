@@ -44,6 +44,7 @@ services:
     image: grafana/alloy:v1.16.1
     restart: unless-stopped
     logging: *obs-logging
+    mem_limit: 256m
     ports:
       # 12345 is agent 1's UI port.
       - "127.0.0.1:12346:12345"
@@ -102,6 +103,7 @@ services:
       dockerfile: demo/app/Dockerfile
     restart: unless-stopped
     logging: *obs-logging
+    mem_limit: 128m
     ports:
       # 8001 is GlitchTip's published UI port.
       - "127.0.0.1:8002:8000"
@@ -144,6 +146,7 @@ services:
       dockerfile: demo/loadgen/Dockerfile
     restart: unless-stopped
     logging: *obs-logging
+    mem_limit: 96m
     expose:
       - "9101"
     environment:

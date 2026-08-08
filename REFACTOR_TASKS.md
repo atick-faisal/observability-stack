@@ -259,9 +259,24 @@ Independent of each other and of everything above; land in any order. Behaviour 
       bucket-presence assertion (the check's primary proof) verifies, and did. The counter check
       was already written as a best-effort WARN rather than a hard failure, which turned out to be
       the right call, not just defensive.
-- [ ] **`mem_limit` on every service** (§B2), with the sizing recorded in `docs/operations.md`,
+- [x] **`mem_limit` on every service** (§B2), with the sizing recorded in `docs/operations.md`,
       plus the note that a limit converts "the box dies" into "one service restarts and replays
-      its WAL"
+      its WAL". Landed as a literal `mem_limit:` per service — unlike `x-obs-logging`, each value
+      is a one-off, not a repeated block, so a shared anchor would have been indirection without
+      payoff. `docs/operations.md` gained `## 10. Memory limits` with the sizing table and the
+      budget check against `docs/deploy-server.md`'s "4 GB works for a handful of apps": LGTM alone
+      totals 2.25 GB, GlitchTip's own service totals ~1.66 GB steady-state. Appended after the
+      existing §9 rather than inserted earlier, so none of the `§1`/`§4`/`§6`/`§7` cross-references
+      scattered across compose files and other docs needed updating; §4 (Tempo `local-blocks`)
+      gained a one-line pointer at §10 instead.
+
+      Verified against real containers, not just the rendered config: `make demo-up`, then
+      `docker inspect --format '{{.HostConfig.Memory}}'` confirmed every limit reached Docker, and
+      `docker stats` caught `demo-loadgen` running at 73% of a `64m` limit within minutes —
+      raised to `96m` (and `demo-loadgen2` to match) before it shipped. Also recreated the
+      already-running GlitchTip stack in place (`make glitchtip-up`) to apply its limits without
+      losing `glitchtip_pg_data`: `glitchtip-migrate` exited 0, web/worker/postgres/valkey came up
+      healthy, none within sight of OOM.
 - [ ] **`.github/workflows/ci.yml`, cheap job** (§B4) — SDK checks extracted from `cd.yml` as a
       reusable workflow rather than duplicated; `docker compose config` on every overlay
       combination; `shellcheck` on the nine scripts; `actionlint`

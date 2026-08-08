@@ -144,7 +144,9 @@ The rules that keep it bounded, from `docs/labels.md`:
 `lgtm/tempo/tempo-config.yaml` runs `processors: [service-graphs, span-metrics]` and
 deliberately omits `local-blocks`. It holds completed parquet blocks in RAM for
 `complete_block_timeout` (1h by default); the reference stack measured **12 GB+** of growth from
-it. Nothing here uses TraceQL metrics queries, which is the only thing it enables.
+it. Nothing here uses TraceQL metrics queries, which is the only thing it enables. §10 sets
+tempo's `mem_limit`, which is what turns a re-enabled `local-blocks` into a restart instead of a
+box-wide OOM.
 
 If you ever do need TraceQL metrics, budget the memory first and cap `complete_block_timeout`.
 
@@ -272,3 +274,39 @@ Listed so their absence reads as a decision rather than an oversight:
 - Community dashboard vendoring.
 - HA. Single node, filesystem storage. §2 is the answer, and it is a real one only if the backups
   leave the box.
+
+## 10. Memory limits
+
+Every service carries a `mem_limit`. Without one, any single component can take the whole box: a
+wide Loki query, Tempo's compactor, GlitchTip's Celery workers, or Prometheus on a cardinality
+spike. The limit changes what that failure costs — an OOMKilled Prometheus replays its WAL and
+loses a bounded amount; an OOMKilled box loses everything on it, including the agent buffers on any
+app host that shares it. A limit converts the second failure into the first.
+
+| Service | `mem_limit` | Why |
+|---|---|---|
+| prometheus | `1g` | The one most likely to grow: cardinality, plus the 8h out-of-order head (§1). |
+| loki | `512m` | |
+| tempo | `512m` | Bounded specifically because `local-blocks` stays off (§4) — this limit is what turns a re-enabled `local-blocks` into a restart instead of a box-wide OOM. |
+| grafana | `256m` | Query-time aggregation on a wide dashboard is the spike case. |
+| traefik | `128m` | Reverse proxy plus JSON access logging. Watch it if request volume grows a lot. |
+| glitchtip-postgres | `512m` | |
+| glitchtip-valkey | `128m` | Queue and cache; small working set. |
+| glitchtip-web / -worker / -migrate | `512m` each | Uniform, via the `x-glitchtip-app` anchor. `CELERY_WORKER_AUTOSCALE` is already capped at `1,3` for the same reason — the worker isn't meant to want more than this. `-migrate` is one-shot and exits before its limit matters. |
+| alloy (agent) | `256m` | Runs on the app host, not this one. |
+| cadvisor | `128m` | |
+| postgres-exporter | `64m` | |
+| demo-db / demo-api / demo-loadgen | `256m` / `128m` / `96m` | Local only. `demo-loadgen` measured at 73% of a `64m` limit within minutes of `demo-up`, so it got the extra margin. |
+
+**Budget check**, against §1 of `docs/deploy-server.md` ("4 GB works for a handful of apps"): LGTM
+alone — prometheus + loki + tempo + grafana — totals 2.25 GB, leaving headroom for the OS and the
+Docker daemon; `EDGE=1` adds traefik's 128m on top. GlitchTip, deployed as its own service, totals
+about 1.66 GB steady-state (web + worker + postgres + valkey; migrate is transient and exits before
+its limit is concurrent with the others) — comfortably less than the LGTM box, which fits it being
+the smaller of the two stacks.
+
+These are starting points, not measurements. Watch `docker stats` under real traffic, and once
+`container_spec_memory_limit_bytes` is non-zero — it reports zero for every container while nothing
+sets a limit — the "memory as % of limit" Grafana panel dropped during development for exactly that
+reason becomes viable again. A container that gets OOMKilled routinely is the signal to raise its
+limit, not evidence the limit was wrong to set.

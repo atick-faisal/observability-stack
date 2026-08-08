@@ -83,6 +83,10 @@ x-glitchtip-app: &glitchtip-app
   # Re-pin deliberately, with a backup taken first: ./scripts/resolve-digests.sh
   image: glitchtip/glitchtip:6@sha256:95e0e2d6b1bc18446902ae0cb47910cc55d7c0d6756ee901b0cd8dce9f8ef5a9
   logging: *obs-logging
+  # Uniform across migrate/web/worker — docs/operations.md §10 has the sizing
+  # rationale. CELERY_WORKER_AUTOSCALE below is already capped at 1,3 for the
+  # same reason: the worker isn't meant to want more than this.
+  mem_limit: 512m
   environment:
     # `:?` rather than a default on everything that has no safe one. A missing value
     # then fails the render with the message below, instead of booting a container
@@ -146,6 +150,7 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     logging: *obs-logging
+    mem_limit: 512m
     # The same three values DATABASE_URL above is assembled from, so the cluster this
     # creates and the URL GlitchTip dials cannot drift apart. A dedicated role and
     # database, not the `postgres` superuser: GlitchTip needs no rights beyond its
@@ -175,6 +180,7 @@ services:
     image: valkey/valkey:8-alpine@sha256:a038175878d66b9d274fbf8be73c0305e93798b83917647f167e18cef3c71eec
     restart: unless-stopped
     logging: *obs-logging
+    mem_limit: 128m
     networks:
       - glitchtip
     labels:

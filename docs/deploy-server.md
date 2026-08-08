@@ -13,7 +13,7 @@ either filling in `.env.lgtm` or deciding which of two edge shapes you are in.
 
 | | |
 |---|---|
-| RAM | 4 GB works for a handful of apps. Prometheus and Tempo's metrics-generator are the two that grow. |
+| RAM | 4 GB works for a handful of apps. Prometheus and Tempo's metrics-generator are the two that grow. `docs/operations.md` §10 has the per-service `mem_limit` breakdown this budget assumes. |
 | Disk | 60 GB. The TSDBs are capped (§4) but GlitchTip's Postgres and the Docker images are not counted in that cap. |
 | Ports | `80` and `443` reachable from the internet. `80` is not optional — ACME's HTTP-01 challenge uses it, and the redirect to HTTPS keeps it in play. |
 | Software | Docker Engine with the Compose plugin. Nothing else — no Python, no Go, no Grafana packages. |

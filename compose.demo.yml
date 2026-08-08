@@ -72,6 +72,7 @@ services:
     image: postgres:18-alpine
     restart: unless-stopped
     logging: *obs-logging
+    mem_limit: 256m
     environment:
       POSTGRES_USER: demo
       # Local only: no host port is published, so this reaches nothing off-box.
@@ -103,6 +104,7 @@ services:
       dockerfile: demo/app/Dockerfile
     restart: unless-stopped
     logging: *obs-logging
+    mem_limit: 128m
     ports:
       - "127.0.0.1:8000:8000"
     expose:
@@ -161,6 +163,7 @@ services:
       dockerfile: demo/loadgen/Dockerfile
     restart: unless-stopped
     logging: *obs-logging
+    mem_limit: 96m
     expose:
       - "9101"
     environment:
