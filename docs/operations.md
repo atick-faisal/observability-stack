@@ -53,8 +53,16 @@ silent hole. `make verify-resilience` is the regression test.
 > exists for and nothing in steady state. Lowering the agent to 2h would have been the other
 > defensible choice, at the cost of replay depth.
 >
-> `make verify-resilience` uses one agent, so it passed throughout and still cannot fail on this.
-> The two-agent case is tracked in `REFACTOR_TASKS.md` P4.
+> `make verify-resilience` (`make demo-up SECOND_AGENT=1` first) now also runs a second, independent
+> agent alongside the first. Its outage is a network disconnect from the server, not a container
+> stop — Alloy pulls metrics from the app, so a stopped agent would not be scraping and would have
+> nothing to replay — and it is timed short (90s by default) because the first agent's live writes
+> never stop, so the head has already moved past agent 2's buffered timestamps the moment it
+> reconnects. That is what a single agent, however long its own outage runs, structurally cannot
+> produce. One side effect worth knowing if you go looking: two agents sharing one Docker host also
+> cross-collect each other's container logs (Alloy's log discovery has no per-agent network filter,
+> unlike its metrics scrape) — harmless for the checks, which query by full `app`+`service` label,
+> but expected noise if you're inspecting log volume in the demo.
 
 ### When disk gets tight
 

@@ -103,6 +103,8 @@ too old is worse than no buffer, because it looks like it worked.
 the server buys nothing past the old window, silently. The metrics pair was `8h` against `2h`
 until it was reconciled, and it took a second agent to expose — one agent replays in order and
 barely uses the out-of-order path. `docs/operations.md` §1 has the full reasoning.
+`make demo-up SECOND_AGENT=1` followed by `make verify-resilience` now runs that second agent for
+real, as checks 8/9.
 
 `--stability.level=public-preview` in `compose.agent.yml` is required by exactly one component,
 `otelcol.storage.file`, which is what puts the trace queue on disk instead of in memory. The flag

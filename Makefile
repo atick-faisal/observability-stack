@@ -65,6 +65,13 @@ ifdef EDGE
 DEMO_FILES    += -f compose.edge.yml -f compose.demo.edge.yml
 DEMO_ENV      += ACME_CASERVER=https://acme-staging-v02.api.letsencrypt.org/directory
 endif
+# SECOND_AGENT=1 adds a second, independent app+agent pair (compose.demo2.yml)
+# to the demo, so `make verify-resilience` can exercise the out-of-order
+# window a single agent structurally cannot (REFACTOR_TASKS.md P4, §B3).
+# Direct push only — it does not follow EDGE/REMOTE.
+ifdef SECOND_AGENT
+DEMO_FILES    += -f compose.demo2.yml
+endif
 # GlitchTip is five more containers and a second Postgres, so it is opt-in: its own
 # compose file, its own env file, its own targets. Nothing in `lgtm-up` or `demo-up`
 # pulls it in.
@@ -128,15 +135,19 @@ lgtm-down: ## Stop the LGTM stack, keeping volumes
 lgtm-logs: ## Tail LGTM stack logs (SVC=grafana to narrow)
 	$(COMPOSE) $(SERVER_FILES) logs -f --tail=100 $(SVC)
 
-demo-up: env-check remote-check ## Start the LGTM stack, the agent and the demo app (EDGE=1 through Traefik, REMOTE=1 pushes at the VPS)
+demo-up: env-check remote-check ## Start the LGTM stack, the agent and the demo app (EDGE=1 through Traefik, REMOTE=1 pushes at the VPS, SECOND_AGENT=1 adds a second agent)
 	$(DEMO_ENV) $(COMPOSE) $(DEMO_FILES) $(DEMO_PROFILES) up -d --build
 
 # Not `down -v`: that removes every volume in the merged project, including
 # prometheus_data and grafana_data — and grafana.db holds the admin account,
 # which is only ever created once.
+#
+# compose.demo2.yml is always included here, even if SECOND_AGENT=1 was not
+# passed to this invocation — a no-op if those services were never started,
+# but it means forgetting the flag on the down side does not orphan them.
 demo-down: ## Stop the demo stack, removing only the demo's own volumes
-	$(DEMO_ENV) $(COMPOSE) $(DEMO_FILES) $(DEMO_PROFILES) down
-	-docker volume rm -f $(PROJECT)_demo_db_data $(PROJECT)_alloy_data
+	$(DEMO_ENV) $(COMPOSE) $(DEMO_FILES) -f compose.demo2.yml $(DEMO_PROFILES) down
+	-docker volume rm -f $(PROJECT)_demo_db_data $(PROJECT)_alloy_data $(PROJECT)_alloy2_data
 
 demo-logs: ## Tail demo stack logs (SVC=alloy to narrow)
 	$(DEMO_ENV) $(COMPOSE) $(DEMO_FILES) $(DEMO_PROFILES) logs -f --tail=100 $(SVC)
@@ -167,7 +178,7 @@ verify-errors: ## Assert an unhandled exception reaches GlitchTip (needs: glitch
 
 # Takes about twenty minutes: it stops the server for fifteen and then waits for
 # the agent to replay. OUTAGE_SECONDS=120 for a quick one.
-verify-resilience: ## Assert a server outage leaves no gap in any signal (needs: make demo-up)
+verify-resilience: ## Assert a server outage leaves no gap in any signal (needs: make demo-up; SECOND_AGENT=1 for the out-of-order checks)
 	./scripts/verify-resilience.sh
 
 backup: ## Back up grafana.db and GlitchTip's database (--all adds the TSDBs)

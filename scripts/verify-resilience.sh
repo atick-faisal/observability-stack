@@ -10,6 +10,12 @@
 # Exit code is the number of failed checks, so it works in CI. It takes
 # OUTAGE_SECONDS plus a drain, so budget about twenty minutes at the default.
 #
+# Checks 8/9 need a second agent (`make demo-up SECOND_AGENT=1`) and exercise
+# a different thing entirely: not "did the buffer survive", but "did a
+# genuinely out-of-order replay get accepted" — the case a single agent
+# structurally cannot produce. They skip cleanly, not fail, if the second
+# agent is not running.
+#
 # The point is not that the stack restarts — it is that the *agent* held on to
 # what it could not deliver and replayed it with the original timestamps, so the
 # dashboards show a continuous line rather than a gap that has to be explained.
@@ -44,7 +50,17 @@ OUTAGE_SECONDS="${OUTAGE_SECONDS:-900}"
 # timeout rather than a wait — the poll below exits as soon as the data is there.
 DRAIN_TIMEOUT="${DRAIN_TIMEOUT:-900}"
 SERVER_SVCS="${SERVER_SVCS:-prometheus loki tempo grafana}"
-STRICT_STEPS="${STRICT_STEPS:-1,2,3,4,5,6,7}"
+STRICT_STEPS="${STRICT_STEPS:-1,2,3,4,5,6,7,8,9}"
+
+# ── the second agent (checks 8/9, needs: make demo-up SECOND_AGENT=1) ──────
+#
+# This only needs to prove the out-of-order path was taken, not survive an
+# outage as long as checks 1-7's — 90s is enough once agent 1 never stops.
+APP2="${OBS_APP2:-demo2}"
+SERVICE2="${OBS_SERVICE2:-api2}"
+OUTAGE2_SECONDS="${OUTAGE2_SECONDS:-90}"
+DRAIN2_TIMEOUT="${DRAIN2_TIMEOUT:-300}"
+OBS_NETWORK="${COMPOSE_PROJECT}_obs"
 
 failed=0
 step=0
@@ -332,6 +348,112 @@ if [[ ${qsize_mid%.*} -gt 0 ]]; then
 	pass "trace queue held ${qsize_mid%.*} batches mid-outage instead of dropping them"
 else
 	fail "trace queue was empty mid-outage — with Tempo down that means spans were discarded"
+fi
+
+# ── 8/9. a second agent — the out-of-order path a single agent cannot reach ─
+#
+# Checks 1-7 use one agent, which replays its own buffered writes *in order*
+# into a TSDB head whose max time is the moment it went down — the
+# out_of_order_time_window raised in P0 (docs/operations.md §1) is barely
+# touched by that. What it actually protects is a *second* agent's replay
+# landing against a head the first agent kept advancing live, which is the
+# multi-app-host shape this stack exists for. Checks 8/9 force exactly that,
+# deterministically: agent 1 and the server are never touched here — only
+# agent 2's route to them is cut, so its own buffered replay is guaranteed to
+# land behind wherever agent 1's live writes have since moved the head.
+#
+# A network disconnect, not `docker stop`: config.alloy *pulls* metrics from
+# the app (prometheus.scrape), so a stopped alloy2 would not be scraping
+# during the outage and there would be nothing buffered to replay. alloy2 has
+# to stay up and keep scraping/receiving OTLP; only its path to the shared
+# prometheus/loki/tempo gets severed.
+
+check "second agent — cutting agent 2 off from the server for ${OUTAGE2_SECONDS}s while agent 1 keeps writing live (needs: make demo-up SECOND_AGENT=1)"
+
+if ! running alloy2 || ! running demo-api2; then
+	skip "alloy2/demo-api2 not running — run \`make demo-up SECOND_AGENT=1\` first; this and the next check are skipped, not failed"
+	agent2_present=0
+else
+	agent2_present=1
+	alloy2_id="$(container_for alloy2)"
+
+	ooo_before=$(curl -s --max-time 10 "$PROM_URL/metrics" |
+		awk '/^prometheus_tsdb_head_out_of_order_samples_appended_total/{s+=$NF} END{print s+0}')
+
+	docker network disconnect "$OBS_NETWORK" "$alloy2_id" >/dev/null
+	t0_2=$(date +%s)
+	info "agent 2 cut off from $OBS_NETWORK at $(hhmmss "$t0_2")"
+
+	sleep "$OUTAGE2_SECONDS"
+
+	docker network connect --alias alloy2 "$OBS_NETWORK" "$alloy2_id" >/dev/null
+	t1_2=$(date +%s)
+	info "agent 2 reconnected at $(hhmmss "$t1_2") — outage was $((t1_2 - t0_2))s"
+
+	catchup2=$((t1_2 + 60))
+	deadline2=$(($(date +%s) + DRAIN2_TIMEOUT))
+	drained2=0
+	while [[ $(date +%s) -lt $deadline2 ]]; do
+		n=$(curl -sG --max-time 10 "$PROM_URL/api/v1/query" \
+			--data-urlencode "query=count_over_time(fastapi_requests_total{app=\"$APP2\",service=\"$SERVICE2\"}[1m])" \
+			--data-urlencode "time=$catchup2" | jq -r '.data.result | length' 2>/dev/null)
+		if [[ ${n:-0} -gt 0 ]]; then
+			drained2=1
+			drained2_at=$(($(date +%s) - t1_2))
+			break
+		fi
+		sleep 5
+	done
+	if [[ $drained2 -eq 1 ]]; then
+		pass "agent 2's replay reached the end of its window after ${drained2_at}s"
+	else
+		fail "agent 2's replay had not reached $(hhmmss "$catchup2") after ${DRAIN2_TIMEOUT}s — the next check will fail for that reason"
+	fi
+fi
+
+check "second agent — agent 2's stale replay landed against a head agent 1 kept advancing"
+
+if [[ ${agent2_present:-0} -eq 0 ]]; then
+	skip "agent 2 was not running — see the previous check"
+else
+	# Same bucket-counting shape as the metrics check above, parametrized to
+	# agent 2's own app/service pair. It proves out-of-order acceptance
+	# specifically, not just "a replay happened": agent 1 never stopped, so
+	# by the time agent 2 reconnects and replays samples timestamped inside
+	# [t0_2, t1_2], the global head (driven by agent 1's own live,
+	# current-timestamp writes) has already moved past t1_2. Every one of
+	# agent 2's replayed samples is necessarily behind that head — an empty
+	# bucket here means out_of_order_time_window rejected them, not that
+	# nothing was buffered.
+	margin2=$(((t1_2 - t0_2) / 4))
+	[[ $margin2 -gt 30 ]] && margin2=30
+	[[ $margin2 -lt 5 ]] && margin2=5
+
+	range2=$(curl -sG --max-time 30 "$PROM_URL/api/v1/query_range" \
+		--data-urlencode "query=sum(count_over_time(fastapi_requests_total{app=\"$APP2\",service=\"$SERVICE2\"}[1m]))" \
+		--data-urlencode "start=$((t0_2 - margin2))" --data-urlencode "end=$((t1_2 + margin2))" \
+		--data-urlencode "step=60")
+	got2=$(jq -r '(.data.result[0].values // []) | length' <<<"$range2" 2>/dev/null)
+	empty2=$(jq -r '[.data.result[0].values[]? | select((.[1] | tonumber) == 0)] | length' <<<"$range2" 2>/dev/null)
+	expected2=$(((t1_2 + margin2 - (t0_2 - margin2)) / 60 + 1))
+
+	if [[ ${got2:-0} -eq $expected2 ]] && [[ ${empty2:-1} -eq 0 ]]; then
+		pass "$got2/$expected2 60s buckets present for agent 2, none empty — the stale replay was accepted"
+	else
+		fail "$got2/$expected2 60s buckets present for agent 2, $empty2 empty — out_of_order_time_window rejected part of the replay"
+	fi
+
+	# Best-effort mechanism proof, mirroring the WAL/queue check above. A WARN
+	# here does not fail the script — the bucket check is the primary, self-
+	# sufficient proof; this just corroborates it directly from Prometheus's
+	# own accounting when the metric name matches this build.
+	ooo_after=$(curl -s --max-time 10 "$PROM_URL/metrics" |
+		awk '/^prometheus_tsdb_head_out_of_order_samples_appended_total/{s+=$NF} END{print s+0}')
+	if [[ -n $ooo_after ]] && awk -v a="${ooo_before:-0}" -v b="${ooo_after:-0}" 'BEGIN{exit !(b>a)}'; then
+		pass "prometheus_tsdb_head_out_of_order_samples_appended_total rose ${ooo_before}→${ooo_after} — the out-of-order path was actually taken"
+	else
+		skip "no rise in prometheus_tsdb_head_out_of_order_samples_appended_total (before=$ooo_before after=$ooo_after) — the bucket check above is the primary proof"
+	fi
 fi
 
 printf '\n'

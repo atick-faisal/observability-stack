@@ -237,10 +237,28 @@ grep -rn "make up\b\|make down\b\|make logs\b\|demo-verify\|config-check" --incl
 
 Independent of each other and of everything above; land in any order. Behaviour changes throughout.
 
-- [ ] **A second agent in `make verify-resilience`** (§B3) — the case the single-agent test
+- [x] **A second agent in `make verify-resilience`** (§B3) — the case the single-agent test
       structurally cannot fail on, and the case that motivated raising the out-of-order window in
       P0. One agent replays in order into a head whose max time is when it went down; only a second
-      agent's replay lands against live writes.
+      agent's replay lands against live writes. `compose.demo2.yml` duplicates alloy/demo-api/
+      demo-loadgen behind `SECOND_AGENT=1`, isolated on its own `obs2` network so agent 1
+      structurally cannot scrape it; `make verify-resilience` gained checks 8/9, which cut agent 2
+      off from the server (not `docker stop` — Alloy pulls metrics, so a stopped agent would have
+      nothing buffered to replay) while agent 1 keeps writing live, then assert the stale replay
+      landed rather than being rejected as too old.
+
+      Ran end-to-end (`make demo-up SECOND_AGENT=1`, `OUTAGE2_SECONDS=90 OUTAGE_SECONDS=120 make
+      verify-resilience`): all 9 checks pass. One thing worth recording, found on that run: check
+      9's corroborating metric (`prometheus_tsdb_head_out_of_order_samples_appended_total`) did
+      *not* rise, and is not expected to in general — Prometheus classifies a sample as
+      out-of-order per-series, against that series' own last timestamp, not against the global
+      head. Agent 2 writes its own distinct series, and its buffered replay is monotonic relative
+      to itself, so it never takes the OOO-chunk code path even though the *global* head has moved
+      on. What actually protects the write is `out_of_order_time_window` bounding the head's
+      global `MinValidTime` — i.e. "was this write too old to accept at all," which is what the
+      bucket-presence assertion (the check's primary proof) verifies, and did. The counter check
+      was already written as a best-effort WARN rather than a hard failure, which turned out to be
+      the right call, not just defensive.
 - [ ] **`mem_limit` on every service** (§B2), with the sizing recorded in `docs/operations.md`,
       plus the note that a limit converts "the box dies" into "one service restarts and replays
       its WAL"

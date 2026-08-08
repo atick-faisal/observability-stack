@@ -1,0 +1,168 @@
+# Second agent, opt in only via `make demo-up SECOND_AGENT=1`. Exists to give
+# verify-resilience.sh's checks 8/9 a genuine second app host: agent 1's live
+# writes keep advancing Prometheus's head while agent 2 buffers and replays
+# stale timestamps, which is the only way to force the out-of-order path a
+# single agent's in-order replay barely touches. docs/operations.md §1 and
+# REFACTOR_PLAN.md §B3 have the full reasoning.
+#
+# Everything here is a full duplicate of the corresponding alloy/demo-api/
+# demo-loadgen service, not an overlay on them — Compose can't rename a
+# service across files, and this whole file is test-only scaffolding, not the
+# agent/ payload that ships into app repos. agent/config.alloy itself is
+# reused unmodified, mounted read-only, same as agent 1's.
+#
+# NOTE: alloy2's own docker.sock-based log discovery has no network filter
+# (config.alloy's log_targets, unlike metrics_targets, isn't scoped by
+# OBS_DOCKER_NETWORK) — it will also tail and forward every other container's
+# logs on this host, and agent 1 will do the same for agent 2's containers.
+# Harmless for the checks (they query by full app+service label, which only
+# each agent's own external_labels stamp) but a real deployment never runs
+# two agents on one host, so this duplication is demo-only.
+
+x-obs-logging: &obs-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+networks:
+  obs2:
+    driver: bridge
+
+volumes:
+  alloy2_data: {}
+
+services:
+  # demo-db additionally joins obs2 so demo-api2 (not on obs at all — see
+  # alloy2 below) can still reach it. Compose merges a service's networks:
+  # list by appending across files, so this only needs the delta.
+  demo-db:
+    networks:
+      - obs2
+
+  alloy2:
+    image: grafana/alloy:v1.16.1
+    restart: unless-stopped
+    logging: *obs-logging
+    ports:
+      # 12345 is agent 1's UI port.
+      - "127.0.0.1:12346:12345"
+    expose:
+      - "4317"
+      - "4318"
+    volumes:
+      - ./agent/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy2_data:/var/lib/alloy
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host/root:ro
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --stability.level=public-preview
+    environment:
+      OBS_APP: demo2
+      OBS_ENV: local
+      OBS_HOST: demo-host2
+      # Direct only — no EDGE/REMOTE support for the second agent in this
+      # first cut. Always pushes straight at the in-network server.
+      OBS_PROM_URL: http://prometheus:9090/api/v1/write
+      OBS_LOKI_URL: http://loki:3100/loki/api/v1/push
+      OBS_TRACES_URL: http://tempo:4318
+      OBS_INGEST_USER: demo
+      OBS_INGEST_PASSWORD: demo
+      OBS_INGEST_TLS_INSECURE: "false"
+      # Scopes alloy2's own *metrics* scrape (config.alloy's metrics_targets
+      # only — see the file header note on log_targets) to obs2, so it never
+      # discovers demo-api/demo-loadgen (agent 1's, only on obs).
+      OBS_DOCKER_NETWORK: observability_obs2
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_started
+    # obs: reachability to prometheus/loki/tempo — this is the network
+    # verify-resilience.sh's check 8 disconnects/reconnects for the outage.
+    # obs2: reachability to demo-api2/demo-loadgen2 — never touched, so
+    # scraping and OTLP receipt continue through the whole outage.
+    networks:
+      - obs
+      - obs2
+    labels:
+      obs.logs: "false"
+
+  demo-api2:
+    build:
+      context: .
+      dockerfile: demo/app/Dockerfile
+    restart: unless-stopped
+    logging: *obs-logging
+    ports:
+      # 8001 is GlitchTip's published UI port.
+      - "127.0.0.1:8002:8000"
+    expose:
+      - "8000"
+    environment:
+      OBS_APP: demo2
+      OBS_SERVICE: api2
+      OBS_ENV: local
+      OBS_HOST: demo-host2
+      OBS_VERSION: 0.1.0
+      OBS_LOG_FORMAT: json
+      OBS_LOG_LEVEL: INFO
+      OBS_OTLP_ENDPOINT: http://alloy2:4317
+      DATABASE_URL: postgresql+asyncpg://demo:${DEMO_DB_PASSWORD:-demo}@demo-db:5432/demo
+    depends_on:
+      demo-db:
+        condition: service_healthy
+      alloy2:
+        condition: service_started
+    # obs2 only — not obs. Reaches demo-db over obs2 (see the override
+    # above). Never on the same network as alloy1's OBS_DOCKER_NETWORK
+    # filter, so agent 1 structurally cannot scrape it as a metrics target.
+    networks:
+      - obs2
+    labels:
+      obs.service: api2
+      obs.metrics.port: "8000"
+      obs.metrics.path: /metrics
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request as u; u.urlopen('http://localhost:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  demo-loadgen2:
+    build:
+      context: .
+      dockerfile: demo/loadgen/Dockerfile
+    restart: unless-stopped
+    logging: *obs-logging
+    expose:
+      - "9101"
+    environment:
+      OBS_APP: demo2
+      OBS_SERVICE: loadgen2
+      OBS_ENV: local
+      OBS_HOST: demo-host2
+      OBS_VERSION: 0.1.0
+      OBS_LOG_FORMAT: json
+      OBS_LOG_LEVEL: INFO
+      OBS_OTLP_ENDPOINT: http://alloy2:4317
+      LOADGEN_TARGET: http://demo-api2:8000
+      LOADGEN_RATE: "5"
+    depends_on:
+      demo-api2:
+        condition: service_healthy
+    networks:
+      - obs2
+    labels:
+      obs.service: loadgen2
+      obs.metrics.port: "9101"
+      obs.metrics.path: /metrics

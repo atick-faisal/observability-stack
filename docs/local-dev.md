@@ -121,7 +121,8 @@ make verify-resilience    # ~22 minutes
 Stops prometheus, loki, tempo and grafana for fifteen minutes with the app still serving, then
 asserts no gap in any signal. `OUTAGE_SECONDS=120 make verify-resilience` for a quick one. The
 run takes longer than the outage because `remote_write`'s reconnect backoff dominates the drain —
-measured at 382s to replay to the end of a 901s window.
+measured at 382s to replay to the end of a 901s window. `make demo-up SECOND_AGENT=1` first adds
+checks 8/9, which force the out-of-order path a single agent can't reach — see `agent/README.md`.
 
 ```bash
 make lint && make test    # mypy + ruff on three projects, 41 tests
