@@ -1,0 +1,178 @@
+# ✅ Continuous Integration — runs on every push and pull request, so a rename
+# in docs/labels.md or a broken dashboard query breaks the build instead of a
+# graph three months later. cd.yml (tag-triggered, publishes to PyPI) is
+# separate; this workflow never publishes anything.
+#
+# Five independent jobs, none gating another: sdk-checks and compose-config are
+# the "cheap, always" half (no Docker daemon needed for either); shellcheck and
+# actionlint are equally cheap static checks; demo is the one heavy job — it
+# actually brings the stack up and proves the signals arrive.
+#
+# verify-ingest (needs EDGE=1 + a real Traefik/ACME round trip) and
+# verify-resilience (~20 minutes) are deliberately not here — they belong on a
+# nightly schedule (REFACTOR_TASKS.md P4), not on every push.
+
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # 🔍 Same job cd.yml calls on a tag — see sdk-checks.yml.
+  sdk-checks:
+    name: 🔍 SDK checks
+    uses: ./.github/workflows/sdk-checks.yml
+
+  # 🔧 `docker compose config` needs no daemon — it is pure YAML merge and
+  # interpolation — so this validates every overlay combination the Makefile
+  # can produce, cheaply. File lists come from `make print-<VAR>` (Makefile)
+  # rather than being duplicated here, so they can't drift from what
+  # `make lgtm-up` / `demo-up` / `glitchtip-up` actually run.
+  compose-config:
+    name: 🔧 Compose renders
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Throwaway values only, to prove the files render — never real secrets,
+      # never committed. .env.lgtm's INGEST_USERS default already matches the
+      # demo agent, so only GF_ADMIN_PASSWORD needs filling in.
+      - name: 🔑 Throwaway env files (render-only)
+        run: |
+          cp .env.lgtm.example .env.lgtm
+          sed -i 's/^GF_ADMIN_PASSWORD=$/GF_ADMIN_PASSWORD=ci-throwaway/' .env.lgtm
+          cp .env.glitchtip.example .env.glitchtip
+          sed -i 's/^SECRET_KEY=$/SECRET_KEY=ci-throwaway-secret-key/' .env.glitchtip
+          sed -i 's/^POSTGRES_PASSWORD=$/POSTGRES_PASSWORD=ci-throwaway-db-password/' .env.glitchtip
+
+      - name: ✅ Deployed shapes (make verify-config)
+        run: make verify-config
+
+      - name: ✅ Local / demo overlay combinations
+        run: |
+          # Word splitting on $(make print-VAR) below is the point: each
+          # expands to multiple -f/--env-file/env-assignment words, so each
+          # is annotated `# shellcheck disable=SC2046` rather than quoted.
+          # `env`, not a bare $(make print-VAR) prefix: bash only recognises a
+          # literal NAME=value token as an assignment prefix, not one produced
+          # by a substitution, so the bare form fails with "no such file or
+          # directory" on the expanded OBS_AGENT_DIR=./agent word.
+          set -euo pipefail
+
+          # shellcheck disable=SC2046
+          docker compose $(make print-SERVER_FILES) config --quiet
+          echo "lgtm-up shape OK"
+
+          # shellcheck disable=SC2046
+          env $(make print-DEMO_ENV) docker compose $(make print-DEMO_FILES) config --quiet
+          echo "demo-up shape OK"
+
+          # shellcheck disable=SC2046
+          env $(make EDGE=1 print-DEMO_ENV) docker compose $(make EDGE=1 print-DEMO_FILES) config --quiet
+          echo "demo-up EDGE=1 shape OK"
+
+          # shellcheck disable=SC2046
+          env $(make print-DEMO_ENV) docker compose $(make SECOND_AGENT=1 print-DEMO_FILES) config --quiet
+          echo "demo-up SECOND_AGENT=1 shape OK"
+
+          # shellcheck disable=SC2046
+          env $(make EDGE=1 print-DEMO_ENV) docker compose $(make EDGE=1 SECOND_AGENT=1 print-DEMO_FILES) config --quiet
+          echo "demo-up EDGE=1 SECOND_AGENT=1 shape OK"
+
+          # shellcheck disable=SC2046
+          docker compose $(make print-GT_FILES) config --quiet
+          echo "glitchtip-up shape OK"
+
+  # 🐚 The nine scripts in scripts/ — none source each other, so no -x needed.
+  shellcheck:
+    name: 🐚 Shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: 📦 Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      # --severity=warning: the scripts lean on `A && B || C` for pass/fail
+      # branching throughout (SC2015) and single-quote literal `$` in printf
+      # format strings (SC2016) — both deliberate, both info-level. Gating on
+      # warning-and-up catches real bugs without demanding a style rewrite of
+      # already-verified scripts as a side effect of adding CI.
+      - name: 🐚 Lint scripts/*.sh
+        run: shellcheck --severity=warning scripts/*.sh
+
+  # ⚙️ actionlint's own binary, version-pinned directly — avoids hand-typing an
+  # unverifiable commit SHA for a marketplace Action just to run one tool Go
+  # already installs deterministically.
+  actionlint:
+    name: ⚙️ Actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: 📦 Install actionlint
+        run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: ⚙️ Lint workflow files
+        run: actionlint
+
+  # 🧪 The one that actually catches a label rename or a dashboard that stopped
+  # resolving: bring the demo stack up and assert every signal and every panel.
+  demo:
+    name: 🧪 Demo signals + dashboards
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # agent/.env.agent is deliberately absent — that is the documented "fresh
+      # clone, no setup" path (Makefile:41), and it is what this job proves.
+      - name: 🔑 .env.lgtm (throwaway admin password)
+        run: |
+          cp .env.lgtm.example .env.lgtm
+          sed -i 's/^GF_ADMIN_PASSWORD=$/GF_ADMIN_PASSWORD=ci-throwaway/' .env.lgtm
+
+      - name: 🚀 make demo-up
+        run: make demo-up
+
+      - name: ⏳ Wait for the stack to be ready
+        run: |
+          timeout 120 bash -c 'until curl -sf http://localhost:3100/ready >/dev/null; do sleep 3; done'
+          # docs/local-dev.md and verify-signals.sh's own header both say to run
+          # the verify scripts "a minute or so" after demo-up — Loki answering
+          # /ready isn't the same as the first scrape/dashboard data landing.
+          sleep 90
+
+      - name: ✅ make verify-signals
+        run: make verify-signals
+
+      - name: ✅ make verify-dashboards
+        run: make verify-dashboards
+
+      # Not `make demo-logs` — it passes -f and would hang the job forever.
+      - name: 📋 Dump logs on failure
+        if: failure()
+        run: |
+          # Word splitting on $(make print-DEMO_ENV) is intentional — see the
+          # compose-config job.
+          # shellcheck disable=SC2046
+          env $(make print-DEMO_ENV) docker compose $(make print-DEMO_FILES) logs --no-color --tail=200 || true
+
+      - name: 🧹 make demo-down
+        if: always()
+        run: make demo-down

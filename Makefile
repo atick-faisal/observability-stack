@@ -106,7 +106,7 @@ DEMO_DIRS     := demo/app demo/loadgen
 
 .DEFAULT_GOAL := help
 
-.PHONY: help lgtm-up lgtm-down lgtm-logs demo-up demo-down demo-logs verify-signals verify-ingest verify-dashboards verify-errors verify-resilience backup restore glitchtip-up glitchtip-down glitchtip-logs verify-config lint test env-check glitchtip-env-check remote-check
+.PHONY: help lgtm-up lgtm-down lgtm-logs demo-up demo-down demo-logs verify-signals verify-ingest verify-dashboards verify-errors verify-resilience backup restore glitchtip-up glitchtip-down glitchtip-logs verify-config lint test env-check glitchtip-env-check remote-check print-%
 
 env-check:
 	@test -f .env.lgtm || { echo "missing .env.lgtm — cp .env.lgtm.example .env.lgtm"; exit 1; }
@@ -212,3 +212,9 @@ lint: ## Type-check and lint the SDK and the demo
 
 test: ## Run the SDK test suite
 	cd $(SDK_DIR) && uv run pytest
+
+# So CI can render the same -f/--env-file combinations `make` itself builds
+# (SERVER_FILES, DEMO_FILES, GT_FILES, ...) without a second, driftable copy of
+# the file lists living in a workflow. e.g. `docker compose $(make print-DEMO_FILES) config -q`.
+print-%:
+	@echo $($*)

@@ -277,12 +277,42 @@ Independent of each other and of everything above; land in any order. Behaviour 
       already-running GlitchTip stack in place (`make glitchtip-up`) to apply its limits without
       losing `glitchtip_pg_data`: `glitchtip-migrate` exited 0, web/worker/postgres/valkey came up
       healthy, none within sight of OOM.
-- [ ] **`.github/workflows/ci.yml`, cheap job** (§B4) — SDK checks extracted from `cd.yml` as a
-      reusable workflow rather than duplicated; `docker compose config` on every overlay
-      combination; `shellcheck` on the nine scripts; `actionlint`
-- [ ] **`ci.yml`, demo job** (§B4) — `make demo-up && make verify-signals && make
-      verify-dashboards` on `ubuntu-latest`. This is the one that makes the README's "a rename in
-      `docs/labels.md` breaks the build" true.
+- [x] **`.github/workflows/ci.yml`, cheap job** (§B4) — SDK checks extracted from `cd.yml` into
+      `.github/workflows/sdk-checks.yml` (`on: workflow_call`), so `cd.yml`'s `checks:` job is now a
+      `uses:` call and `ci.yml` runs the identical job on every push/PR. `docker compose config` on
+      every overlay combination the Makefile can produce (`SERVER_FILES`, `DEMO_FILES` × the four
+      `EDGE`/`SECOND_AGENT` combinations, `GT_FILES`), plus `make verify-config`'s existing two
+      deployed-shape renders; `shellcheck --severity=warning` on the nine scripts (plain
+      `shellcheck` fails today on pre-existing info/style findings — a deliberate `A && B || C`
+      idiom and single-quoted `$` in printf strings — gating at warning-and-up catches real bugs
+      without demanding a style rewrite of already-verified scripts as a side effect of adding CI);
+      `actionlint`, installed as a version-pinned Go binary rather than a third-party Action, so
+      nothing needed an unverifiable hand-typed commit SHA.
+
+      Added one Makefile pattern rule, `print-%`, so the overlay file lists live in exactly one
+      place (the Makefile) instead of a second, driftable copy in the workflow —
+      `docker compose $(make print-DEMO_FILES) config` instead of respelling `-f compose.demo.yml
+      -f agent/compose.agent.yml ...` in YAML.
+
+      Found while wiring it up: a bare `$(make print-DEMO_ENV) docker compose ...` prefix — relying
+      on the shell to treat the expanded `OBS_AGENT_DIR=./agent` as an assignment — fails under real
+      bash, not just interactively: bash only recognises a *literal* `NAME=value` token written in
+      the script as an assignment prefix, not one produced by command substitution. `env $(make
+      print-DEMO_ENV) docker compose ...` is the fix, and it mattered in practice, not just in
+      theory — the bare form still renders successfully, just against the wrong (nonexistent)
+      `config.alloy` bind-mount path, silently.
+- [x] **`ci.yml`, demo job** (§B4) — `make demo-up`, a *bounded* readiness wait (`timeout 120 ...`
+      polling `/ready`, not an unbounded loop) plus the settle time `verify-signals.sh`'s own header
+      asks for, then `make verify-signals && make verify-dashboards`. Verified end-to-end locally
+      under an isolated `COMPOSE_PROJECT_NAME` (so the run couldn't touch this box's real
+      `observability_*` volumes) — 7/7 and 8/8 checks passed once one test-only wrinkle was found
+      and worked around: `compose.demo.yml:45` hardcodes `OBS_DOCKER_NETWORK: observability_obs`
+      for Alloy's Docker-SD scraping, so overriding the project name for isolation broke discovery
+      of the app's own metrics, cAdvisor and postgres-exporter until the network name was matched
+      too. Not a bug in the repo — real deploys and CI both use the literal `observability` project
+      name unmodified — but worth recording since it will bite the next person who isolates a local
+      test the same way. On failure, a direct (non-following) `docker compose ... logs --tail=200`
+      dumps logs — not `make demo-logs`, which passes `-f` and would hang the job.
 - [ ] **Nightly schedule** for `verify-ingest` (needs `EDGE=1`) and `verify-resilience` (~20 min)
 - [ ] **Scrape the stack itself** (§B6) — static targets for `loki:3100`, `tempo:3200`,
       `grafana:3000` and the edge in `lgtm/prometheus/prometheus.yml`, labelled to match the
