@@ -313,7 +313,30 @@ Independent of each other and of everything above; land in any order. Behaviour 
       name unmodified — but worth recording since it will bite the next person who isolates a local
       test the same way. On failure, a direct (non-following) `docker compose ... logs --tail=200`
       dumps logs — not `make demo-logs`, which passes `-f` and would hang the job.
-- [ ] **Nightly schedule** for `verify-ingest` (needs `EDGE=1`) and `verify-resilience` (~20 min)
+- [x] **Nightly schedule** for `verify-ingest` (needs `EDGE=1`) and `verify-resilience` (~20 min).
+      `.github/workflows/nightly.yml`: `schedule` (daily) + `workflow_dispatch`, two independent
+      jobs so they run in parallel rather than doubling wall-clock cost — `verify-ingest` under
+      `EDGE=1`, `verify-resilience` under `SECOND_AGENT=1` (no `EDGE`; the script talks to
+      Prometheus/Loki/Tempo directly). `verify-resilience` keeps the script's real defaults
+      (`OUTAGE_SECONDS=900`, worst case ~30 min for checks 1–7 alone), not the fast
+      `OUTAGE_SECONDS=120` iteration mode. `ci.yml`'s header comment, which forward-referenced
+      "a nightly schedule (REFACTOR_TASKS.md P4)", now names the file directly.
+
+      Two things found while testing locally against `make demo-up EDGE=1`:
+
+      - **`make demo-down` without `EDGE=1` doesn't tear down Traefik.** `DEMO_FILES` only gains
+        `compose.edge.yml` when `EDGE` is set on *that* invocation, so a plain `make demo-down`
+        after `make demo-up EDGE=1` leaves the edge container running as an orphan — exactly the
+        DNS-shadowing setup `docs/local-dev.md`'s own trap warning describes, since Traefik keeps
+        the `ingest.$OBS_DOMAIN` / `grafana.$OBS_DOMAIN` network aliases alive. `nightly.yml`'s
+        cleanup step is `make demo-down EDGE=1`, confirmed to remove the container cleanly.
+        `docs/local-dev.md`'s "`make demo-down` before switching `OBS_DOMAIN` or dropping `EDGE=1`
+        avoids it" is technically incomplete on this point — worth a follow-up doc fix, not done
+        here to keep this item's scope to the nightly workflow itself.
+      - **`.env.lgtm.example` still said `make up` / `make down`** (lines 5, 19) — a P2 rename
+        leftover. P2's own verify grep never included `--include="*.example"`, so it was
+        structurally invisible to the check meant to catch it. Fixed to `make lgtm-up` /
+        `make lgtm-down` in the same commit.
 - [ ] **Scrape the stack itself** (§B6) — static targets for `loki:3100`, `tempo:3200`,
       `grafana:3000` and the edge in `lgtm/prometheus/prometheus.yml`, labelled to match the
       taxonomy

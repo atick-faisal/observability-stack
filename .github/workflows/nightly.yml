@@ -1,0 +1,116 @@
+# 🌙 Nightly — the two checks ci.yml deliberately skips on every push:
+# verify-ingest needs a real edge (EDGE=1, an ACME staging round trip) and
+# verify-resilience takes the better part of half an hour at its real
+# defaults. Both earn their cost once a day rather than on every PR.
+#
+# Two independent jobs, each bringing up its own demo stack on its own
+# runner — no `needs:` between them, so they run in parallel rather than
+# doubling the wall-clock cost of running them one after another.
+
+name: Nightly
+
+on:
+  schedule:
+    # Off the top of the hour, per GitHub's own advice to avoid the herd of
+    # workflows all firing at :00.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  # 🔐 The edge: authentication, routing and rate-limiting, exercised through
+  # a real (self-signed-fallback) Traefik rather than straight at the
+  # backends. docs/local-dev.md:99's `make demo-up EDGE=1 && make
+  # verify-ingest`, verbatim.
+  verify-ingest:
+    name: 🔐 Verify ingest (EDGE=1)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: 🔑 .env.lgtm (throwaway admin password)
+        run: |
+          cp .env.lgtm.example .env.lgtm
+          sed -i 's/^GF_ADMIN_PASSWORD=$/GF_ADMIN_PASSWORD=ci-throwaway/' .env.lgtm
+
+      - name: 🚀 make demo-up EDGE=1
+        run: make demo-up EDGE=1
+
+      - name: ⏳ Wait for the stack to be ready
+        run: |
+          timeout 120 bash -c 'until curl -sf http://localhost:3100/ready >/dev/null; do sleep 3; done'
+          # verify-ingest.sh hits real backends through the edge, so they have
+          # to actually be serving, not merely started — same margin ci.yml's
+          # demo job gives verify-signals/verify-dashboards.
+          sleep 90
+
+      - name: ✅ make verify-ingest
+        run: make verify-ingest
+
+      # Not `make demo-logs` — it passes -f and would hang the job forever.
+      - name: 📋 Dump logs on failure
+        if: failure()
+        run: |
+          # Word splitting on $(make print-DEMO_ENV) is intentional — see
+          # ci.yml's compose-config job.
+          # shellcheck disable=SC2046
+          env $(make EDGE=1 print-DEMO_ENV) docker compose $(make EDGE=1 print-DEMO_FILES) logs --no-color --tail=200 || true
+
+      # EDGE=1 here too: demo-down without it doesn't include compose.edge.yml,
+      # so `docker compose down` never targets the Traefik service and leaves
+      # it running as an orphan — found while testing this workflow locally.
+      - name: 🧹 make demo-down
+        if: always()
+        run: make demo-down EDGE=1
+
+  # ⏱️ Stops the server for fifteen minutes (script default) and asserts every
+  # signal replays with no gap, including the out-of-order path a second
+  # agent's stale replay has to take against the first agent's live writes.
+  verify-resilience:
+    name: ⏱️ Verify resilience (SECOND_AGENT=1)
+    runs-on: ubuntu-latest
+    # Script defaults: OUTAGE_SECONDS=900 + DRAIN_TIMEOUT=900 worst case for
+    # checks 1-7, plus OUTAGE2_SECONDS=90 + DRAIN2_TIMEOUT=300 worst case for
+    # checks 8/9 — kept as the script's real defaults here, not the fast
+    # OUTAGE_SECONDS=120 iteration mode from docs/local-dev.md.
+    timeout-minutes: 50
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: 🔑 .env.lgtm (throwaway admin password)
+        run: |
+          cp .env.lgtm.example .env.lgtm
+          sed -i 's/^GF_ADMIN_PASSWORD=$/GF_ADMIN_PASSWORD=ci-throwaway/' .env.lgtm
+
+      - name: 🚀 make demo-up SECOND_AGENT=1
+        run: make demo-up SECOND_AGENT=1
+
+      - name: ⏳ Wait for the stack to be ready
+        run: |
+          timeout 120 bash -c 'until curl -sf http://localhost:3100/ready >/dev/null; do sleep 3; done'
+          # verify-resilience.sh's own precondition check queries a baseline
+          # once, not on a poll — it fails outright rather than waiting if run
+          # too soon after demo-up.
+          sleep 90
+
+      - name: ✅ make verify-resilience
+        run: make verify-resilience
+
+      - name: 📋 Dump logs on failure
+        if: failure()
+        run: |
+          # shellcheck disable=SC2046
+          env $(make print-DEMO_ENV) docker compose $(make SECOND_AGENT=1 print-DEMO_FILES) logs --no-color --tail=200 || true
+
+      - name: 🧹 make demo-down
+        if: always()
+        run: make demo-down
