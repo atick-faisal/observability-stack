@@ -151,6 +151,35 @@ else
 	exit 1
 fi
 
+# Check 4 below asserts every 60s bucket from t0-120 is populated, and that
+# earliest bucket looks back a further 60s — so it needs traffic reaching
+# back 180s before the outage starts, not merely "the series exists" like the
+# count() above just proved. A caller that brought the stack up moments
+# earlier (nightly.yml waits a fixed 90s past readiness) can satisfy that
+# count() while still being short of 180s of history, which reports the same
+# "hole in the metrics" a real gap would — measured on CI, where the missing
+# bucket was always exactly t0-120, never one from inside the outage itself.
+# Polling here, rather than trusting the caller's wait, keeps the test
+# correct regardless of how recently `demo-up` ran.
+history_deadline=$(($(date +%s) + 60))
+history_ok=0
+while [[ $(date +%s) -lt $history_deadline ]]; do
+	n=$(curl -sG --max-time 10 "$PROM_URL/api/v1/query" \
+		--data-urlencode "query=count_over_time(fastapi_requests_total{app=\"$APP\",service=\"$SERVICE\"}[1m])" \
+		--data-urlencode "time=$(($(date +%s) - 130))" | jq -r '.data.result | length' 2>/dev/null)
+	if [[ ${n:-0} -gt 0 ]]; then
+		history_ok=1
+		break
+	fi
+	sleep 5
+done
+if [[ $history_ok -eq 1 ]]; then
+	pass "fastapi_requests_total has at least 130s of history before the outage"
+else
+	printf '  \033[31mFAIL\033[0m  no fastapi_requests_total sample old enough — wait longer after `make demo-up` and retry\n\n'
+	exit 1
+fi
+
 [[ "$(alloy_metric loki_write_wal_watcher_running)" == "1" ]] &&
 	pass "loki.write WAL watcher is running" ||
 	fail "loki.write has no WAL watcher — is the wal block in config.alloy?"
