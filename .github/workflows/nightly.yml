@@ -1,26 +1,28 @@
-# 🌙 Nightly — the two checks ci.yml deliberately skips on every push:
+# 🌙 Weekly — the two checks ci.yml deliberately skips on every push:
 # verify-ingest needs a real edge (EDGE=1, an ACME staging round trip) and
 # verify-resilience takes the better part of half an hour at its real
-# defaults. Both earn their cost once a day rather than on every PR.
+# defaults. Both earn their cost once a week rather than on every PR — moved
+# off a daily cadence to cut CI minutes; workflow_dispatch still covers an
+# on-demand run.
 #
 # Two independent jobs, each bringing up its own demo stack on its own
 # runner — no `needs:` between them, so they run in parallel rather than
 # doubling the wall-clock cost of running them one after another.
 
-name: Nightly
+name: Weekly
 
 on:
   schedule:
-    # Off the top of the hour, per GitHub's own advice to avoid the herd of
-    # workflows all firing at :00.
-    - cron: "17 3 * * *"
+    # Monday, off the top of the hour per GitHub's own advice to avoid the
+    # herd of workflows all firing at :00.
+    - cron: "17 3 * * 1"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: nightly-${{ github.workflow }}
+  group: weekly-${{ github.workflow }}
   cancel-in-progress: false
 
 jobs:

@@ -9,7 +9,7 @@
 # actually brings the stack up and proves the signals arrive.
 #
 # verify-ingest (needs EDGE=1 + a real Traefik/ACME round trip) and
-# verify-resilience (~20 minutes) are deliberately not here — they run nightly
+# verify-resilience (~20 minutes) are deliberately not here — they run weekly
 # instead, in nightly.yml, not on every push.
 
 name: CI
