@@ -101,6 +101,25 @@ running() {
 	[[ -n $id ]] && [[ "$(docker inspect -f '{{.State.Running}}' "$id" 2>/dev/null)" == true ]]
 }
 
+# Given a query_range response and the step-60 [start,end] window it was
+# queried over, names the hh:mm:ssZ of every bucket that's missing or zero —
+# on a failure this says which minute, not just how many, which is what tells
+# an ordering/cap bug in the replay (the same offset every run) apart from CI
+# CPU contention (a different one each time).
+missing_buckets() {
+	local json="$1" start="$2" end="$3"
+	local present ts line
+	present=$(jq -r '.data.result[0].values[]? | "\(.[0]|tonumber|floor) \(.[1])"' <<<"$json" 2>/dev/null)
+	for ((ts = start; ts <= end; ts += 60)); do
+		line=$(grep "^$ts " <<<"$present")
+		if [[ -z "$line" ]]; then
+			printf '%s(absent) ' "$(hhmmss "$ts")"
+		elif [[ "${line#* }" == "0" ]]; then
+			printf '%s(zero) ' "$(hhmmss "$ts")"
+		fi
+	done
+}
+
 # One gauge out of Alloy's own /metrics, by exact metric name and an optional
 # label substring. Alloy is never stopped, so this is readable throughout.
 alloy_metric() {
@@ -264,7 +283,7 @@ expected=$(((t1 + 120 - (t0 - 120)) / 60 + 1))
 if [[ ${got:-0} -eq $expected ]] && [[ ${empty:-1} -eq 0 ]]; then
 	pass "$got/$expected 60s buckets present, none empty"
 else
-	fail "$got/$expected 60s buckets present, $empty empty — there is a hole in the metrics"
+	fail "$got/$expected 60s buckets present, $empty empty — there is a hole in the metrics: $(missing_buckets "$range" "$((t0 - 120))" "$((t1 + 120))")"
 fi
 
 check "logs — lines written during the outage reached Loki, with their own timestamps"
@@ -440,7 +459,7 @@ else
 	if [[ ${got2:-0} -eq $expected2 ]] && [[ ${empty2:-1} -eq 0 ]]; then
 		pass "$got2/$expected2 60s buckets present for agent 2, none empty — the stale replay was accepted"
 	else
-		fail "$got2/$expected2 60s buckets present for agent 2, $empty2 empty — out_of_order_time_window rejected part of the replay"
+		fail "$got2/$expected2 60s buckets present for agent 2, $empty2 empty — out_of_order_time_window rejected part of the replay: $(missing_buckets "$range2" "$((t0_2 - margin2))" "$((t1_2 + margin2))")"
 	fi
 
 	# Best-effort mechanism proof, mirroring the WAL/queue check above. A WARN

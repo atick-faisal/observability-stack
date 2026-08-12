@@ -103,16 +103,26 @@ done
 check "the rate limit engages"
 # 100/s average with a burst of 200. Fire enough, fast enough, that the bucket
 # cannot keep up regardless of how quick the loop is.
-# In parallel, and this matters: 400 sequential curl invocations each pay process
+# In parallel, and this matters: sequential curl invocations each pay process
 # startup and a TLS handshake, which caps out well under 100/s and never trips a
 # limit set at 100/s. The first version of this check passed a broken config.
-hits=$(seq 1 400 | xargs -P 50 -I{} \
+#
+# 400 requests was that fix, and it holds on a fast machine — but it is a
+# knife-edge amount: measured on a GitHub-hosted runner, 400 requests at -P 50
+# complete in ~2.1s (~190/s), and burst(200) + refill(100/s * 2.1s) is close
+# enough to 400 that whether any single request lands past the bucket depends
+# on how front-loaded that particular run happened to be, not on whether the
+# limiter is wired up. 1500 requests at the same achieved rate runs for ~8s,
+# by which point the bucket is oversubscribed by several hundred requests
+# regardless of how that rate is distributed across the run.
+requests=1500
+hits=$(seq 1 "$requests" | xargs -P 50 -I{} \
 	curl -sk -o /dev/null -w '%{http_code}\n' --max-time 5 \
 	--resolve "$HOST:443:$EDGE_ADDR" "https://$HOST/api/v1/write" -u "$USER:$PASS" -X POST -d '' |
 	grep -c 429)
 [[ "$hits" -gt 0 ]] &&
-	pass "$hits/400 requests rate-limited with 429" ||
-	fail "400 requests, none rate-limited — obs-ingest-ratelimit is not applied"
+	pass "$hits/$requests requests rate-limited with 429" ||
+	fail "$requests requests, none rate-limited — obs-ingest-ratelimit is not applied"
 
 printf '\n'
 if [[ "$failed" -eq 0 ]]; then
