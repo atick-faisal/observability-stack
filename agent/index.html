@@ -1072,10 +1072,13 @@ label convention, not in your app.</p>
 <p>Everything is collected by default: a container with no labels still has its logs shipped, with
 <code>service</code> falling back to its container name. Only <code>obs.metrics.port</code> is opt-in, because scraping
 something that does not serve Prometheus text is a waste rather than a mistake.</p>
+<div class="admonition warning">
+<p class="admonition-title">Important</p>
 <p><strong><code>obs.metrics.port</code> must be exposed.</strong> The agent matches the label against Docker's port
-metadata, which means <code>EXPOSE</code> in the image or <code>expose:</code> in Compose. <em>Publishing</em> the port is not
-required and not wanted. A container that genuinely cannot expose its port is what
+metadata, which means <code>EXPOSE</code> in the image or <code>expose:</code> in Compose. <em>Publishing</em> the port is
+not required and not wanted. A container that genuinely cannot expose its port is what
 <code>OBS_EXTRA_TARGET</code> is for.</p>
+</div>
 <h2 id="configure">Configure<a class="headerlink" href="#configure" title="Permanent link">&para;</a></h2>
 <p>Everything lives in <code>.env.agent</code>, read inside the container — see <code>.env.agent.example</code>. Nothing
 is interpolated by Compose, so a <code>$</code> in a password needs no escaping.</p>
@@ -1089,11 +1092,14 @@ that leaves it unset reports <code>socket.gethostname()</code>, which inside a c
 with <code>scripts/add-ingest-user.sh &lt;app&gt;-&lt;env&gt;</code>. All three writers send it. The username is what
 identifies this app in the server's access log, so push volume can be attributed and one app can
 be rotated without touching any other.</p>
+<div class="admonition danger">
+<p class="admonition-title">Caution</p>
 <p><code>OBS_INGEST_TLS_INSECURE</code> disables certificate verification on all three writers. It exists for
 one purpose — letting the stack's own end-to-end test push through Traefik on a laptop, where
-Let's Encrypt cannot have issued a certificate for a domain whose DNS points at the VPS. Setting
-it against a real endpoint makes basic auth worthless, since the credentials become readable by
-whoever terminates the connection.</p>
+Let's Encrypt cannot have issued a certificate for a domain whose DNS points at the VPS.
+Setting it against a real endpoint makes basic auth worthless, since the credentials become
+readable by whoever terminates the connection.</p>
+</div>
 <h2 id="what-it-collects">What it collects<a class="headerlink" href="#what-it-collects" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1171,25 +1177,31 @@ with the <strong>original timestamps</strong> — so an outage leaves a continuo
 </tr>
 </tbody>
 </table>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p>The server-side column is the half people forget. A buffer whose replay the server rejects as
 too old is worse than no buffer, because it looks like it worked.</p>
 <p><strong>These numbers travel together.</strong> Raising a buffer here without raising the matching window on
 the server buys nothing past the old window, silently. The metrics pair was <code>8h</code> against <code>2h</code>
 until it was reconciled, and it took a second agent to expose — one agent replays in order and
 barely uses the out-of-order path. <code>docs/operations.md</code> §1 has the full reasoning.
-<code>make demo-up SECOND_AGENT=1</code> followed by <code>make verify-resilience</code> now runs that second agent for
-real, as checks 8/9.</p>
+<code>make demo-up SECOND_AGENT=1</code> followed by <code>make verify-resilience</code> now runs that second agent
+for real, as checks 8/9.</p>
+</div>
 <p><code>--stability.level=public-preview</code> in <code>compose.agent.yml</code> is required by exactly one component,
 <code>otelcol.storage.file</code>, which is what puts the trace queue on disk instead of in memory. The flag
 is a floor rather than a switch: it permits public-preview components to be referenced, and every
 other component in <code>config.alloy</code> is generally-available. Drop the flag and Alloy refuses to start
 with a message naming the component, which is the right failure.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
 <p>One thing to know before you go looking: <strong>Tempo's time-bounded search does not surface
 backfilled traces.</strong> After a fifteen-minute outage, a search over the first ten minutes of that
 window comes back empty while <code>GET /api/traces/&lt;id&gt;</code> on a trace from the same minute returns it
-in full. The spans are stored — the search path is what does not find them. Check the trace side
-by taking a <code>trace_id</code> off a log line from the outage and looking that up, which is what
+in full. The spans are stored — the search path is what does not find them. Check the trace
+side by taking a <code>trace_id</code> off a log line from the outage and looking that up, which is what
 <code>scripts/verify-resilience.sh</code> does.</p>
+</div>
 <p>That script asserts all of this in the server repo by stopping the server for fifteen minutes
 and checking for a hole afterwards.</p>
 <h2 id="postgres-exporter">postgres-exporter<a class="headerlink" href="#postgres-exporter" title="Permanent link">&para;</a></h2>

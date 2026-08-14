@@ -1002,7 +1002,8 @@ be demonstrated here, it is not finished.</p>
 <div class="highlight"><pre><span></span><code><span id="__span-0-1">cp<span class="w"> </span>.env.lgtm.example<span class="w"> </span>.env.lgtm<span class="w">    </span><span class="c1"># set GF_ADMIN_PASSWORD; OBS_DOMAIN can stay example.com</span>
 </span><span id="__span-0-2">make<span class="w"> </span>demo-up
 </span></code></pre></div>
-<blockquote>
+<div class="admonition warning">
+<p class="admonition-title">Important</p>
 <p><strong>Every env file the Makefile reads is local.</strong> <code>.env.lgtm</code>, <code>.env.glitchtip</code> and
 <code>agent/.env.agent</code> hold local values and nothing else. What goes into a deploy lives beside them
 with a <code>.production</code> suffix — <code>.env.glitchtip.production</code>, <code>agent/.env.agent.production</code> — and is
@@ -1018,7 +1019,7 @@ VPS with the flag instead:</p>
 query APIs are unreachable and <code>make verify-signals</code> cannot follow — confirm it in Grafana. It
 arrives labelled <code>app=demo, env=local</code>, since <code>compose.demo.yml</code> sets identity under
 <code>environment:</code>, which outranks any <code>--env-file</code>.</p>
-</blockquote>
+</div>
 <p>Grafana is on <a href="http://localhost:3000">http://localhost:3000</a>. Don't check anything until Loki says it is ready — <strong>poll,
 do not sleep</strong>:</p>
 <div class="highlight"><pre><span></span><code><span id="__span-2-1"><span class="k">until</span><span class="w"> </span>curl<span class="w"> </span>-sf<span class="w"> </span>localhost:3100/ready<span class="w"> </span>&gt;/dev/null<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span>sleep<span class="w"> </span><span class="m">3</span><span class="p">;</span><span class="w"> </span><span class="k">done</span>
@@ -1122,7 +1123,8 @@ Expect ACME failures in Traefik's log: Let's Encrypt cannot issue for <code>.loc
 serves its built-in self-signed certificate and the script uses <code>curl -k</code>. <code>ACME_CASERVER</code> is
 overridden to the staging CA in this mode, because the production CA counts 5 failed validations
 per hostname per hour against you.</p>
-<blockquote>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p><strong>The DNS-shadowing trap.</strong> <code>compose.edge.yml</code> gives its Traefik container network aliases for
 <code>ingest.${OBS_DOMAIN}</code> and <code>grafana.${OBS_DOMAIN}</code> on the <code>obs</code> network, so the demo agent can
 reach it by the same hostname a real deploy would use. If <code>.env.lgtm</code>'s <code>OBS_DOMAIN</code> is ever
@@ -1132,7 +1134,7 @@ self-signed Traefik for <strong>any</strong> other container on the <code>obs</c
 pointed at the VPS. The push then fails against a self-signed certificate, which presents as a
 server-side certificate problem rather than the local shadowing it actually is.
 <code>make demo-down</code> before switching <code>OBS_DOMAIN</code> or dropping <code>EDGE=1</code> avoids it.</p>
-</blockquote>
+</div>
 <p><div class="highlight"><pre><span></span><code><span id="__span-6-1">make<span class="w"> </span>verify-resilience<span class="w">    </span><span class="c1"># ~22 minutes</span>
 </span></code></pre></div>
 Stops prometheus, loki, tempo and grafana for fifteen minutes with the app still serving, then
@@ -1157,9 +1159,12 @@ before any view runs.</p>
 <h2 id="stopping">Stopping<a class="headerlink" href="#stopping" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span id="__span-9-1">make<span class="w"> </span>demo-down<span class="w">      </span><span class="c1"># removes only the demo&#39;s own volumes</span>
 </span></code></pre></div>
+<div class="admonition danger">
+<p class="admonition-title">Caution</p>
 <p>Deliberately not <code>down -v</code>. That would remove every volume in the merged project, including
 <code>grafana_data</code> — and <code>grafana.db</code> holds the admin account, which is created exactly once from
 <code>GF_ADMIN_PASSWORD</code> and never re-read.</p>
+</div>
 <h2 id="macos-caveats">macOS caveats<a class="headerlink" href="#macos-caveats" title="Permanent link">&para;</a></h2>
 <p>Both are local-only artifacts; a Linux VPS needs neither.</p>
 <p><strong>cAdvisor needs <code>compose.agent.macos.yml</code>.</strong> Docker Desktop runs containerd with the overlayfs

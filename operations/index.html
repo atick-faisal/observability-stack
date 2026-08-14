@@ -1255,11 +1255,14 @@ the disk grows forever.</p>
 an error you cannot pull up the metrics, logs and trace for is an error you cannot investigate,
 and those expire at 30d / 14d / 7d.</p>
 <h3 id="the-windows-that-must-stay-wider-than-the-agents-buffers">The windows that must stay wider than the agent's buffers<a class="headerlink" href="#the-windows-that-must-stay-wider-than-the-agents-buffers" title="Permanent link">&para;</a></h3>
+<div class="admonition warning">
+<p class="admonition-title">Important</p>
 <p>The agent buffers all three signals to disk through an outage and replays them <strong>with their
 original timestamps</strong>. A server that rejects that replay as too old is worse than no buffer,
 because it looks like it worked — the agent reports success and the gap is permanent.</p>
 <p><strong>The agent's buffer is the authoritative number.</strong> It is the one that says how long an outage
 can run; each server-side window follows it, and must be at least as wide.</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -1360,7 +1363,11 @@ default set.</p>
 <p><code>restore.sh</code> refuses a backup whose <code>SHA256SUMS</code> is missing or does not match. No password passes
 through either script — the GlitchTip dump runs as the container's own <code>$POSTGRES_USER</code> over a
 local socket.</p>
-<p><strong><code>backups/</code> is gitignored, and a backup on the same disk is not a backup.</strong> Copy it off the box.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p><strong><code>backups/</code> is gitignored, and a backup on the same disk is not a backup.</strong> Copy it off the
+box.</p>
+</div>
 <h3 id="verifying-a-restore">Verifying a restore<a class="headerlink" href="#verifying-a-restore" title="Permanent link">&para;</a></h3>
 <p>Two things that look like failures and are not:</p>
 <ul>
@@ -1454,6 +1461,8 @@ not — see its header comment.</p>
 <p>Deployed as its own standalone service (its own Dokploy/Coolify entry), <code>compose.glitchtip.yml</code>'s
 project name comes from whatever the platform names that service, since there is no <code>name:</code> to
 fall back on. Set it explicitly on the platform side rather than leaving it to a default.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p><strong>Do not "fix" this by adding <code>name:</code> to <code>compose.glitchtip.yml</code>.</strong> Locally, <code>make glitchtip-up</code>
 sets <code>COMPOSE_PROJECT_NAME=observability</code> on the command line specifically so GlitchTip's
 containers join the LGTM stack's <code>obs</code> network — the only thing that makes <code>glitchtip-web:8000</code>
@@ -1461,6 +1470,7 @@ reachable from an app on the same box. A <code>name:</code> in the file would fi
 multiple compose files, the last file's <code>name</code> wins, so it would silently start a second,
 disconnected project instead of joining the first. The file has to take its project name from
 whatever deploys it, which is precisely why it has none of its own.</p>
+</div>
 <h2 id="7-the-trap">7. The <code>$</code> trap<a class="headerlink" href="#7-the-trap" title="Permanent link">&para;</a></h2>
 <p>Compose interpolates values it reads from <code>--env-file</code>. So in <strong><code>.env.lgtm</code></strong>:</p>
 <ul>
@@ -1487,11 +1497,14 @@ interpolated, so a <code>$</code> there is literal. Two files, two rules — whi
 <p>Loki and Tempo have no container healthcheck: their images are distroless — <code>grafana/loki:3.7.1</code>
 ships only <code>/usr/bin/loki</code> — so there is no shell, no wget and no curl to run one with. Readiness
 is checked from the host instead.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
 <p><strong>After a restart, a <code>503</code> from Loki or Tempo is not yet a problem.</strong> Both answer
 <code>Ingester not ready: waiting for 15s after being ready</code> until the ingester has joined the ring
 and settled. Measured at 35s on a plain <code>docker restart</code>; observed at several minutes on a full
-stack restart against volumes holding a fortnight of data, with Tempo ready long before Loki.
-Poll rather than assuming a number, and only start looking for a cause once it has been
+stack restart against volumes holding a fortnight of data, with Tempo ready long before Loki.</p>
+</div>
+<p>Poll rather than assuming a number, and only start looking for a cause once it has been
 minutes <em>and</em> the ring is not <code>ACTIVE</code>:</p>
 <div class="highlight"><pre><span></span><code><span id="__span-5-1"><span class="k">until</span><span class="w"> </span>curl<span class="w"> </span>-sf<span class="w"> </span>localhost:3100/ready<span class="w"> </span>&gt;/dev/null<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span>sleep<span class="w"> </span><span class="m">3</span><span class="p">;</span><span class="w"> </span><span class="k">done</span>
 </span><span id="__span-5-2">curl<span class="w"> </span>-s<span class="w"> </span>localhost:3100/ring<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-o<span class="w"> </span>ACTIVE<span class="w">     </span><span class="c1"># what the ingester thinks it is</span>

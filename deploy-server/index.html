@@ -1113,10 +1113,13 @@ either filling in <code>.env.lgtm</code> or deciding which of two edge shapes yo
 </table>
 <p>Nothing in the stack needs root beyond Docker itself, and no service runs as <code>user: "0"</code>.</p>
 <h3 id="bound-the-log-files-before-anything-else">Bound the log files before anything else<a class="headerlink" href="#bound-the-log-files-before-anything-else" title="Permanent link">&para;</a></h3>
-<p>Docker's default <code>json-file</code> driver has <strong>no <code>max-size</code> and no <code>max-file</code></strong> — a container log grows
-until the disk is full. Every compose file here sets a 10 MB × 3 bound per service, but that only
-covers services this repo declares. Set the daemon default too, so anything added later inherits
-one:</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Docker's default <code>json-file</code> driver has <strong>no <code>max-size</code> and no <code>max-file</code></strong> — a container log
+grows until the disk is full. Every compose file here sets a 10 MB × 3 bound per service, but
+that only covers services this repo declares.</p>
+</div>
+<p>Set the daemon default too, so anything added later inherits one:</p>
 <div class="highlight"><pre><span></span><code><span id="__span-0-1"><span class="c1">// /etc/docker/daemon.json</span>
 </span><span id="__span-0-2"><span class="p">{</span>
 </span><span id="__span-0-3"><span class="w">  </span><span class="nt">&quot;log-driver&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;json-file&quot;</span><span class="p">,</span>
@@ -1135,10 +1138,13 @@ GlitchTip's Postgres. Traefik with <code>--accesslog.format=json</code> is the f
 </span><span id="__span-2-2">ingest.&lt;domain&gt;     A    &lt;vps-ip&gt;
 </span><span id="__span-2-3">errors.&lt;domain&gt;     A    &lt;vps-ip&gt;     # only if you run GlitchTip
 </span></code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p>They must resolve <strong>before</strong> the first <code>up</code>. Traefik requests a certificate per hostname on
 startup, and Let's Encrypt counts <strong>5 failed validations per hostname per hour</strong> against you on
 the production CA — so a stack brought up against DNS that has not propagated locks itself out
 of certificates for the rest of the hour.</p>
+</div>
 <p><code>ingest.&lt;domain&gt;</code> is the only one apps ever talk to. It exposes exactly three paths, each
 authenticated; everything else on that host 404s (§5).</p>
 <h2 id="3-configure">3. Configure<a class="headerlink" href="#3-configure" title="Permanent link">&para;</a></h2>
@@ -1172,7 +1178,8 @@ authenticated; everything else on that host 404s (§5).</p>
 </tr>
 </tbody>
 </table>
-<blockquote>
+<div class="admonition danger">
+<p class="admonition-title">Caution</p>
 <p><strong>Do not put a <code>$</code> in <code>GF_ADMIN_PASSWORD</code>.</strong> Compose interpolates values it reads from
 <code>--env-file</code>, so <code>$$</code> collapses to one <code>$</code> and <code>$NAME</code> expands to that variable's value.
 Measured: <code>GF_ADMIN_PASSWORD=ab$$cd</code> reaches Grafana as <code>ab$cd</code>. What you type is not what
@@ -1181,15 +1188,18 @@ the point at which fixing it means destroying <code>grafana_data</code>. The sam
 <code>INGEST_USERS</code>, where it is handled for you — see §5, and to <code>.env.glitchtip</code> (§7). One rule,
 everywhere: <strong>anything Compose reads from an <code>--env-file</code> or an environment UI is interpolated.</strong>
 Keep generated secrets alphanumeric and it never fires.</p>
-</blockquote>
+</div>
 <p>Then mint one ingest credential per app+env:</p>
 <div class="highlight"><pre><span></span><code><span id="__span-4-1">./scripts/add-ingest-user.sh<span class="w"> </span>myapp-production
 </span></code></pre></div>
 <p>It prints both halves — what goes in the app host's <code>.env.agent</code>, and the bcrypt hash to append
 to <code>INGEST_USERS</code> here, already <code>$$</code>-doubled. It edits neither file: <code>.env.lgtm</code> may already
 hold other credentials, and a script that rewrites a secrets file is a script that can lose one.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p><strong>Replace the default <code>INGEST_USERS</code> value before this is reachable.</strong> It ships as <code>demo:demo</code>,
 which is what the local demo pushes with.</p>
+</div>
 <h2 id="4-which-edge">4. Which edge<a class="headerlink" href="#4-which-edge" title="Permanent link">&para;</a></h2>
 <p>Two shapes, and picking the wrong one costs you a fight over <code>:443</code>.</p>
 <p><strong>A — nothing else on the box owns <code>:80</code>/<code>:443</code>.</strong> Use ours:</p>
@@ -1206,13 +1216,14 @@ which is what the local demo pushes with.</p>
 <p>The <code>traefik.*</code> labels are inert without a Traefik reading them, and Traefik ignores containers
 that are not on its own network — so one set of labels serves both shapes and there is no second
 compose file to keep in sync.</p>
-<blockquote>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p><strong>What shape B shares.</strong> Everything else on that edge network can reach Prometheus, Loki and
 Tempo <em>directly</em>, bypassing the basic auth Traefik applies. The <code>obs</code> network stays private,
 but the edge network is only as trusted as the host. That is the stated single-owner-box
 assumption in <code>docs/archive/PLAN.md</code> §7, and on a shared host it is a real exposure rather than a
 theoretical one.</p>
-</blockquote>
+</div>
 <p>A second ACME client contending for <code>:443</code> buys nothing, which is why B is not simply "run ours
 anyway". On a single box the isolation argument is imaginary — the box dying takes both.</p>
 <p>Check what a deploy will actually render, without needing that network to exist locally:</p>
@@ -1287,12 +1298,13 @@ independently deployed services means two environments, and each has to say wher
 </span><span id="__span-12-3">OBS_EDGE_NETWORK=dokploy-network
 </span><span id="__span-12-4">OBS_EDGE_EXTERNAL=true
 </span></code></pre></div>
-<blockquote>
+<div class="admonition warning">
+<p class="admonition-title">Important</p>
 <p><strong>Do not skip them.</strong> Every one has a default that is right locally and wrong on a VPS, and none
 of them fails the render. Rendered with them unset you get <code>Host(`errors.localhost`)</code>, an
 <code>observability_edge</code> bridge the platform's Traefik is not on, and <code>http://localhost:8001</code> as the
 base of every DSN GlitchTip issues — a deploy that comes up healthy and is unreachable.</p>
-</blockquote>
+</div>
 <p><code>GLITCHTIP_DOMAIN</code> is what DSNs and outbound links are generated from, and its scheme decides
 whether session cookies get the <code>Secure</code> flag. Its host must be <code>errors.${OBS_DOMAIN}</code>, which is
 what the Traefik label routes and what <code>ALLOWED_HOSTS</code> has to list.</p>
@@ -1300,12 +1312,13 @@ what the Traefik label routes and what <code>ALLOWED_HOSTS</code> has to list.</
 second service pointing at <code>compose.glitchtip.yml</code> and paste <code>.env.glitchtip</code> into its environment.
 It renders and routes on its own — <code>make verify-config</code> checks both deployed shapes, including
 this one, and is worth running before you push.</p>
-<blockquote>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
 <p><strong>A separate service is a separate Compose project, so <code>obs</code> is project-local.</strong>
 <code>glitchtip-web:8000</code> is <em>not</em> reachable from the LGTM project's containers — apps report over
 <code>https://errors.&lt;domain&gt;</code> instead, which is what an app on any other host does anyway. Nothing
 in the stack depends on the in-network path.</p>
-</blockquote>
+</div>
 <p><strong>On the same box, one project.</strong> <code>make glitchtip-up</code> is the local shape: it passes
 <code>COMPOSE_PROJECT_NAME=observability</code>, so <code>glitchtip-web</code> joins the same <code>obs</code> network as everything
 else and an app here can report to <code>http://&lt;key&gt;@glitchtip-web:8000/1</code> without leaving the host.
@@ -1314,11 +1327,14 @@ because that file has to take its name from whatever deploys it.</p>
 <p>Leave <code>ENABLE_USER_REGISTRATION=true</code> for the first signup, which becomes the first
 organisation's owner, then set it false and bring it up again. Invite everyone else. With it
 false from the start there is no way in short of <code>manage.py createsuperuser</code> on the box.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p>Set a real <code>EMAIL_URL</code> before anyone depends on this. The default <code>consolemail://</code> prints mail
 to the container's stdout, and password-reset links are mail — with no transport, the only
 account recovery is a shell on the box. It is also the one value here you did not generate, so
 it is where the <code>$$</code> rule from §3 actually bites — as does percent-encoding a <code>#</code> or <code>@</code>, since
 it is a URL.</p>
+</div>
 <p>Verify:</p>
 <div class="highlight"><pre><span></span><code><span id="__span-13-1">curl<span class="w"> </span>-sI<span class="w"> </span>https://errors.&lt;domain&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-1<span class="w">        </span><span class="c1"># 200, Let&#39;s Encrypt chain</span>
 </span><span id="__span-13-2">curl<span class="w"> </span>-s<span class="w">  </span>https://errors.&lt;domain&gt;/_health/<span class="w">         </span><span class="c1"># ok</span>

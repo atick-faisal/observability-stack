@@ -1217,8 +1217,11 @@
 
 
 <h1 id="label-taxonomy">Label taxonomy<a class="headerlink" href="#label-taxonomy" title="Permanent link">&para;</a></h1>
+<div class="admonition warning">
+<p class="admonition-title">Important</p>
 <p>This is the contract. Every milestone after M0 depends on it. If a config, dashboard, or SDK
 change disagrees with this document, the change is wrong — not the document.</p>
+</div>
 <p>The one-sentence version: <strong>four identity labels, spelled identically in metrics, logs, and
 traces, injected at exactly one choke point per signal.</strong></p>
 <hr />
@@ -1347,8 +1350,11 @@ metrics — a container reports its container id as its hostname, so the agent s
 <p>Loki stream labels are <strong>exactly these six, and no others</strong>:</p>
 <div class="highlight"><pre><span></span><code><span id="__span-0-1">app, env, host, service, container, level
 </span></code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p>All six are bounded. Adding a seventh, or making any of these unbounded, multiplies the number
 of active streams and is the single fastest way to make Loki unusable.</p>
+</div>
 <ul>
 <li><code>trace_id</code> and <code>span_id</code> go to <strong>structured metadata</strong>, never to labels. They are indexed and
   filterable there, without creating a stream per request.</li>
@@ -1395,6 +1401,8 @@ exists to prevent, so the server config turns it off.</p>
 </table>
 <p>The flat names are what dashboards and correlation links use. The semconv names are what Tempo
 and Grafana's built-in trace tooling expect. Setting both costs nothing and avoids choosing.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p>The SDK also sets <code>OTEL_SEMCONV_STABILITY_OPT_IN=http</code>, so HTTP spans carry the stable
 attribute names — <code>http.request.method</code>, <code>http.response.status_code</code>, <code>url.path</code>,
 <code>server.address</code> — rather than the pre-1.0 <code>http.method</code> / <code>http.status_code</code> / <code>http.target</code>
@@ -1402,6 +1410,7 @@ that OpenTelemetry Python still emits by default. It is a process-wide global re
 affects every HTTP instrumentation in the process, not only the ones the SDK installs. Anything
 configured against the stable names — Tempo's <code>http.response.status_code</code> dimension below, a
 TraceQL query, a dashboard — produces <strong>nothing at all</strong> without it, silently.</p>
+</div>
 <h3 id="34-span-metrics-prometheus">3.4 Span metrics → Prometheus<a class="headerlink" href="#34-span-metrics-prometheus" title="Permanent link">&para;</a></h3>
 <p>Tempo's generator turns spans into metrics, which means a fourth producer writing into the same
 Prometheus. It does not speak the taxonomy on its own, and reconciling it takes one config block.</p>
@@ -1467,11 +1476,12 @@ already match, the configuration is:</p>
 </span></code></pre></div>
 <p>— one block, in <code>datasources.yaml</code>, correct for every app forever. When the names don't match,
 every pair needs an explicit rename, and every new app needs the list extended.</p>
-<blockquote>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
 <p>The reference stack (<code>ai-asset-management</code>) writes <code>env="production"</code> on its Prometheus
 targets and <code>environment="production"</code> on its Loki streams. They mean the same thing and
 Grafana cannot know it. That is why this rule is first.</p>
-</blockquote>
+</div>
 <h3 id="42-never-a-label">4.2 Never a label<a class="headerlink" href="#42-never-a-label" title="Permanent link">&para;</a></h3>
 <p>Not in metrics, not as a Loki stream label, not as a span-metrics dimension:</p>
 <table>

@@ -996,10 +996,13 @@
 <h1 id="obstack">obstack<a class="headerlink" href="#obstack" title="Permanent link">&para;</a></h1>
 <p>Drop-in observability for FastAPI: structured JSON logs, Prometheus metrics, and OTLP traces
 that all carry the same four identity labels — <code>app</code>, <code>service</code>, <code>env</code>, <code>host</code>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Important</p>
 <p>Those four names are the contract. They are spelled identically in every signal so Grafana can
 jump from a metric to a trace to a log line without renaming anything. See
 <a href="../labels/"><code>docs/labels.md</code></a> — if this README and that document ever disagree, that
 document wins.</p>
+</div>
 <h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span id="__span-0-1">uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;obstack[grpc,sqlalchemy] @ git+https://github.com/atick-faisal/observability-stack@v0.1.0#subdirectory=sdk/obstack&quot;</span>
 </span></code></pre></div>
@@ -1162,12 +1165,15 @@ once, so it applies to every HTTP instrumentation in the process, including ones
 install (<code>httpx</code>, <code>requests</code>). Export it yourself — <code>http/dup</code> emits both sets — to keep control
 of the timing during a migration; the SDK will not override an explicit value.</p>
 <h2 id="running-multiple-workers">Running multiple workers<a class="headerlink" href="#running-multiple-workers" title="Permanent link">&para;</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
 <p><strong>One worker per container.</strong> Scale by running more containers, not more workers.</p>
 <p><code>uvicorn --workers N</code> and <code>fastapi run --workers N</code> fork N processes that share one listening
-socket. Each holds its own <code>CollectorRegistry</code>, so consecutive scrapes land on different workers
-and a counter appears to move <em>backwards</em> — which Prometheus reads as a counter reset, making
-<code>rate()</code> and every dashboard built on it quietly wrong. Nothing logs an error; the graphs are just
-false.</p>
+socket. Each holds its own <code>CollectorRegistry</code>, so consecutive scrapes land on different
+workers and a counter appears to move <em>backwards</em> — which Prometheus reads as a counter reset,
+making <code>rate()</code> and every dashboard built on it quietly wrong. Nothing logs an error; the
+graphs are just false.</p>
+</div>
 <p>The instance-local registry does not save you here: the problem is one endpoint answering from N
 independent processes. If you must run multiple workers in one container, set
 <code>PROMETHEUS_MULTIPROC_DIR</code> and use <code>prometheus_client</code>'s multiprocess collector, and note that
