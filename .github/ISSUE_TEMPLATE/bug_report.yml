@@ -1,0 +1,78 @@
+name: Bug Report
+description: Something in the stack does not behave as documented
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+
+        Before filing, it is worth reproducing against the local stack — `make demo-up`
+        then `make verify-signals` — since that is what every verification script here
+        is written against.
+  - type: checkboxes
+    attributes:
+      label: Is there an existing issue for this?
+      description: Please search to see if an issue already exists for the bug you encountered.
+      options:
+        - label: I have searched the existing issues
+          required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Which part of the stack?
+      options:
+        - Server — Traefik / Grafana / Prometheus / Loki / Tempo
+        - Agent — Grafana Alloy and the exporters
+        - SDK — the obstack package
+        - GlitchTip — error tracking
+        - Demo — the local end-to-end reference app
+        - Docs
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: The `obstack` version, or the commit SHA of the stack you are running.
+      placeholder: "obstack 0.1.0 / 3690592"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us, what did you expect to happen?
+      placeholder: Tell us what you see!
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: The `make` targets and flags you ran, in order.
+      placeholder: |
+        1. make demo-up EDGE=1
+        2. make verify-ingest
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: >-
+        Output from `make demo-logs` or `make lgtm-logs` (narrow with `SVC=alloy`).
+        This is automatically formatted into code, so no need for backticks.
+        Please redact credentials, hostnames and anything from your `.env.*` files.
+      render: shell
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/atick-faisal/observability-stack/blob/main/CODE_OF_CONDUCT.md)
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true

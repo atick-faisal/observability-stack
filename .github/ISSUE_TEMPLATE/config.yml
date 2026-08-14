@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Questions and ideas
+    url: https://github.com/atick-faisal/observability-stack/discussions
+    about: Ask how to deploy, onboard an app, or debug a signal that never arrives.
+  - name: 📖 Documentation
+    url: https://atick-faisal.github.io/observability-stack/
+    about: The label contract, deployment guide, onboarding guide and operations runbook.
+  - name: 🔒 Report a vulnerability
+    url: https://github.com/atick-faisal/observability-stack/security/advisories/new
+    about: Report a security issue privately. Please do not open a public issue.

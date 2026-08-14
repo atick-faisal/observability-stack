@@ -1,0 +1,69 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies"],
+  "prConcurrentLimit": 5,
+  "minimumReleaseAge": "7 days",
+  "semanticCommits": "disabled",
+  "commitMessagePrefix": "⬆️ deps:",
+  "commitMessageLowerCase": "auto",
+  "ignoreDeps": ["obstack"],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on the first day of the month"]
+  },
+  "customManagers": [
+    {
+      "description": "actionlint is installed with `go install` in ci.yml, where no built-in manager can see its version",
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/workflows/.+\\.ya?ml$/"],
+      "matchStrings": [
+        "go install (?<depName>github\\.com/rhysd/actionlint/cmd/actionlint)@(?<currentValue>v[\\d.]+)"
+      ],
+      "datasourceTemplate": "go"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "postgres majors are a deliberate choice, never an update — GlitchTip's DB compatibility is pinned to its app version (compose.glitchtip.yml:150) and the demo pins its own major (compose.demo.yml:72). Both tags are intentionally left floating within their series, so every update Renovate could offer here is one that must not happen automatically.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["postgres"],
+      "enabled": false
+    },
+    {
+      "description": "GlitchTip re-pins are deliberate: glitchtip-migrate runs irreversible Django migrations on every `up`, so a bump needs `make backup` first (compose.glitchtip.yml:82-83). Surface the drift on the dependency dashboard instead of opening a mergeable PR.",
+      "matchPackageNames": ["glitchtip/glitchtip"],
+      "dependencyDashboardApproval": true,
+      "automerge": false
+    },
+    {
+      "matchManagers": ["github-actions", "custom.regex"],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin"],
+      "groupName": "github actions",
+      "automerge": true
+    },
+    {
+      "matchManagers": ["dockerfile", "docker-compose"],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin"],
+      "groupName": "docker images",
+      "automerge": true
+    },
+    {
+      "matchManagers": ["pep621", "pip_requirements"],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin"],
+      "groupName": "python dependencies",
+      "automerge": true
+    },
+    {
+      "description": "Majors never join a group and never automerge",
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "addLabels": ["major"]
+    }
+  ]
+}
