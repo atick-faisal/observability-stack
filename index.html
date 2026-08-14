@@ -1022,12 +1022,6 @@ An application-independent Grafana LGTM stack. One deployment on a VPS serves ev
 </picture></p>
 <p>Onboarding a new FastAPI + Postgres app is four steps: copy <code>agent/</code>, add a few Docker labels,
 <code>uv add obstack</code>, one function call.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p><strong>Status: pre-v1.</strong> Current milestone: <strong>M10 — ship</strong>. Everything below is built and verified
-against a local end-to-end run; what remains is the first real VPS deploy, the first onboarded
-app, and the <code>v0.1.0</code> tag.</p>
-</div>
 <h2 id="what-you-get">✨ What You Get<a class="headerlink" href="#what-you-get" title="Permanent link">&para;</a></h2>
 <ul>
 <li>📊 <strong>Metrics, logs and traces</strong> — Prometheus, Loki and Tempo behind one Grafana, all three
@@ -1102,7 +1096,7 @@ a stack that only wants metrics, logs and traces should not pay for:</p>
 </span><span id="__span-3-2">docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>compose.lgtm.yml<span class="w"> </span>-f<span class="w"> </span>observability/compose.agent.yml<span class="w"> </span>up<span class="w"> </span>-d
 </span><span id="__span-3-3">
 </span><span id="__span-3-4"><span class="c1"># 3. add the SDK</span>
-</span><span id="__span-3-5">uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;obstack[grpc,sqlalchemy] @ git+https://github.com/atick-faisal/observability-stack@v0.1.0#subdirectory=sdk/obstack&quot;</span>
+</span><span id="__span-3-5">uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;obstack[grpc,sqlalchemy]&quot;</span>
 </span></code></pre></div>
 <div class="highlight"><pre><span></span><code><span id="__span-4-1"><span class="c1"># 4. wire it up</span>
 </span><span id="__span-4-2"><span class="kn">from</span><span class="w"> </span><span class="nn">obstack</span><span class="w"> </span><span class="kn">import</span> <span class="n">setup_observability</span>

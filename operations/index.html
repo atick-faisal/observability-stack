@@ -785,10 +785,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#9-out-of-scope-for-v1" class="md-nav__link">
+  <a href="#9-out-of-scope" class="md-nav__link">
     <span class="md-ellipsis">
       
-        9. Out of scope for v1
+        9. Out of scope
       
     </span>
   </a>
@@ -1118,10 +1118,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#9-out-of-scope-for-v1" class="md-nav__link">
+  <a href="#9-out-of-scope" class="md-nav__link">
     <span class="md-ellipsis">
       
-        9. Out of scope for v1
+        9. Out of scope
       
     </span>
   </a>
@@ -1296,19 +1296,19 @@ can run; each server-side window follows it, and must be at least as wide.</p>
 <p>Shortening either server-side value without shortening the agent's buffer is how you get a
 silent hole. <code>make verify-resilience</code> is the regression test.</p>
 <blockquote>
-<p><strong>The metrics row was <code>8h</code> against <code>2h</code> until this was reconciled</strong>, and the reason it never
-showed up is worth keeping. A single agent replays <em>in order</em> into a head whose max time is the
-moment it went down, so it barely touches the out-of-order path — the 2h window was almost never
-the thing being tested. What the window actually protects is a <strong>second</strong> agent's replay landing
-against the first agent's live writes, which is the multi-app case, and multi-app is the premise
-of this stack rather than an edge case. With two app hosts, an outage longer than two hours on
-one of them was a permanent gap that nothing reported.</p>
-<p>Prometheus moved rather than the agent because widening is close to free: the out-of-order head
-holds only samples actually received out of order, so it costs head memory during the replay it
-exists for and nothing in steady state. Lowering the agent to 2h would have been the other
-defensible choice, at the cost of replay depth.</p>
-<p><code>make verify-resilience</code> (<code>make demo-up SECOND_AGENT=1</code> first) now also runs a second, independent
-agent alongside the first. Its outage is a network disconnect from the server, not a container
+<p><strong>Why the metrics window is <code>8h</code> and not narrower</strong> — this is the row that hides. A single
+agent replays <em>in order</em> into a head whose max time is the moment it went down, so it barely
+touches the out-of-order path — a narrow window is almost never the thing being tested. What the
+window actually protects is a <strong>second</strong> agent's replay landing against the first agent's live
+writes, which is the multi-app case, and multi-app is the premise of this stack rather than an
+edge case. With two app hosts and a 2h window, an outage longer than two hours on one of them is
+a permanent gap that nothing reports.</p>
+<p>Prometheus is the side that gives, rather than the agent, because widening is close to free: the
+out-of-order head holds only samples actually received out of order, so it costs head memory
+during the replay it exists for and nothing in steady state. Shortening the agent's WAL to match
+a narrower window is the other defensible choice, at the cost of replay depth.</p>
+<p><code>make verify-resilience</code> (<code>make demo-up SECOND_AGENT=1</code> first) runs a second, independent agent
+alongside the first. Its outage is a network disconnect from the server, not a container
 stop — Alloy pulls metrics from the app, so a stopped agent would not be scraping and would have
 nothing to replay — and it is timed short (90s by default) because the first agent's live writes
 never stop, so the head has already moved past agent 2's buffered timestamps the moment it
@@ -1378,10 +1378,10 @@ box.</p>
   at 643 → 646 in 16 seconds under the demo load generator. An exact count assertion only means
   something with the reporters stopped.</li>
 </ul>
-<p>Verified once, for real: <code>restore.sh</code> run against a genuinely destroyed volume
-(<code>docker volume rm observability_grafana_data</code>, recreated empty by compose) put the Grafana
-install fingerprint back from a fresh one, and GlitchTip's event count back from 656 to exactly
-651.</p>
+<p>So check identity, not equality. Against a genuinely destroyed volume — <code>docker volume rm
+observability_grafana_data</code>, recreated empty by compose — a correct <code>restore.sh</code> leaves the
+Grafana install fingerprint matching the backup's rather than the fresh one's, and GlitchTip's
+event count back at the backup's, plus whatever has arrived since.</p>
 <h2 id="3-cardinality">3. Cardinality<a class="headerlink" href="#3-cardinality" title="Permanent link">&para;</a></h2>
 <p>Cardinality is the failure mode that kills a Prometheus, and it arrives gradually. What to watch:</p>
 <div class="highlight"><pre><span></span><code><span id="__span-2-1"><span class="k">topk</span><span class="o">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="k">count</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">__name__</span><span class="o">)(</span><span class="p">{</span><span class="nl">__name__</span><span class="o">=~</span><span class="p">&quot;</span><span class="s">.+</span><span class="p">&quot;}</span><span class="o">))</span><span class="w">          </span><span class="c1"># which metrics have the most series</span>
@@ -1403,8 +1403,8 @@ install fingerprint back from a fresh one, and GlitchTip's event count back from
 <h2 id="4-do-not-re-enable-tempo-local-blocks">4. Do not re-enable Tempo <code>local-blocks</code><a class="headerlink" href="#4-do-not-re-enable-tempo-local-blocks" title="Permanent link">&para;</a></h2>
 <p><code>lgtm/tempo/tempo-config.yaml</code> runs <code>processors: [service-graphs, span-metrics]</code> and
 deliberately omits <code>local-blocks</code>. It holds completed parquet blocks in RAM for
-<code>complete_block_timeout</code> (1h by default); the reference stack measured <strong>12 GB+</strong> of growth from
-it. Nothing here uses TraceQL metrics queries, which is the only thing it enables. §10 sets
+<code>complete_block_timeout</code> (1h by default) — <strong>12 GB+</strong> of growth, at the scale this stack runs at.
+Nothing here uses TraceQL metrics queries, which is the only thing it enables. §10 sets
 tempo's <code>mem_limit</code>, which is what turns a re-enabled <code>local-blocks</code> into a restart instead of a
 box-wide OOM.</p>
 <p>If you ever do need TraceQL metrics, budget the memory first and cap <code>complete_block_timeout</code>.</p>
@@ -1543,7 +1543,7 @@ minutes <em>and</em> the ring is not <code>ACTIVE</code>:</p>
 </table>
 <p>Traefik's access log is JSON and names the ingest user on every request, so push volume is
 attributable per app and a 401 tells you which credential.</p>
-<h2 id="9-out-of-scope-for-v1">9. Out of scope for v1<a class="headerlink" href="#9-out-of-scope-for-v1" title="Permanent link">&para;</a></h2>
+<h2 id="9-out-of-scope">9. Out of scope<a class="headerlink" href="#9-out-of-scope" title="Permanent link">&para;</a></h2>
 <p>Listed so their absence reads as a decision rather than an oversight:</p>
 <ul>
 <li>Stack self-monitoring dashboards — the agent does not collect its own logs, and nothing watches
@@ -1552,8 +1552,10 @@ attributable per app and a 401 tells you which credential.</p>
   and is empty.</li>
 <li>Pyroscope profiling.</li>
 <li>Mimir, or any multi-tenancy. Basic auth does not enforce label integrity — a credential for one
-  app can write another app's labels. The upgrade path is <code>X-Scope-OrgID</code>, documented in
-  <code>docs/archive/PLAN.md</code> §4.</li>
+  app can write another app's labels. The upgrade path when that stops being acceptable is a
+  per-credential Traefik <code>headers</code> middleware injecting <code>X-Scope-OrgID</code>, plus <code>auth_enabled</code> on
+  Loki and Prometheus → Mimir. Routing on the native upstream paths (§5 of
+  <a href="../deploy-server/"><code>deploy-server.md</code></a>) is what keeps that swap to a change of backend.</li>
 <li>Community dashboard vendoring.</li>
 <li>HA. Single node, filesystem storage. §2 is the answer, and it is a real one only if the backups
   leave the box.</li>
@@ -1641,11 +1643,11 @@ Docker daemon; <code>EDGE=1</code> adds traefik's 128m on top. GlitchTip, deploy
 about 1.66 GB steady-state (web + worker + postgres + valkey; migrate is transient and exits before
 its limit is concurrent with the others) — comfortably less than the LGTM box, which fits it being
 the smaller of the two stacks.</p>
-<p>These are starting points, not measurements. Watch <code>docker stats</code> under real traffic, and once
-<code>container_spec_memory_limit_bytes</code> is non-zero — it reports zero for every container while nothing
-sets a limit — the "memory as % of limit" Grafana panel dropped during development for exactly that
-reason becomes viable again. A container that gets OOMKilled routinely is the signal to raise its
-limit, not evidence the limit was wrong to set.</p>
+<p>These are starting points, not measurements. Watch <code>docker stats</code> under real traffic. Setting a
+limit is also what makes <code>container_spec_memory_limit_bytes</code> non-zero — it reports zero for every
+container while nothing sets one — so a "memory as % of limit" panel is worth building only once
+these are in place. A container that gets OOMKilled routinely is the signal to raise its limit,
+not evidence the limit was wrong to set.</p>
 
 
 

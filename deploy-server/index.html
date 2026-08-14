@@ -1148,7 +1148,7 @@ of certificates for the rest of the hour.</p>
 <p><code>ingest.&lt;domain&gt;</code> is the only one apps ever talk to. It exposes exactly three paths, each
 authenticated; everything else on that host 404s (§5).</p>
 <h2 id="3-configure">3. Configure<a class="headerlink" href="#3-configure" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span id="__span-3-1">git<span class="w"> </span>clone<span class="w"> </span>&lt;this-repo&gt;<span class="w"> </span>observability-stack<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>observability-stack
+<div class="highlight"><pre><span></span><code><span id="__span-3-1">git<span class="w"> </span>clone<span class="w"> </span>https://github.com/atick-faisal/observability-stack.git<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>observability-stack
 </span><span id="__span-3-2">cp<span class="w"> </span>.env.lgtm.example<span class="w"> </span>.env.lgtm
 </span></code></pre></div>
 <p><code>.env.lgtm.example</code> documents every variable inline. Four matter on a first deploy:</p>
@@ -1220,9 +1220,8 @@ compose file to keep in sync.</p>
 <p class="admonition-title">Warning</p>
 <p><strong>What shape B shares.</strong> Everything else on that edge network can reach Prometheus, Loki and
 Tempo <em>directly</em>, bypassing the basic auth Traefik applies. The <code>obs</code> network stays private,
-but the edge network is only as trusted as the host. That is the stated single-owner-box
-assumption in <code>docs/archive/PLAN.md</code> §7, and on a shared host it is a real exposure rather than a
-theoretical one.</p>
+but the edge network is only as trusted as the host. This stack assumes a single-owner box; on a
+shared host that assumption does not hold, and the exposure is real rather than theoretical.</p>
 </div>
 <p>A second ACME client contending for <code>:443</code> buys nothing, which is why B is not simply "run ours
 anyway". On a single box the isolation argument is imaginary — the box dying takes both.</p>

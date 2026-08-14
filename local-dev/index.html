@@ -1109,7 +1109,7 @@ Seven checks: metrics arrive with the label contract intact, <code>pg_up</code> 
 exactly the six labels in <code>labels.md</code> §3.2, a <code>trace_id</code> from a Loki line resolves in Tempo,
 exemplars exist, span-metrics use the same label vocabulary and join with <code>fastapi_requests_total</code>,
 and Tempo's service graph has a <code>demo-loadgen → demo-api</code> edge.</p>
-<p><div class="highlight"><pre><span></span><code><span id="__span-4-1">make<span class="w"> </span>verify-dashboards<span class="w">    </span><span class="c1"># 51 panel targets across three dashboards</span>
+<p><div class="highlight"><pre><span></span><code><span id="__span-4-1">make<span class="w"> </span>verify-dashboards<span class="w">    </span><span class="c1"># every panel target across all three dashboards</span>
 </span></code></pre></div>
 Extracts every <code>expr</code> from every dashboard JSON and asserts each returns data. This exists because
 an expression that returns nothing renders as an empty graph, which is indistinguishable from a
@@ -1196,6 +1196,16 @@ startup.</p>
 <p><strong>Adding a label or renaming one</strong> means touching <code>docs/labels.md</code> first. It is the contract, and
 <code>verify-signals.sh</code> and <code>verify-dashboards.sh</code> both assert against it. If they disagree with the
 document, they are wrong.</p>
+<p><strong>Documentation</strong> builds with <code>make docs</code> (serves the site on :8000) and <code>make docs-build</code> (the
+<code>mkdocs build --strict</code> that CI runs — strict, so a dead internal link fails it).</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p><strong><code>docs/index.md</code>, <code>docs/agent.md</code> and <code>docs/sdk.md</code> are generated, and gitignored.</strong>
+<code>scripts/assemble-docs.sh</code> builds them from <code>README.md</code>, <code>agent/README.md</code> and
+<code>sdk/obstack/README.md</code> — the canonical copies, because those are what GitHub, the agent
+directory and PyPI render. Editing the page under <code>docs/</code> instead of its source loses the edit
+at the next build, without an error. Every other page under <code>docs/</code> is authored where it sits.</p>
+</div>
 
 
 

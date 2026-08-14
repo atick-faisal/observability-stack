@@ -625,10 +625,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#6-consequences-for-later-milestones" class="md-nav__link">
+  <a href="#6-consequences-worth-not-rediscovering" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. Consequences for later milestones
+        6. Consequences worth not rediscovering
       
     </span>
   </a>
@@ -1156,10 +1156,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#6-consequences-for-later-milestones" class="md-nav__link">
+  <a href="#6-consequences-worth-not-rediscovering" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. Consequences for later milestones
+        6. Consequences worth not rediscovering
       
     </span>
   </a>
@@ -1219,8 +1219,8 @@
 <h1 id="label-taxonomy">Label taxonomy<a class="headerlink" href="#label-taxonomy" title="Permanent link">&para;</a></h1>
 <div class="admonition warning">
 <p class="admonition-title">Important</p>
-<p>This is the contract. Every milestone after M0 depends on it. If a config, dashboard, or SDK
-change disagrees with this document, the change is wrong — not the document.</p>
+<p>This is the contract. Everything else in this repo depends on it. If a config, dashboard, or
+SDK change disagrees with this document, the change is wrong — not the document.</p>
 </div>
 <p>The one-sentence version: <strong>four identity labels, spelled identically in metrics, logs, and
 traces, injected at exactly one choke point per signal.</strong></p>
@@ -1476,12 +1476,9 @@ already match, the configuration is:</p>
 </span></code></pre></div>
 <p>— one block, in <code>datasources.yaml</code>, correct for every app forever. When the names don't match,
 every pair needs an explicit rename, and every new app needs the list extended.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>The reference stack (<code>ai-asset-management</code>) writes <code>env="production"</code> on its Prometheus
-targets and <code>environment="production"</code> on its Loki streams. They mean the same thing and
-Grafana cannot know it. That is why this rule is first.</p>
-</div>
+<p>The failure this prevents is quiet: <code>env="production"</code> on a Prometheus target and
+<code>environment="production"</code> on a Loki stream mean the same thing, and Grafana cannot know it.
+That is why this rule is first.</p>
 <h3 id="42-never-a-label">4.2 Never a label<a class="headerlink" href="#42-never-a-label" title="Permanent link">&para;</a></h3>
 <p>Not in metrics, not as a Loki stream label, not as a span-metrics dimension:</p>
 <table>
@@ -1540,8 +1537,7 @@ scanned would otherwise generate one series per probed URL.</p>
 </span></code></pre></div>
 <p>A metric name containing the app name cannot be graphed by a shared dashboard, cannot be
 aggregated across apps, and forces a new dashboard per app — which defeats the purpose of this
-repo. The reference stack namespaces its worker metrics <code>imgworker_*</code>; those panels work for
-exactly one app and are not portable.</p>
+repo.</p>
 <p>The same applies to <code>service</code> and <code>env</code>.</p>
 <h3 id="45-labels-are-lowercase-flat-and-underscore-free-where-possible">4.5 Labels are lowercase, flat, and underscore-free where possible<a class="headerlink" href="#45-labels-are-lowercase-flat-and-underscore-free-where-possible" title="Permanent link">&para;</a></h3>
 <p><code>app</code>, not <code>App</code> or <code>app.name</code>. Dots are legal in OTel attributes but not in Prometheus label
@@ -1605,31 +1601,30 @@ in the file both halves already read avoids it entirely.</p>
 </span></code></pre></div>
 <p><code>obs.metrics.port</code> must also be <code>EXPOSE</code>d in the image or <code>expose:</code>d in Compose — the agent
 matches it against Docker's published port metadata.</p>
-<h2 id="6-consequences-for-later-milestones">6. Consequences for later milestones<a class="headerlink" href="#6-consequences-for-later-milestones" title="Permanent link">&para;</a></h2>
-<p>Recorded here so they are not rediscovered the hard way:</p>
+<h2 id="6-consequences-worth-not-rediscovering">6. Consequences worth not rediscovering<a class="headerlink" href="#6-consequences-worth-not-rediscovering" title="Permanent link">&para;</a></h2>
+<p>Every one of these is a way the contract breaks without saying so:</p>
 <ul>
 <li><strong>JSON log parsing must be conditional.</strong> Guard <code>stage.json</code> with a <code>stage.match</code> selector so
   plain-text containers (Postgres, Traefik) pass through untouched. Parsing unconditionally
   corrupts them. The selector matches on <code>container</code>: <code>app</code> is added by <code>loki.write</code>'s
   <code>external_labels</code>, which run <em>after</em> the process stage, so a selector on <code>app</code> matches nothing
-  and silently disables parsing everywhere. <em>(M4)</em></li>
+  and silently disables parsing everywhere.</li>
 <li><strong>Tempo's span-metrics generator owns four label names</strong> — <code>service</code>, <code>span_name</code>, <code>span_kind</code>,
   <code>status_code</code> — and a dimension colliding with one is renamed <code>__</code>-prefixed against a hardcoded
   list. Only <code>write_relabel_configs</code> on the generator's remote-write can win the names back;
-  <code>intrinsic_dimensions</code> and <code>dimension_mappings</code> cannot. §3.4 has the mapping. <em>(M5, done)</em></li>
-<li><strong>A dimension configured against an attribute nothing emits fails silently.</strong> Tempo accepted
-  <code>http.response.status_code</code> for three milestones and produced no such label, because the SDK
-  was on pre-1.0 semconv. Whenever a dimension is added, check that the label appeared — the
-  config is not the evidence. <em>(M5)</em></li>
+  <code>intrinsic_dimensions</code> and <code>dimension_mappings</code> cannot. §3.4 has the mapping.</li>
+<li><strong>A dimension configured against an attribute nothing emits fails silently.</strong> Tempo accepts the
+  dimension, logs nothing, and produces no such label — which is exactly what
+  <code>http.response.status_code</code> does against an SDK still on pre-1.0 semconv (§3.3). Whenever a
+  dimension is added, check that the label appeared: the config is not the evidence.</li>
 <li><strong>Provisioned dashboards are immutable.</strong> <code>allowUiUpdates: false</code> on the dashboard provider —
-  a dashboard edited in the UI and not in git is a dashboard that will be silently reverted.
-  <em>(M2)</em></li>
+  a dashboard edited in the UI and not in git is a dashboard that will be silently reverted.</li>
 <li><strong>Grafana's provisioning loader interpolates <code>$VAR</code>.</strong> <code>$__tags</code> and <code>${__value.raw}</code> must be
   written <code>$$__tags</code> and <code>$${__value.raw}</code> in <code>datasources.yaml</code>. This is Grafana, not Docker
-  Compose. <em>(M2)</em></li>
+  Compose.</li>
 <li><strong>Use <code>tracesToLogsV2</code>, not <code>tracesToLogs</code>.</strong> The v1 field is deprecated and has no <code>tags</code>
   support, so trace→log links fall back to trace-id-only matching and lose the app/service/env
-  filter. <em>(M2)</em></li>
+  filter.</li>
 </ul>
 <h2 id="7-worked-example">7. Worked example<a class="headerlink" href="#7-worked-example" title="Permanent link">&para;</a></h2>
 <p>One app, <code>asset-management</code>, running its API in production on <code>app-vps-01</code>.</p>

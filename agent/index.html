@@ -1182,11 +1182,11 @@ with the <strong>original timestamps</strong> — so an outage leaves a continuo
 <p>The server-side column is the half people forget. A buffer whose replay the server rejects as
 too old is worse than no buffer, because it looks like it worked.</p>
 <p><strong>These numbers travel together.</strong> Raising a buffer here without raising the matching window on
-the server buys nothing past the old window, silently. The metrics pair was <code>8h</code> against <code>2h</code>
-until it was reconciled, and it took a second agent to expose — one agent replays in order and
-barely uses the out-of-order path. <code>docs/operations.md</code> §1 has the full reasoning.
-<code>make demo-up SECOND_AGENT=1</code> followed by <code>make verify-resilience</code> now runs that second agent
-for real, as checks 8/9.</p>
+the server buys nothing past the old window, silently. The metrics pair is the one that hides:
+a single agent replays <em>in order</em>, so it barely touches the out-of-order path, and a window
+narrower than this WAL only bites once a <strong>second</strong> agent is replaying against the first one's
+live writes. <code>docs/operations.md</code> §1 has the full reasoning. <code>make demo-up SECOND_AGENT=1</code>
+followed by <code>make verify-resilience</code> exercises that second agent, as checks 8/9.</p>
 </div>
 <p><code>--stability.level=public-preview</code> in <code>compose.agent.yml</code> is required by exactly one component,
 <code>otelcol.storage.file</code>, which is what puts the trace queue on disk instead of in memory. The flag
@@ -1236,7 +1236,8 @@ neither.</p>
 <h2 id="what-it-does-not-do">What it does not do<a class="headerlink" href="#what-it-does-not-do" title="Permanent link">&para;</a></h2>
 <p>The agent does not collect its own logs (<code>obs.logs: "false"</code> on the alloy service) — a failing
 push logs a line, and tailing your own log makes that line another thing to push. Read them with
-<code>docker compose logs alloy</code>. Monitoring the observability stack itself is out of scope for v1.</p>
+<code>docker compose logs alloy</code>. Monitoring the observability stack itself is deliberately out of
+scope — see <code>docs/operations.md</code> §9.</p>
 
 
 
