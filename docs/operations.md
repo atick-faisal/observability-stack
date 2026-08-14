@@ -270,7 +270,7 @@ Listed so their absence reads as a decision rather than an oversight:
 - Pyroscope profiling.
 - Mimir, or any multi-tenancy. Basic auth does not enforce label integrity — a credential for one
   app can write another app's labels. The upgrade path is `X-Scope-OrgID`, documented in
-  `PLAN.md` §4.
+  `docs/archive/PLAN.md` §4.
 - Community dashboard vendoring.
 - HA. Single node, filesystem storage. §2 is the answer, and it is a real one only if the backups
   leave the box.

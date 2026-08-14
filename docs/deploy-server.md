@@ -131,7 +131,7 @@ compose file to keep in sync.
 > **What shape B shares.** Everything else on that edge network can reach Prometheus, Loki and
 > Tempo *directly*, bypassing the basic auth Traefik applies. The `obs` network stays private,
 > but the edge network is only as trusted as the host. That is the stated single-owner-box
-> assumption in `PLAN.md` §7, and on a shared host it is a real exposure rather than a
+> assumption in `docs/archive/PLAN.md` §7, and on a shared host it is a real exposure rather than a
 > theoretical one.
 
 A second ACME client contending for `:443` buys nothing, which is why B is not simply "run ours

@@ -431,7 +431,8 @@ loki.write "obs" {
 	// (168h) is what lets the replay land with its original timestamps.
 	//
 	// The block is generally-available in Alloy 1.16 — it was experimental when
-	// PLAN.md §9 was written, and no --stability.level flag is needed for it.
+	// docs/archive/PLAN.md §9 was written, and no --stability.level flag is
+	// needed for it.
 	// max_segment_age matches the prometheus WAL's max_keepalive_time, so both
 	// signals give up at the same point rather than at two undocumented ones.
 	wal {

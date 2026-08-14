@@ -1,0 +1,109 @@
+site_name: Observability Stack
+site_description: An application-independent Grafana LGTM stack. One deployment on a VPS serves every project.
+site_url: https://atick-faisal.github.io/observability-stack/
+repo_name: atick-faisal/observability-stack
+repo_url: https://github.com/atick-faisal/observability-stack
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+  - media: "(prefers-color-scheme)"
+    toggle:
+      icon: material/lightbulb-auto
+      name: Switch to light mode
+  - media: '(prefers-color-scheme: light)'
+    scheme: default
+    primary: white
+    accent: amber
+    toggle:
+      icon: material/lightbulb
+      name: Switch to dark mode
+  - media: '(prefers-color-scheme: dark)'
+    scheme: slate
+    primary: black
+    accent: amber
+    toggle:
+      icon: material/lightbulb-outline
+      name: Switch to system preference
+  features:
+  - content.code.annotate
+  - content.code.copy
+  - content.footnote.tooltips
+  - content.tabs.link
+  - content.tooltips
+  - navigation.footer
+  - navigation.indexes
+  - navigation.instant
+  - navigation.instant.prefetch
+  - navigation.instant.progress
+  - navigation.path
+  - navigation.tabs
+  - navigation.tabs.sticky
+  - navigation.top
+  - navigation.tracking
+  - search.highlight
+  - search.share
+  - search.suggest
+  - toc.follow
+  icon:
+    repo: fontawesome/brands/github-alt
+    logo: material/telescope
+  language: en
+
+plugins:
+  # Every page here uses GitHub callout syntax (> [!NOTE], > [!WARNING], ...),
+  # which Material renders as a plain blockquote on its own. This turns them
+  # into admonitions. Removing it does not break the build — it silently
+  # flattens every warning on the site, which is worse.
+  - gh-admonitions
+  - search
+
+nav:
+  - Home: index.md
+  - Label Contract: labels.md
+  - Guides:
+    - Deploy the Server: deploy-server.md
+    - Onboard an App: onboard-app.md
+    - Local Development: local-dev.md
+    - Operations: operations.md
+  - Reference:
+    - Agent: agent.md
+    - Python SDK: sdk.md
+
+# docs/archive/ is the frozen build-out record — kept in git for provenance,
+# deliberately not published. The diagram sources are build inputs for the two
+# PNGs the home page embeds; the PNGs themselves stay.
+exclude_docs: |
+  archive/
+  diagrams/*.html
+  diagrams/generate.py
+
+markdown_extensions:
+  # Python Markdown
+  - abbr
+  - attr_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  # Python Markdown Extensions
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.highlight:
+      line_spans: __span
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format # ignore warning
+  - pymdownx.tilde
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details

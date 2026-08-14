@@ -7,7 +7,7 @@ storage:
   tsdb:
     # Agents buffer samples locally while this VPS is down. Without a window,
     # everything they replay on reconnect is rejected as too old and the gap
-    # is permanent. See TASKS.md M9.
+    # is permanent. See docs/archive/TASKS.md M9.
     #
     # The invariant: **this must be at least the agent's max_keepalive_time**
     # (agent/config.alloy, 8h). The agent is the authoritative number — it is the

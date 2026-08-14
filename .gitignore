@@ -20,6 +20,13 @@ htmlcov/
 backups/
 *.log
 
+# Docs site — built output, plus the three pages scripts/assemble-docs.sh
+# copies in from README.md, agent/ and sdk/ at build time
+site/
+docs/index.md
+docs/agent.md
+docs/sdk.md
+
 # OS / editor
 .DS_Store
 .idea/
