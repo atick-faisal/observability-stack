@@ -1,8 +1,8 @@
 # Label taxonomy
 
 > [!IMPORTANT]
-> This is the contract. Every milestone after M0 depends on it. If a config, dashboard, or SDK
-> change disagrees with this document, the change is wrong — not the document.
+> This is the contract. Everything else in this repo depends on it. If a config, dashboard, or
+> SDK change disagrees with this document, the change is wrong — not the document.
 
 The one-sentence version: **four identity labels, spelled identically in metrics, logs, and
 traces, injected at exactly one choke point per signal.**
@@ -180,10 +180,9 @@ tags: [{ key: app }, { key: service }, { key: env }]
 — one block, in `datasources.yaml`, correct for every app forever. When the names don't match,
 every pair needs an explicit rename, and every new app needs the list extended.
 
-> [!NOTE]
-> The reference stack (`ai-asset-management`) writes `env="production"` on its Prometheus
-> targets and `environment="production"` on its Loki streams. They mean the same thing and
-> Grafana cannot know it. That is why this rule is first.
+The failure this prevents is quiet: `env="production"` on a Prometheus target and
+`environment="production"` on a Loki stream mean the same thing, and Grafana cannot know it.
+That is why this rule is first.
 
 ### 4.2 Never a label
 
@@ -226,8 +225,7 @@ asset_management_requests_total                                     ❌
 
 A metric name containing the app name cannot be graphed by a shared dashboard, cannot be
 aggregated across apps, and forces a new dashboard per app — which defeats the purpose of this
-repo. The reference stack namespaces its worker metrics `imgworker_*`; those panels work for
-exactly one app and are not portable.
+repo.
 
 The same applies to `service` and `env`.
 
@@ -278,32 +276,31 @@ services:
 `obs.metrics.port` must also be `EXPOSE`d in the image or `expose:`d in Compose — the agent
 matches it against Docker's published port metadata.
 
-## 6. Consequences for later milestones
+## 6. Consequences worth not rediscovering
 
-Recorded here so they are not rediscovered the hard way:
+Every one of these is a way the contract breaks without saying so:
 
 - **JSON log parsing must be conditional.** Guard `stage.json` with a `stage.match` selector so
   plain-text containers (Postgres, Traefik) pass through untouched. Parsing unconditionally
   corrupts them. The selector matches on `container`: `app` is added by `loki.write`'s
   `external_labels`, which run *after* the process stage, so a selector on `app` matches nothing
-  and silently disables parsing everywhere. *(M4)*
+  and silently disables parsing everywhere.
 - **Tempo's span-metrics generator owns four label names** — `service`, `span_name`, `span_kind`,
   `status_code` — and a dimension colliding with one is renamed `__`-prefixed against a hardcoded
   list. Only `write_relabel_configs` on the generator's remote-write can win the names back;
-  `intrinsic_dimensions` and `dimension_mappings` cannot. §3.4 has the mapping. *(M5, done)*
-- **A dimension configured against an attribute nothing emits fails silently.** Tempo accepted
-  `http.response.status_code` for three milestones and produced no such label, because the SDK
-  was on pre-1.0 semconv. Whenever a dimension is added, check that the label appeared — the
-  config is not the evidence. *(M5)*
+  `intrinsic_dimensions` and `dimension_mappings` cannot. §3.4 has the mapping.
+- **A dimension configured against an attribute nothing emits fails silently.** Tempo accepts the
+  dimension, logs nothing, and produces no such label — which is exactly what
+  `http.response.status_code` does against an SDK still on pre-1.0 semconv (§3.3). Whenever a
+  dimension is added, check that the label appeared: the config is not the evidence.
 - **Provisioned dashboards are immutable.** `allowUiUpdates: false` on the dashboard provider —
   a dashboard edited in the UI and not in git is a dashboard that will be silently reverted.
-  *(M2)*
 - **Grafana's provisioning loader interpolates `$VAR`.** `$__tags` and `${__value.raw}` must be
   written `$$__tags` and `$${__value.raw}` in `datasources.yaml`. This is Grafana, not Docker
-  Compose. *(M2)*
+  Compose.
 - **Use `tracesToLogsV2`, not `tracesToLogs`.** The v1 field is deprecated and has no `tags`
   support, so trace→log links fall back to trace-id-only matching and lose the app/service/env
-  filter. *(M2)*
+  filter.
 
 ## 7. Worked example
 

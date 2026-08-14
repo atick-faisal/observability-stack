@@ -89,7 +89,7 @@ exemplars exist, span-metrics use the same label vocabulary and join with `fasta
 and Tempo's service graph has a `demo-loadgen → demo-api` edge.
 
 ```bash
-make verify-dashboards    # 51 panel targets across three dashboards
+make verify-dashboards    # every panel target across all three dashboards
 ```
 Extracts every `expr` from every dashboard JSON and asserts each returns data. This exists because
 an expression that returns nothing renders as an empty graph, which is indistinguishable from a
@@ -199,3 +199,13 @@ startup.
 **Adding a label or renaming one** means touching `docs/labels.md` first. It is the contract, and
 `verify-signals.sh` and `verify-dashboards.sh` both assert against it. If they disagree with the
 document, they are wrong.
+
+**Documentation** builds with `make docs` (serves the site on :8000) and `make docs-build` (the
+`mkdocs build --strict` that CI runs — strict, so a dead internal link fails it).
+
+> [!WARNING]
+> **`docs/index.md`, `docs/agent.md` and `docs/sdk.md` are generated, and gitignored.**
+> `scripts/assemble-docs.sh` builds them from `README.md`, `agent/README.md` and
+> `sdk/obstack/README.md` — the canonical copies, because those are what GitHub, the agent
+> directory and PyPI render. Editing the page under `docs/` instead of its source loses the edit
+> at the next build, without an error. Every other page under `docs/` is authored where it sits.

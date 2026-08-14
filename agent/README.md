@@ -103,11 +103,11 @@ with the **original timestamps** — so an outage leaves a continuous line rathe
 > too old is worse than no buffer, because it looks like it worked.
 >
 > **These numbers travel together.** Raising a buffer here without raising the matching window on
-> the server buys nothing past the old window, silently. The metrics pair was `8h` against `2h`
-> until it was reconciled, and it took a second agent to expose — one agent replays in order and
-> barely uses the out-of-order path. `docs/operations.md` §1 has the full reasoning.
-> `make demo-up SECOND_AGENT=1` followed by `make verify-resilience` now runs that second agent
-> for real, as checks 8/9.
+> the server buys nothing past the old window, silently. The metrics pair is the one that hides:
+> a single agent replays *in order*, so it barely touches the out-of-order path, and a window
+> narrower than this WAL only bites once a **second** agent is replaying against the first one's
+> live writes. `docs/operations.md` §1 has the full reasoning. `make demo-up SECOND_AGENT=1`
+> followed by `make verify-resilience` exercises that second agent, as checks 8/9.
 
 `--stability.level=public-preview` in `compose.agent.yml` is required by exactly one component,
 `otelcol.storage.file`, which is what puts the trace queue on disk instead of in memory. The flag
@@ -170,4 +170,5 @@ neither.
 
 The agent does not collect its own logs (`obs.logs: "false"` on the alloy service) — a failing
 push logs a line, and tailing your own log makes that line another thing to push. Read them with
-`docker compose logs alloy`. Monitoring the observability stack itself is out of scope for v1.
+`docker compose logs alloy`. Monitoring the observability stack itself is deliberately out of
+scope — see `docs/operations.md` §9.

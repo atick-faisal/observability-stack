@@ -41,21 +41,21 @@ and those expire at 30d / 14d / 7d.
 Shortening either server-side value without shortening the agent's buffer is how you get a
 silent hole. `make verify-resilience` is the regression test.
 
-> **The metrics row was `8h` against `2h` until this was reconciled**, and the reason it never
-> showed up is worth keeping. A single agent replays *in order* into a head whose max time is the
-> moment it went down, so it barely touches the out-of-order path — the 2h window was almost never
-> the thing being tested. What the window actually protects is a **second** agent's replay landing
-> against the first agent's live writes, which is the multi-app case, and multi-app is the premise
-> of this stack rather than an edge case. With two app hosts, an outage longer than two hours on
-> one of them was a permanent gap that nothing reported.
+> **Why the metrics window is `8h` and not narrower** — this is the row that hides. A single
+> agent replays *in order* into a head whose max time is the moment it went down, so it barely
+> touches the out-of-order path — a narrow window is almost never the thing being tested. What the
+> window actually protects is a **second** agent's replay landing against the first agent's live
+> writes, which is the multi-app case, and multi-app is the premise of this stack rather than an
+> edge case. With two app hosts and a 2h window, an outage longer than two hours on one of them is
+> a permanent gap that nothing reports.
 >
-> Prometheus moved rather than the agent because widening is close to free: the out-of-order head
-> holds only samples actually received out of order, so it costs head memory during the replay it
-> exists for and nothing in steady state. Lowering the agent to 2h would have been the other
-> defensible choice, at the cost of replay depth.
+> Prometheus is the side that gives, rather than the agent, because widening is close to free: the
+> out-of-order head holds only samples actually received out of order, so it costs head memory
+> during the replay it exists for and nothing in steady state. Shortening the agent's WAL to match
+> a narrower window is the other defensible choice, at the cost of replay depth.
 >
-> `make verify-resilience` (`make demo-up SECOND_AGENT=1` first) now also runs a second, independent
-> agent alongside the first. Its outage is a network disconnect from the server, not a container
+> `make verify-resilience` (`make demo-up SECOND_AGENT=1` first) runs a second, independent agent
+> alongside the first. Its outage is a network disconnect from the server, not a container
 > stop — Alloy pulls metrics from the app, so a stopped agent would not be scraping and would have
 > nothing to replay — and it is timed short (90s by default) because the first agent's live writes
 > never stop, so the head has already moved past agent 2's buffered timestamps the moment it
@@ -115,10 +115,10 @@ Two things that look like failures and are not:
   at 643 → 646 in 16 seconds under the demo load generator. An exact count assertion only means
   something with the reporters stopped.
 
-Verified once, for real: `restore.sh` run against a genuinely destroyed volume
-(`docker volume rm observability_grafana_data`, recreated empty by compose) put the Grafana
-install fingerprint back from a fresh one, and GlitchTip's event count back from 656 to exactly
-651.
+So check identity, not equality. Against a genuinely destroyed volume — `docker volume rm
+observability_grafana_data`, recreated empty by compose — a correct `restore.sh` leaves the
+Grafana install fingerprint matching the backup's rather than the fresh one's, and GlitchTip's
+event count back at the backup's, plus whatever has arrived since.
 
 ## 3. Cardinality
 
@@ -146,8 +146,8 @@ The rules that keep it bounded, from `docs/labels.md`:
 
 `lgtm/tempo/tempo-config.yaml` runs `processors: [service-graphs, span-metrics]` and
 deliberately omits `local-blocks`. It holds completed parquet blocks in RAM for
-`complete_block_timeout` (1h by default); the reference stack measured **12 GB+** of growth from
-it. Nothing here uses TraceQL metrics queries, which is the only thing it enables. §10 sets
+`complete_block_timeout` (1h by default) — **12 GB+** of growth, at the scale this stack runs at.
+Nothing here uses TraceQL metrics queries, which is the only thing it enables. §10 sets
 tempo's `mem_limit`, which is what turns a re-enabled `local-blocks` into a restart instead of a
 box-wide OOM.
 
@@ -265,7 +265,7 @@ Note that Loki keeps serving `/loki/api/v1/labels` and `/metrics` throughout, so
 Traefik's access log is JSON and names the ingest user on every request, so push volume is
 attributable per app and a 401 tells you which credential.
 
-## 9. Out of scope for v1
+## 9. Out of scope
 
 Listed so their absence reads as a decision rather than an oversight:
 
@@ -275,8 +275,10 @@ Listed so their absence reads as a decision rather than an oversight:
   and is empty.
 - Pyroscope profiling.
 - Mimir, or any multi-tenancy. Basic auth does not enforce label integrity — a credential for one
-  app can write another app's labels. The upgrade path is `X-Scope-OrgID`, documented in
-  `docs/archive/PLAN.md` §4.
+  app can write another app's labels. The upgrade path when that stops being acceptable is a
+  per-credential Traefik `headers` middleware injecting `X-Scope-OrgID`, plus `auth_enabled` on
+  Loki and Prometheus → Mimir. Routing on the native upstream paths (§5 of
+  [`deploy-server.md`](./deploy-server.md)) is what keeps that swap to a change of backend.
 - Community dashboard vendoring.
 - HA. Single node, filesystem storage. §2 is the answer, and it is a real one only if the backups
   leave the box.
@@ -311,8 +313,8 @@ about 1.66 GB steady-state (web + worker + postgres + valkey; migrate is transie
 its limit is concurrent with the others) — comfortably less than the LGTM box, which fits it being
 the smaller of the two stacks.
 
-These are starting points, not measurements. Watch `docker stats` under real traffic, and once
-`container_spec_memory_limit_bytes` is non-zero — it reports zero for every container while nothing
-sets a limit — the "memory as % of limit" Grafana panel dropped during development for exactly that
-reason becomes viable again. A container that gets OOMKilled routinely is the signal to raise its
-limit, not evidence the limit was wrong to set.
+These are starting points, not measurements. Watch `docker stats` under real traffic. Setting a
+limit is also what makes `container_spec_memory_limit_bytes` non-zero — it reports zero for every
+container while nothing sets one — so a "memory as % of limit" panel is worth building only once
+these are in place. A container that gets OOMKilled routinely is the signal to raise its limit,
+not evidence the limit was wrong to set.

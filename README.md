@@ -31,11 +31,6 @@ An application-independent Grafana LGTM stack. One deployment on a VPS serves ev
 Onboarding a new FastAPI + Postgres app is four steps: copy `agent/`, add a few Docker labels,
 `uv add obstack`, one function call.
 
-> [!NOTE]
-> **Status: pre-v1.** Current milestone: **M10 — ship**. Everything below is built and verified
-> against a local end-to-end run; what remains is the first real VPS deploy, the first onboarded
-> app, and the `v0.1.0` tag.
-
 ## ✨ What You Get
 
 * 📊 **Metrics, logs and traces** — Prometheus, Loki and Tempo behind one Grafana, all three
@@ -123,7 +118,7 @@ services:
 docker compose -f compose.lgtm.yml -f observability/compose.agent.yml up -d
 
 # 3. add the SDK
-uv add "obstack[grpc,sqlalchemy] @ git+https://github.com/atick-faisal/observability-stack@v0.1.0#subdirectory=sdk/obstack"
+uv add "obstack[grpc,sqlalchemy]"
 ```
 
 ```python

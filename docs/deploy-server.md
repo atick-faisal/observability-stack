@@ -69,7 +69,7 @@ authenticated; everything else on that host 404s (§5).
 ## 3. Configure
 
 ```bash
-git clone <this-repo> observability-stack && cd observability-stack
+git clone https://github.com/atick-faisal/observability-stack.git && cd observability-stack
 cp .env.lgtm.example .env.lgtm
 ```
 
@@ -136,9 +136,8 @@ compose file to keep in sync.
 > [!WARNING]
 > **What shape B shares.** Everything else on that edge network can reach Prometheus, Loki and
 > Tempo *directly*, bypassing the basic auth Traefik applies. The `obs` network stays private,
-> but the edge network is only as trusted as the host. That is the stated single-owner-box
-> assumption in `docs/archive/PLAN.md` §7, and on a shared host it is a real exposure rather than a
-> theoretical one.
+> but the edge network is only as trusted as the host. This stack assumes a single-owner box; on a
+> shared host that assumption does not hold, and the exposure is real rather than theoretical.
 
 A second ACME client contending for `:443` buys nothing, which is why B is not simply "run ours
 anyway". On a single box the isolation argument is imaginary — the box dying takes both.

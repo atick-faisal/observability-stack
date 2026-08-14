@@ -12,7 +12,7 @@ that all carry the same four identity labels — `app`, `service`, `env`, `host`
 ## Install
 
 ```bash
-uv add "obstack[grpc,sqlalchemy] @ git+https://github.com/atick-faisal/observability-stack@v0.1.0#subdirectory=sdk/obstack"
+uv add "obstack[grpc,sqlalchemy]"
 ```
 
 | Extra | Pulls in | When |
