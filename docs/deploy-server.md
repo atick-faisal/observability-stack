@@ -23,10 +23,12 @@ Nothing in the stack needs root beyond Docker itself, and no service runs as `us
 
 ### Bound the log files before anything else
 
-Docker's default `json-file` driver has **no `max-size` and no `max-file`** — a container log grows
-until the disk is full. Every compose file here sets a 10 MB × 3 bound per service, but that only
-covers services this repo declares. Set the daemon default too, so anything added later inherits
-one:
+> [!WARNING]
+> Docker's default `json-file` driver has **no `max-size` and no `max-file`** — a container log
+> grows until the disk is full. Every compose file here sets a 10 MB × 3 bound per service, but
+> that only covers services this repo declares.
+
+Set the daemon default too, so anything added later inherits one:
 
 ```json
 // /etc/docker/daemon.json
@@ -55,10 +57,11 @@ ingest.<domain>     A    <vps-ip>
 errors.<domain>     A    <vps-ip>     # only if you run GlitchTip
 ```
 
-They must resolve **before** the first `up`. Traefik requests a certificate per hostname on
-startup, and Let's Encrypt counts **5 failed validations per hostname per hour** against you on
-the production CA — so a stack brought up against DNS that has not propagated locks itself out
-of certificates for the rest of the hour.
+> [!WARNING]
+> They must resolve **before** the first `up`. Traefik requests a certificate per hostname on
+> startup, and Let's Encrypt counts **5 failed validations per hostname per hour** against you on
+> the production CA — so a stack brought up against DNS that has not propagated locks itself out
+> of certificates for the rest of the hour.
 
 `ingest.<domain>` is the only one apps ever talk to. It exposes exactly three paths, each
 authenticated; everything else on that host 404s (§5).
@@ -79,6 +82,7 @@ cp .env.lgtm.example .env.lgtm
 | `GF_SERVER_ROOT_URL` | Set to `https://grafana.<domain>`. Share and alert links are built from it, so a wrong value produces links to `localhost`. |
 | `ACME_EMAIL` | Only read by `compose.edge.yml`. Let's Encrypt rejects an address whose domain is not a real TLD. |
 
+> [!CAUTION]
 > **Do not put a `$` in `GF_ADMIN_PASSWORD`.** Compose interpolates values it reads from
 > `--env-file`, so `$$` collapses to one `$` and `$NAME` expands to that variable's value.
 > Measured: `GF_ADMIN_PASSWORD=ab$$cd` reaches Grafana as `ab$cd`. What you type is not what
@@ -98,8 +102,9 @@ It prints both halves — what goes in the app host's `.env.agent`, and the bcry
 to `INGEST_USERS` here, already `$$`-doubled. It edits neither file: `.env.lgtm` may already
 hold other credentials, and a script that rewrites a secrets file is a script that can lose one.
 
-**Replace the default `INGEST_USERS` value before this is reachable.** It ships as `demo:demo`,
-which is what the local demo pushes with.
+> [!WARNING]
+> **Replace the default `INGEST_USERS` value before this is reachable.** It ships as `demo:demo`,
+> which is what the local demo pushes with.
 
 ## 4. Which edge
 
@@ -128,6 +133,7 @@ The `traefik.*` labels are inert without a Traefik reading them, and Traefik ign
 that are not on its own network — so one set of labels serves both shapes and there is no second
 compose file to keep in sync.
 
+> [!WARNING]
 > **What shape B shares.** Everything else on that edge network can reach Prometheus, Loki and
 > Tempo *directly*, bypassing the basic auth Traefik applies. The `obs` network stays private,
 > but the edge network is only as trusted as the host. That is the stated single-owner-box
@@ -210,6 +216,7 @@ OBS_EDGE_NETWORK=dokploy-network
 OBS_EDGE_EXTERNAL=true
 ```
 
+> [!IMPORTANT]
 > **Do not skip them.** Every one has a default that is right locally and wrong on a VPS, and none
 > of them fails the render. Rendered with them unset you get ``Host(`errors.localhost`)``, an
 > `observability_edge` bridge the platform's Traefik is not on, and `http://localhost:8001` as the
@@ -224,6 +231,7 @@ second service pointing at `compose.glitchtip.yml` and paste `.env.glitchtip` in
 It renders and routes on its own — `make verify-config` checks both deployed shapes, including
 this one, and is worth running before you push.
 
+> [!NOTE]
 > **A separate service is a separate Compose project, so `obs` is project-local.**
 > `glitchtip-web:8000` is *not* reachable from the LGTM project's containers — apps report over
 > `https://errors.<domain>` instead, which is what an app on any other host does anyway. Nothing
@@ -239,11 +247,12 @@ Leave `ENABLE_USER_REGISTRATION=true` for the first signup, which becomes the fi
 organisation's owner, then set it false and bring it up again. Invite everyone else. With it
 false from the start there is no way in short of `manage.py createsuperuser` on the box.
 
-Set a real `EMAIL_URL` before anyone depends on this. The default `consolemail://` prints mail
-to the container's stdout, and password-reset links are mail — with no transport, the only
-account recovery is a shell on the box. It is also the one value here you did not generate, so
-it is where the `$$` rule from §3 actually bites — as does percent-encoding a `#` or `@`, since
-it is a URL.
+> [!WARNING]
+> Set a real `EMAIL_URL` before anyone depends on this. The default `consolemail://` prints mail
+> to the container's stdout, and password-reset links are mail — with no transport, the only
+> account recovery is a shell on the box. It is also the one value here you did not generate, so
+> it is where the `$$` rule from §3 actually bites — as does percent-encoding a `#` or `@`, since
+> it is a URL.
 
 Verify:
 

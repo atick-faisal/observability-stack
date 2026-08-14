@@ -1,7 +1,8 @@
 # Label taxonomy
 
-This is the contract. Every milestone after M0 depends on it. If a config, dashboard, or SDK
-change disagrees with this document, the change is wrong — not the document.
+> [!IMPORTANT]
+> This is the contract. Every milestone after M0 depends on it. If a config, dashboard, or SDK
+> change disagrees with this document, the change is wrong — not the document.
 
 The one-sentence version: **four identity labels, spelled identically in metrics, logs, and
 traces, injected at exactly one choke point per signal.**
@@ -85,8 +86,9 @@ Loki stream labels are **exactly these six, and no others**:
 app, env, host, service, container, level
 ```
 
-All six are bounded. Adding a seventh, or making any of these unbounded, multiplies the number
-of active streams and is the single fastest way to make Loki unusable.
+> [!WARNING]
+> All six are bounded. Adding a seventh, or making any of these unbounded, multiplies the number
+> of active streams and is the single fastest way to make Loki unusable.
 
 - `trace_id` and `span_id` go to **structured metadata**, never to labels. They are indexed and
   filterable there, without creating a stream per request.
@@ -119,13 +121,14 @@ The SDK sets OTel resource attributes using the flat names — `app`, `service`,
 The flat names are what dashboards and correlation links use. The semconv names are what Tempo
 and Grafana's built-in trace tooling expect. Setting both costs nothing and avoids choosing.
 
-The SDK also sets `OTEL_SEMCONV_STABILITY_OPT_IN=http`, so HTTP spans carry the stable
-attribute names — `http.request.method`, `http.response.status_code`, `url.path`,
-`server.address` — rather than the pre-1.0 `http.method` / `http.status_code` / `http.target`
-that OpenTelemetry Python still emits by default. It is a process-wide global read once, so it
-affects every HTTP instrumentation in the process, not only the ones the SDK installs. Anything
-configured against the stable names — Tempo's `http.response.status_code` dimension below, a
-TraceQL query, a dashboard — produces **nothing at all** without it, silently.
+> [!WARNING]
+> The SDK also sets `OTEL_SEMCONV_STABILITY_OPT_IN=http`, so HTTP spans carry the stable
+> attribute names — `http.request.method`, `http.response.status_code`, `url.path`,
+> `server.address` — rather than the pre-1.0 `http.method` / `http.status_code` / `http.target`
+> that OpenTelemetry Python still emits by default. It is a process-wide global read once, so it
+> affects every HTTP instrumentation in the process, not only the ones the SDK installs. Anything
+> configured against the stable names — Tempo's `http.response.status_code` dimension below, a
+> TraceQL query, a dashboard — produces **nothing at all** without it, silently.
 
 ### 3.4 Span metrics → Prometheus
 
@@ -177,6 +180,7 @@ tags: [{ key: app }, { key: service }, { key: env }]
 — one block, in `datasources.yaml`, correct for every app forever. When the names don't match,
 every pair needs an explicit rename, and every new app needs the list extended.
 
+> [!NOTE]
 > The reference stack (`ai-asset-management`) writes `env="production"` on its Prometheus
 > targets and `environment="production"` on its Loki streams. They mean the same thing and
 > Grafana cannot know it. That is why this rule is first.

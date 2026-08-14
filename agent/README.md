@@ -42,10 +42,11 @@ Everything is collected by default: a container with no labels still has its log
 `service` falling back to its container name. Only `obs.metrics.port` is opt-in, because scraping
 something that does not serve Prometheus text is a waste rather than a mistake.
 
-**`obs.metrics.port` must be exposed.** The agent matches the label against Docker's port
-metadata, which means `EXPOSE` in the image or `expose:` in Compose. *Publishing* the port is not
-required and not wanted. A container that genuinely cannot expose its port is what
-`OBS_EXTRA_TARGET` is for.
+> [!IMPORTANT]
+> **`obs.metrics.port` must be exposed.** The agent matches the label against Docker's port
+> metadata, which means `EXPOSE` in the image or `expose:` in Compose. *Publishing* the port is
+> not required and not wanted. A container that genuinely cannot expose its port is what
+> `OBS_EXTRA_TARGET` is for.
 
 ## Configure
 
@@ -65,11 +66,12 @@ with `scripts/add-ingest-user.sh <app>-<env>`. All three writers send it. The us
 identifies this app in the server's access log, so push volume can be attributed and one app can
 be rotated without touching any other.
 
-`OBS_INGEST_TLS_INSECURE` disables certificate verification on all three writers. It exists for
-one purpose — letting the stack's own end-to-end test push through Traefik on a laptop, where
-Let's Encrypt cannot have issued a certificate for a domain whose DNS points at the VPS. Setting
-it against a real endpoint makes basic auth worthless, since the credentials become readable by
-whoever terminates the connection.
+> [!CAUTION]
+> `OBS_INGEST_TLS_INSECURE` disables certificate verification on all three writers. It exists for
+> one purpose — letting the stack's own end-to-end test push through Traefik on a laptop, where
+> Let's Encrypt cannot have issued a certificate for a domain whose DNS points at the VPS.
+> Setting it against a real endpoint makes basic auth worthless, since the credentials become
+> readable by whoever terminates the connection.
 
 ## What it collects
 
@@ -96,15 +98,16 @@ with the **original timestamps** — so an outage leaves a continuous line rathe
 | logs | `loki.write` WAL | 8h (`max_segment_age`), 20 retries ≈ 1h per batch | `reject_old_samples_max_age: 168h` |
 | traces | `otelcol` sending queue on `otelcol.storage.file` | 10 000 batches | none — Tempo accepts any timestamp |
 
-The server-side column is the half people forget. A buffer whose replay the server rejects as
-too old is worse than no buffer, because it looks like it worked.
-
-**These numbers travel together.** Raising a buffer here without raising the matching window on
-the server buys nothing past the old window, silently. The metrics pair was `8h` against `2h`
-until it was reconciled, and it took a second agent to expose — one agent replays in order and
-barely uses the out-of-order path. `docs/operations.md` §1 has the full reasoning.
-`make demo-up SECOND_AGENT=1` followed by `make verify-resilience` now runs that second agent for
-real, as checks 8/9.
+> [!WARNING]
+> The server-side column is the half people forget. A buffer whose replay the server rejects as
+> too old is worse than no buffer, because it looks like it worked.
+>
+> **These numbers travel together.** Raising a buffer here without raising the matching window on
+> the server buys nothing past the old window, silently. The metrics pair was `8h` against `2h`
+> until it was reconciled, and it took a second agent to expose — one agent replays in order and
+> barely uses the out-of-order path. `docs/operations.md` §1 has the full reasoning.
+> `make demo-up SECOND_AGENT=1` followed by `make verify-resilience` now runs that second agent
+> for real, as checks 8/9.
 
 `--stability.level=public-preview` in `compose.agent.yml` is required by exactly one component,
 `otelcol.storage.file`, which is what puts the trace queue on disk instead of in memory. The flag
@@ -112,12 +115,13 @@ is a floor rather than a switch: it permits public-preview components to be refe
 other component in `config.alloy` is generally-available. Drop the flag and Alloy refuses to start
 with a message naming the component, which is the right failure.
 
-One thing to know before you go looking: **Tempo's time-bounded search does not surface
-backfilled traces.** After a fifteen-minute outage, a search over the first ten minutes of that
-window comes back empty while `GET /api/traces/<id>` on a trace from the same minute returns it
-in full. The spans are stored — the search path is what does not find them. Check the trace side
-by taking a `trace_id` off a log line from the outage and looking that up, which is what
-`scripts/verify-resilience.sh` does.
+> [!NOTE]
+> One thing to know before you go looking: **Tempo's time-bounded search does not surface
+> backfilled traces.** After a fifteen-minute outage, a search over the first ten minutes of that
+> window comes back empty while `GET /api/traces/<id>` on a trace from the same minute returns it
+> in full. The spans are stored — the search path is what does not find them. Check the trace
+> side by taking a `trace_id` off a log line from the outage and looking that up, which is what
+> `scripts/verify-resilience.sh` does.
 
 That script asserts all of this in the server repo by stopping the server for fifteen minutes
 and checking for a hole afterwards.

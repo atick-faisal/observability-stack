@@ -24,12 +24,13 @@ and those expire at 30d / 14d / 7d.
 
 ### The windows that must stay wider than the agent's buffers
 
-The agent buffers all three signals to disk through an outage and replays them **with their
-original timestamps**. A server that rejects that replay as too old is worse than no buffer,
-because it looks like it worked — the agent reports success and the gap is permanent.
-
-**The agent's buffer is the authoritative number.** It is the one that says how long an outage
-can run; each server-side window follows it, and must be at least as wide.
+> [!IMPORTANT]
+> The agent buffers all three signals to disk through an outage and replays them **with their
+> original timestamps**. A server that rejects that replay as too old is worse than no buffer,
+> because it looks like it worked — the agent reports success and the gap is permanent.
+>
+> **The agent's buffer is the authoritative number.** It is the one that says how long an outage
+> can run; each server-side window follows it, and must be at least as wide.
 
 | Signal | Agent holds | Server accepts | Margin |
 |---|---|---|---|
@@ -99,7 +100,9 @@ Each volume is copied the way its storage engine allows, which is **not one meth
 through either script — the GlitchTip dump runs as the container's own `$POSTGRES_USER` over a
 local socket.
 
-**`backups/` is gitignored, and a backup on the same disk is not a backup.** Copy it off the box.
+> [!WARNING]
+> **`backups/` is gitignored, and a backup on the same disk is not a backup.** Copy it off the
+> box.
 
 ### Verifying a restore
 
@@ -193,13 +196,14 @@ Deployed as its own standalone service (its own Dokploy/Coolify entry), `compose
 project name comes from whatever the platform names that service, since there is no `name:` to
 fall back on. Set it explicitly on the platform side rather than leaving it to a default.
 
-**Do not "fix" this by adding `name:` to `compose.glitchtip.yml`.** Locally, `make glitchtip-up`
-sets `COMPOSE_PROJECT_NAME=observability` on the command line specifically so GlitchTip's
-containers join the LGTM stack's `obs` network — the only thing that makes `glitchtip-web:8000`
-reachable from an app on the same box. A `name:` in the file would fight that: on an overlay of
-multiple compose files, the last file's `name` wins, so it would silently start a second,
-disconnected project instead of joining the first. The file has to take its project name from
-whatever deploys it, which is precisely why it has none of its own.
+> [!WARNING]
+> **Do not "fix" this by adding `name:` to `compose.glitchtip.yml`.** Locally, `make glitchtip-up`
+> sets `COMPOSE_PROJECT_NAME=observability` on the command line specifically so GlitchTip's
+> containers join the LGTM stack's `obs` network — the only thing that makes `glitchtip-web:8000`
+> reachable from an app on the same box. A `name:` in the file would fight that: on an overlay of
+> multiple compose files, the last file's `name` wins, so it would silently start a second,
+> disconnected project instead of joining the first. The file has to take its project name from
+> whatever deploys it, which is precisely why it has none of its own.
 
 ## 7. The `$` trap
 
@@ -233,10 +237,12 @@ Loki and Tempo have no container healthcheck: their images are distroless — `g
 ships only `/usr/bin/loki` — so there is no shell, no wget and no curl to run one with. Readiness
 is checked from the host instead.
 
-**After a restart, a `503` from Loki or Tempo is not yet a problem.** Both answer
-`Ingester not ready: waiting for 15s after being ready` until the ingester has joined the ring
-and settled. Measured at 35s on a plain `docker restart`; observed at several minutes on a full
-stack restart against volumes holding a fortnight of data, with Tempo ready long before Loki.
+> [!NOTE]
+> **After a restart, a `503` from Loki or Tempo is not yet a problem.** Both answer
+> `Ingester not ready: waiting for 15s after being ready` until the ingester has joined the ring
+> and settled. Measured at 35s on a plain `docker restart`; observed at several minutes on a full
+> stack restart against volumes holding a fortnight of data, with Tempo ready long before Loki.
+
 Poll rather than assuming a number, and only start looking for a cause once it has been
 minutes *and* the ring is not `ACTIVE`:
 

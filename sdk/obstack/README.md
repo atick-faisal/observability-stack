@@ -3,10 +3,11 @@
 Drop-in observability for FastAPI: structured JSON logs, Prometheus metrics, and OTLP traces
 that all carry the same four identity labels — `app`, `service`, `env`, `host`.
 
-Those four names are the contract. They are spelled identically in every signal so Grafana can
-jump from a metric to a trace to a log line without renaming anything. See
-[`docs/labels.md`](../../docs/labels.md) — if this README and that document ever disagree, that
-document wins.
+> [!IMPORTANT]
+> Those four names are the contract. They are spelled identically in every signal so Grafana can
+> jump from a metric to a trace to a log line without renaming anything. See
+> [`docs/labels.md`](../../docs/labels.md) — if this README and that document ever disagree, that
+> document wins.
 
 ## Install
 
@@ -108,13 +109,14 @@ of the timing during a migration; the SDK will not override an explicit value.
 
 ## Running multiple workers
 
-**One worker per container.** Scale by running more containers, not more workers.
-
-`uvicorn --workers N` and `fastapi run --workers N` fork N processes that share one listening
-socket. Each holds its own `CollectorRegistry`, so consecutive scrapes land on different workers
-and a counter appears to move *backwards* — which Prometheus reads as a counter reset, making
-`rate()` and every dashboard built on it quietly wrong. Nothing logs an error; the graphs are just
-false.
+> [!WARNING]
+> **One worker per container.** Scale by running more containers, not more workers.
+>
+> `uvicorn --workers N` and `fastapi run --workers N` fork N processes that share one listening
+> socket. Each holds its own `CollectorRegistry`, so consecutive scrapes land on different
+> workers and a counter appears to move *backwards* — which Prometheus reads as a counter reset,
+> making `rate()` and every dashboard built on it quietly wrong. Nothing logs an error; the
+> graphs are just false.
 
 The instance-local registry does not save you here: the problem is one endpoint answering from N
 independent processes. If you must run multiple workers in one container, set
