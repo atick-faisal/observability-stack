@@ -9,6 +9,7 @@ cp .env.lgtm.example .env.lgtm    # set GF_ADMIN_PASSWORD; OBS_DOMAIN can stay e
 make demo-up
 ```
 
+> [!IMPORTANT]
 > **Every env file the Makefile reads is local.** `.env.lgtm`, `.env.glitchtip` and
 > `agent/.env.agent` hold local values and nothing else. What goes into a deploy lives beside them
 > with a `.production` suffix — `.env.glitchtip.production`, `agent/.env.agent.production` — and is
@@ -105,6 +106,7 @@ serves its built-in self-signed certificate and the script uses `curl -k`. `ACME
 overridden to the staging CA in this mode, because the production CA counts 5 failed validations
 per hostname per hour against you.
 
+> [!WARNING]
 > **The DNS-shadowing trap.** `compose.edge.yml` gives its Traefik container network aliases for
 > `ingest.${OBS_DOMAIN}` and `grafana.${OBS_DOMAIN}` on the `obs` network, so the demo agent can
 > reach it by the same hostname a real deploy would use. If `.env.lgtm`'s `OBS_DOMAIN` is ever
@@ -151,9 +153,10 @@ before any view runs.
 make demo-down      # removes only the demo's own volumes
 ```
 
-Deliberately not `down -v`. That would remove every volume in the merged project, including
-`grafana_data` — and `grafana.db` holds the admin account, which is created exactly once from
-`GF_ADMIN_PASSWORD` and never re-read.
+> [!CAUTION]
+> Deliberately not `down -v`. That would remove every volume in the merged project, including
+> `grafana_data` — and `grafana.db` holds the admin account, which is created exactly once from
+> `GF_ADMIN_PASSWORD` and never re-read.
 
 ## macOS caveats
 

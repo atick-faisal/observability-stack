@@ -69,9 +69,10 @@ container belonging to `asset-management` is `app=asset-management, service=db` 
 
 ### The port must be exposed
 
-This is the first thing that goes wrong. The agent matches `obs.metrics.port` against Docker's
-port metadata, which means `EXPOSE` in the image or `expose:` in Compose. **Publishing** the port
-(`ports:`) is neither required nor wanted — the app should expose nothing to the host.
+> [!IMPORTANT]
+> This is the first thing that goes wrong. The agent matches `obs.metrics.port` against Docker's
+> port metadata, which means `EXPOSE` in the image or `expose:` in Compose. **Publishing** the
+> port (`ports:`) is neither required nor wanted — the app should expose nothing to the host.
 
 A container that genuinely cannot expose its port is what `OBS_EXTRA_TARGET` is for:
 
@@ -132,9 +133,10 @@ environment:
   OBS_OTLP_ENDPOINT: http://alloy:4317   # the only address the app needs
 ```
 
-`OBS_APP` / `OBS_ENV` / `OBS_HOST` **must match what `.env.agent` says.** Keeping them in one
-file both halves read is the easiest way to guarantee it, and the failure when they drift is not
-an error — it is two sets of series that never join.
+> [!IMPORTANT]
+> `OBS_APP` / `OBS_ENV` / `OBS_HOST` **must match what `.env.agent` says.** Keeping them in one
+> file both halves read is the easiest way to guarantee it, and the failure when they drift is
+> not an error — it is two sets of series that never join.
 
 ## Things that will bite you
 
@@ -152,10 +154,11 @@ series because a container id is unbounded over time; while a recreated containe
 coexists with its predecessor the two collapse onto one series, and Prometheus rejects the write
 with `duplicate sample for timestamp`. It resolves within a scrape or two.
 
-**`OBS_INGEST_TLS_INSECURE` is not a convenience flag.** It disables certificate verification on
-all three writers, which makes the basic auth worthless — the credentials become readable by
-whoever terminates the connection. It exists so this stack's own end-to-end test can push through
-Traefik on a laptop. Leave it alone.
+> [!CAUTION]
+> **`OBS_INGEST_TLS_INSECURE` is not a convenience flag.** It disables certificate verification
+> on all three writers, which makes the basic auth worthless — the credentials become readable by
+> whoever terminates the connection. It exists so this stack's own end-to-end test can push
+> through Traefik on a laptop. Leave it alone.
 
 **`alloy validate` does not build components.** It checks syntax and the component graph, so a
 malformed selector or an unresolvable endpoint passes validation and fails at startup. Watch
