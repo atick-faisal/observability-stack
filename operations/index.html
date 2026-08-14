@@ -1,0 +1,1742 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="An application-independent Grafana LGTM stack. One deployment on a VPS serves every project.">
+      
+      
+      
+        <link rel="canonical" href="https://atick-faisal.github.io/observability-stack/operations/">
+      
+      
+        <link rel="prev" href="../local-dev/">
+      
+      
+        <link rel="next" href="../agent/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.3">
+    
+    
+      
+        <title>Operations - Observability Stack</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#operations" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Observability Stack" class="md-header__button md-logo" aria-label="Observability Stack" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m21.9 8.9-1.7 1-4-6.9 1.7-1zm-12.1-1 3 5.2 6.1-3.5-3-5.2zm1.6 4.8-2-3.5-4.3 2.5 2 3.5zm-9.3 1.9 1 1.7 2.6-1.5-1-1.7zm10-.6-.3-.4-4.3 2.5.3.4c.2.3.5.6.8.8L7 22h2l1.4-4.3h.1L12 22h2l-1.9-5.6c.5-.7.5-1.6 0-2.4"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Observability Stack
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Operations
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9 2C5.13 2 2 5.13 2 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7M6 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H6zm13-8h-2l-3.2 9h1.9l.7-2h3.2l.7 2h1.9zm-2.15 5.65L18 15l1.15 3.65z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7M9 21a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-1H9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="amber"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7M9 21v-1h6v1a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1m3-17a5 5 0 0 0-5 5c0 2.05 1.23 3.81 3 4.58V16h4v-2.42c1.77-.77 3-2.53 3-4.58a5 5 0 0 0-5-5"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/atick-faisal/observability-stack" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M202.1 328.7c0 20.9-10.9 55.1-36.7 55.1s-36.7-34.2-36.7-55.1 10.9-55.1 36.7-55.1 36.7 34.2 36.7 55.1M496 278.2c0 31.9-3.2 65.7-17.5 95-37.9 76.6-142.1 74.8-216.7 74.8-75.8 0-186.2 2.7-225.6-74.8-14.6-29-20.2-63.1-20.2-95 0-41.9 13.9-81.5 41.5-113.6-5.2-15.8-7.7-32.4-7.7-48.8 0-21.5 4.9-32.3 14.6-51.8 45.3 0 74.3 9 108.8 36 29-6.9 58.8-10 88.7-10 27 0 54.2 2.9 80.4 9.2 34-26.7 63-35.2 107.8-35.2 9.8 19.5 14.6 30.3 14.6 51.8 0 16.4-2.6 32.7-7.7 48.2 27.5 32.4 39 72.3 39 114.2m-64.3 50.5c0-43.9-26.7-82.6-73.5-82.6-18.9 0-37 3.4-56 6-14.9 2.3-29.8 3.2-45.1 3.2-15.2 0-30.1-.9-45.1-3.2-18.7-2.6-37-6-56-6-46.8 0-73.5 38.7-73.5 82.6 0 87.8 80.4 101.3 150.4 101.3h48.2c70.3 0 150.6-13.4 150.6-101.3m-82.6-55.1c-25.8 0-36.7 34.2-36.7 55.1s10.9 55.1 36.7 55.1 36.7-34.2 36.7-55.1-10.9-55.1-36.7-55.1"/></svg>
+  </div>
+  <div class="md-source__repository">
+    atick-faisal/observability-stack
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../labels/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Label Contract
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../deploy-server/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../agent/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Observability Stack" class="md-nav__button md-logo" aria-label="Observability Stack" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m21.9 8.9-1.7 1-4-6.9 1.7-1zm-12.1-1 3 5.2 6.1-3.5-3-5.2zm1.6 4.8-2-3.5-4.3 2.5 2 3.5zm-9.3 1.9 1 1.7 2.6-1.5-1-1.7zm10-.6-.3-.4-4.3 2.5.3.4c.2.3.5.6.8.8L7 22h2l1.4-4.3h.1L12 22h2l-1.9-5.6c.5-.7.5-1.6 0-2.4"/></svg>
+
+    </a>
+    Observability Stack
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/atick-faisal/observability-stack" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M202.1 328.7c0 20.9-10.9 55.1-36.7 55.1s-36.7-34.2-36.7-55.1 10.9-55.1 36.7-55.1 36.7 34.2 36.7 55.1M496 278.2c0 31.9-3.2 65.7-17.5 95-37.9 76.6-142.1 74.8-216.7 74.8-75.8 0-186.2 2.7-225.6-74.8-14.6-29-20.2-63.1-20.2-95 0-41.9 13.9-81.5 41.5-113.6-5.2-15.8-7.7-32.4-7.7-48.8 0-21.5 4.9-32.3 14.6-51.8 45.3 0 74.3 9 108.8 36 29-6.9 58.8-10 88.7-10 27 0 54.2 2.9 80.4 9.2 34-26.7 63-35.2 107.8-35.2 9.8 19.5 14.6 30.3 14.6 51.8 0 16.4-2.6 32.7-7.7 48.2 27.5 32.4 39 72.3 39 114.2m-64.3 50.5c0-43.9-26.7-82.6-73.5-82.6-18.9 0-37 3.4-56 6-14.9 2.3-29.8 3.2-45.1 3.2-15.2 0-30.1-.9-45.1-3.2-18.7-2.6-37-6-56-6-46.8 0-73.5 38.7-73.5 82.6 0 87.8 80.4 101.3 150.4 101.3h48.2c70.3 0 150.6-13.4 150.6-101.3m-82.6-55.1c-25.8 0-36.7 34.2-36.7 55.1s10.9 55.1 36.7 55.1 36.7-34.2 36.7-55.1-10.9-55.1-36.7-55.1"/></svg>
+  </div>
+  <div class="md-source__repository">
+    atick-faisal/observability-stack
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../labels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Label Contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deploy-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deploy the Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../onboard-app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Onboard an App
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../local-dev/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-retention-and-disk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Retention and disk
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Retention and disk">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-windows-that-must-stay-wider-than-the-agents-buffers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The windows that must stay wider than the agent's buffers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-disk-gets-tight" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When disk gets tight
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-backup-and-restore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Backup and restore
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Backup and restore">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#verifying-a-restore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verifying a restore
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-cardinality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Cardinality
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-do-not-re-enable-tempo-local-blocks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Do not re-enable Tempo local-blocks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-pinned-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Pinned images
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Pinned images">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#upgrading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upgrading
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-project-name-asymmetry-between-the-two-stacks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Project-name asymmetry between the two stacks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-the-trap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. The $ trap
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-health-and-first-response" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Health and first response
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-out-of-scope-for-v1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Out of scope for v1
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-memory-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Memory limits
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python SDK
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-retention-and-disk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Retention and disk
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Retention and disk">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-windows-that-must-stay-wider-than-the-agents-buffers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The windows that must stay wider than the agent's buffers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-disk-gets-tight" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When disk gets tight
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-backup-and-restore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Backup and restore
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Backup and restore">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#verifying-a-restore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verifying a restore
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-cardinality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Cardinality
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-do-not-re-enable-tempo-local-blocks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Do not re-enable Tempo local-blocks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-pinned-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Pinned images
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Pinned images">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#upgrading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upgrading
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-project-name-asymmetry-between-the-two-stacks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Project-name asymmetry between the two stacks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-the-trap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. The $ trap
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-health-and-first-response" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Health and first response
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-out-of-scope-for-v1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Out of scope for v1
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-memory-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Memory limits
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href=".." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../deploy-server/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Guides
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="operations">Operations<a class="headerlink" href="#operations" title="Permanent link">&para;</a></h1>
+<p>Running the server after it is deployed: what expires when, what to back up, what makes it fall
+over, and what to be careful about when upgrading.</p>
+<hr />
+<h2 id="1-retention-and-disk">1. Retention and disk<a class="headerlink" href="#1-retention-and-disk" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>Kept</th>
+<th>Where set</th>
+<th>Also capped by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Metrics</td>
+<td><strong>30d</strong></td>
+<td><code>compose.lgtm.yml</code> → <code>--storage.tsdb.retention.time</code></td>
+<td><code>--storage.tsdb.retention.size=25GB</code></td>
+</tr>
+<tr>
+<td>Logs</td>
+<td><strong>336h</strong> (14d)</td>
+<td><code>lgtm/loki/loki-config.yaml</code> → <code>limits_config.retention_period</code></td>
+<td><code>ingestion_rate_mb: 16</code>, burst 32</td>
+</tr>
+<tr>
+<td>Traces</td>
+<td><strong>168h</strong> (7d)</td>
+<td><code>lgtm/tempo/tempo-config.yaml</code> → <code>block_retention</code></td>
+<td></td>
+</tr>
+<tr>
+<td>Errors</td>
+<td><strong>30d</strong></td>
+<td><code>.env.glitchtip</code> → <code>GLITCHTIP_RETENTION_DAYS</code></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Whichever of time and size hits first wins for Prometheus. Loki's retention needs
+<code>compactor.retention_enabled: true</code>, which is set — without it <code>retention_period</code> is inert and
+the disk grows forever.</p>
+<p>GlitchTip's 30 days is matched to Prometheus deliberately rather than left at its 90-day default:
+an error you cannot pull up the metrics, logs and trace for is an error you cannot investigate,
+and those expire at 30d / 14d / 7d.</p>
+<h3 id="the-windows-that-must-stay-wider-than-the-agents-buffers">The windows that must stay wider than the agent's buffers<a class="headerlink" href="#the-windows-that-must-stay-wider-than-the-agents-buffers" title="Permanent link">&para;</a></h3>
+<p>The agent buffers all three signals to disk through an outage and replays them <strong>with their
+original timestamps</strong>. A server that rejects that replay as too old is worse than no buffer,
+because it looks like it worked — the agent reports success and the gap is permanent.</p>
+<p><strong>The agent's buffer is the authoritative number.</strong> It is the one that says how long an outage
+can run; each server-side window follows it, and must be at least as wide.</p>
+<table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>Agent holds</th>
+<th>Server accepts</th>
+<th>Margin</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>metrics</td>
+<td>8h WAL (<code>max_keepalive_time</code>)</td>
+<td><code>out_of_order_time_window: 8h</code> (<code>prometheus.yml</code>)</td>
+<td>exactly equal</td>
+</tr>
+<tr>
+<td>logs</td>
+<td>8h WAL (<code>max_segment_age</code>), 20 retries ≈ 1h per batch</td>
+<td><code>reject_old_samples_max_age: 168h</code> (<code>loki-config.yaml</code>)</td>
+<td>21×</td>
+</tr>
+<tr>
+<td>traces</td>
+<td>10 000 batches on disk</td>
+<td>any timestamp — Tempo has no window</td>
+<td>unbounded</td>
+</tr>
+</tbody>
+</table>
+<p>Shortening either server-side value without shortening the agent's buffer is how you get a
+silent hole. <code>make verify-resilience</code> is the regression test.</p>
+<blockquote>
+<p><strong>The metrics row was <code>8h</code> against <code>2h</code> until this was reconciled</strong>, and the reason it never
+showed up is worth keeping. A single agent replays <em>in order</em> into a head whose max time is the
+moment it went down, so it barely touches the out-of-order path — the 2h window was almost never
+the thing being tested. What the window actually protects is a <strong>second</strong> agent's replay landing
+against the first agent's live writes, which is the multi-app case, and multi-app is the premise
+of this stack rather than an edge case. With two app hosts, an outage longer than two hours on
+one of them was a permanent gap that nothing reported.</p>
+<p>Prometheus moved rather than the agent because widening is close to free: the out-of-order head
+holds only samples actually received out of order, so it costs head memory during the replay it
+exists for and nothing in steady state. Lowering the agent to 2h would have been the other
+defensible choice, at the cost of replay depth.</p>
+<p><code>make verify-resilience</code> (<code>make demo-up SECOND_AGENT=1</code> first) now also runs a second, independent
+agent alongside the first. Its outage is a network disconnect from the server, not a container
+stop — Alloy pulls metrics from the app, so a stopped agent would not be scraping and would have
+nothing to replay — and it is timed short (90s by default) because the first agent's live writes
+never stop, so the head has already moved past agent 2's buffered timestamps the moment it
+reconnects. That is what a single agent, however long its own outage runs, structurally cannot
+produce. One side effect worth knowing if you go looking: two agents sharing one Docker host also
+cross-collect each other's container logs (Alloy's log discovery has no per-agent network filter,
+unlike its metrics scrape) — harmless for the checks, which query by full <code>app</code>+<code>service</code> label,
+but expected noise if you're inspecting log volume in the demo.</p>
+</blockquote>
+<h3 id="when-disk-gets-tight">When disk gets tight<a class="headerlink" href="#when-disk-gets-tight" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span id="__span-0-1">docker<span class="w"> </span>system<span class="w"> </span>df<span class="w"> </span>-v<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>observability
+</span></code></pre></div>
+<p><code>prometheus_data</code> and <code>tempo_data</code> are the two that grow. Lower <code>retention.size</code> before lowering
+<code>retention.time</code> — a size cap deletes oldest-first and takes effect immediately, while a time
+change waits for the next compaction.</p>
+<h2 id="2-backup-and-restore">2. Backup and restore<a class="headerlink" href="#2-backup-and-restore" title="Permanent link">&para;</a></h2>
+<p>Dashboards are files in git, so the irreplaceable state is smaller than it looks: <code>grafana.db</code>
+(the admin account, users, annotations, alert state) and GlitchTip's Postgres. Those two are the
+default set.</p>
+<div class="highlight"><pre><span></span><code><span id="__span-1-1">make<span class="w"> </span>backup<span class="w">                                   </span><span class="c1"># the irreplaceable set</span>
+</span><span id="__span-1-2">make<span class="w"> </span>backup<span class="w"> </span><span class="nv">ARGS</span><span class="o">=</span><span class="s2">&quot;--all --keep 7&quot;</span><span class="w">             </span><span class="c1"># ...plus the three TSDBs, keeping the newest 7</span>
+</span><span id="__span-1-3">make<span class="w"> </span>restore<span class="w"> </span><span class="nv">DIR</span><span class="o">=</span>backups/&lt;stamp&gt;<span class="w">              </span><span class="c1"># dry run: prints what it would replace</span>
+</span><span id="__span-1-4">make<span class="w"> </span>restore<span class="w"> </span><span class="nv">DIR</span><span class="o">=</span>backups/&lt;stamp&gt;<span class="w"> </span><span class="nv">ARGS</span><span class="o">=</span>--yes<span class="w">   </span><span class="c1"># and now for real</span>
+</span></code></pre></div>
+<p>Each volume is copied the way its storage engine allows, which is <strong>not one method</strong>:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>How</th>
+<th>Why not a live tar</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>grafana_data</code></td>
+<td>stop → tar → start</td>
+<td><code>grafana.db</code> is SQLite; a sequential tar of the file and its <code>-wal</code> sidecar can capture a pair that disagree, which restores as a <em>corrupt</em> database rather than an old one. Grafana is a query UI, so the few seconds cost no ingest.</td>
+</tr>
+<tr>
+<td><code>glitchtip_pg_data</code></td>
+<td><code>pg_dump -Fc</code></td>
+<td>Tarring a live <code>PGDATA</code> without <code>pg_backup_start</code> is the textbook way to produce something that will not replay.</td>
+</tr>
+<tr>
+<td>the three TSDBs</td>
+<td>tar, live, opt-in behind <code>--all</code></td>
+<td>All three replay a WAL on start and write blocks temp-then-rename, so a live tar is a power cut, which they are built to survive. Not in the default set: they are retention-bounded and 25 GB-capped, and a routine backup should not be tens of gigabytes.</td>
+</tr>
+</tbody>
+</table>
+<p><code>restore.sh</code> refuses a backup whose <code>SHA256SUMS</code> is missing or does not match. No password passes
+through either script — the GlitchTip dump runs as the container's own <code>$POSTGRES_USER</code> over a
+local socket.</p>
+<p><strong><code>backups/</code> is gitignored, and a backup on the same disk is not a backup.</strong> Copy it off the box.</p>
+<h3 id="verifying-a-restore">Verifying a restore<a class="headerlink" href="#verifying-a-restore" title="Permanent link">&para;</a></h3>
+<p>Two things that look like failures and are not:</p>
+<ul>
+<li><strong><code>grafana.db</code> can never hash equal to its backup.</strong> Grafana writes to it on boot, so a
+  correct restore still produces a different file. The identity marker is the <code>user</code> table's
+  per-install random salt — regenerated by a fresh install, untouched by a restart.</li>
+<li><strong>GlitchTip's event count climbs on its own</strong> if anything is still reporting errors. Measured
+  at 643 → 646 in 16 seconds under the demo load generator. An exact count assertion only means
+  something with the reporters stopped.</li>
+</ul>
+<p>Verified once, for real: <code>restore.sh</code> run against a genuinely destroyed volume
+(<code>docker volume rm observability_grafana_data</code>, recreated empty by compose) put the Grafana
+install fingerprint back from a fresh one, and GlitchTip's event count back from 656 to exactly
+651.</p>
+<h2 id="3-cardinality">3. Cardinality<a class="headerlink" href="#3-cardinality" title="Permanent link">&para;</a></h2>
+<p>Cardinality is the failure mode that kills a Prometheus, and it arrives gradually. What to watch:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-2-1"><span class="k">topk</span><span class="o">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="k">count</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">__name__</span><span class="o">)(</span><span class="p">{</span><span class="nl">__name__</span><span class="o">=~</span><span class="p">&quot;</span><span class="s">.+</span><span class="p">&quot;}</span><span class="o">))</span><span class="w">          </span><span class="c1"># which metrics have the most series</span>
+</span><span id="__span-2-2"><span class="k">sum</span><span class="o">(</span><span class="nv">scrape_samples_scraped</span><span class="o">)</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">job</span><span class="o">)</span><span class="w">                     </span><span class="c1"># which target is growing</span>
+</span><span id="__span-2-3"><span class="nv">prometheus_tsdb_head_series</span><span class="w">                              </span><span class="c1"># the headline number</span>
+</span></code></pre></div>
+<p>The rules that keep it bounded, from <code>docs/labels.md</code>:</p>
+<ul>
+<li><strong>Never a label</strong>: user id, request id, trace id, full URL, raw SQL, timestamp, email. Route
+  <em>templates</em> (<code>/items/{item_id}</code>), never resolved paths.</li>
+<li><strong>cAdvisor is the usual offender.</strong> <code>id</code> is dropped from its series because a container id is
+  unbounded over time, and a <code>--disable_metrics</code> list turns off the per-NUMA-node, per-TCP-state
+  and per-process families. Both are already configured in <code>agent/compose.agent.yml</code>.</li>
+<li>The trade-off of the <code>id</code> labeldrop: while a recreated container briefly coexists with its
+  predecessor, the two collapse onto one series and Prometheus rejects that write with
+  <code>duplicate sample for timestamp</code>. It resolves within a scrape or two. Remove the rule if you
+  would rather have the cardinality than the gap.</li>
+</ul>
+<h2 id="4-do-not-re-enable-tempo-local-blocks">4. Do not re-enable Tempo <code>local-blocks</code><a class="headerlink" href="#4-do-not-re-enable-tempo-local-blocks" title="Permanent link">&para;</a></h2>
+<p><code>lgtm/tempo/tempo-config.yaml</code> runs <code>processors: [service-graphs, span-metrics]</code> and
+deliberately omits <code>local-blocks</code>. It holds completed parquet blocks in RAM for
+<code>complete_block_timeout</code> (1h by default); the reference stack measured <strong>12 GB+</strong> of growth from
+it. Nothing here uses TraceQL metrics queries, which is the only thing it enables. §10 sets
+tempo's <code>mem_limit</code>, which is what turns a re-enabled <code>local-blocks</code> into a restart instead of a
+box-wide OOM.</p>
+<p>If you ever do need TraceQL metrics, budget the memory first and cap <code>complete_block_timeout</code>.</p>
+<h2 id="5-pinned-images">5. Pinned images<a class="headerlink" href="#5-pinned-images" title="Permanent link">&para;</a></h2>
+<p>Every image is pinned to a tag. Three are additionally pinned to a <strong>digest</strong>, because their tags
+float:</p>
+<table>
+<thead>
+<tr>
+<th>Image</th>
+<th>Digest</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>glitchtip/glitchtip:6</code></td>
+<td><code>sha256:95e0e2d6…</code></td>
+<td>The one that matters. <code>:6</code> is a whole minor series, and <code>glitchtip-migrate</code> runs Django migrations on every <code>up</code> — so an unattended bump rewrites the schema of the database holding every error ever reported, and migrations do not run backwards.</td>
+</tr>
+<tr>
+<td><code>traefik:v3.5</code></td>
+<td><code>sha256:16acb89c…</code></td>
+<td>Patch-level drift, but it is the edge: a moved tag takes every route down at once.</td>
+</tr>
+<tr>
+<td><code>valkey/valkey:8-alpine</code></td>
+<td><code>sha256:a0381758…</code></td>
+<td>Patch-level. GlitchTip's queue.</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><span id="__span-3-1">./scripts/resolve-digests.sh<span class="w">            </span><span class="c1"># what the tags resolve to now</span>
+</span><span id="__span-3-2">./scripts/resolve-digests.sh<span class="w"> </span>--check<span class="w">    </span><span class="c1"># exit 1 if a pin has drifted; never edits anything</span>
+</span></code></pre></div>
+<p><code>--check</code> is the one worth running in CI. It reports; re-pinning stays a deliberate act,
+especially for GlitchTip, where it is a decision to run migrations.</p>
+<p><strong><code>postgres:16-alpine</code> (GlitchTip) and <code>postgres:18-alpine</code> (demo) are deliberately left
+floating.</strong> They move only within a major version, the demo one is disposable, and pinning
+GlitchTip's database would introduce a second upgrade schedule that has to be kept compatible
+with the application's by hand. That is a worse failure mode than a patch-level Postgres bump.</p>
+<p>The digest pinned is always the multi-arch <strong>index</strong>, not a platform manifest — see
+<code>scripts/resolve-digests.sh</code>'s header for why the obvious ways to resolve one are both wrong.</p>
+<h3 id="upgrading">Upgrading<a class="headerlink" href="#upgrading" title="Permanent link">&para;</a></h3>
+<ol>
+<li><code>make backup</code> first. For GlitchTip this is not optional — migrations do not run backwards.</li>
+<li>Change the tag <em>and</em> the digest together. A tag with a stale digest is a lie in the file.</li>
+<li><code>make verify-config</code>, then <code>make lgtm-up --build</code>.</li>
+<li>Watch for <code>level=error</code> on a clean boot. Zero is the standard the stack holds itself to.</li>
+</ol>
+<h2 id="6-project-name-asymmetry-between-the-two-stacks">6. Project-name asymmetry between the two stacks<a class="headerlink" href="#6-project-name-asymmetry-between-the-two-stacks" title="Permanent link">&para;</a></h2>
+<p><code>compose.lgtm.yml:1</code> declares <code>name: observability</code>. <code>compose.glitchtip.yml</code> deliberately does
+not — see its header comment.</p>
+<p>Deployed as its own standalone service (its own Dokploy/Coolify entry), <code>compose.glitchtip.yml</code>'s
+project name comes from whatever the platform names that service, since there is no <code>name:</code> to
+fall back on. Set it explicitly on the platform side rather than leaving it to a default.</p>
+<p><strong>Do not "fix" this by adding <code>name:</code> to <code>compose.glitchtip.yml</code>.</strong> Locally, <code>make glitchtip-up</code>
+sets <code>COMPOSE_PROJECT_NAME=observability</code> on the command line specifically so GlitchTip's
+containers join the LGTM stack's <code>obs</code> network — the only thing that makes <code>glitchtip-web:8000</code>
+reachable from an app on the same box. A <code>name:</code> in the file would fight that: on an overlay of
+multiple compose files, the last file's <code>name</code> wins, so it would silently start a second,
+disconnected project instead of joining the first. The file has to take its project name from
+whatever deploys it, which is precisely why it has none of its own.</p>
+<h2 id="7-the-trap">7. The <code>$</code> trap<a class="headerlink" href="#7-the-trap" title="Permanent link">&para;</a></h2>
+<p>Compose interpolates values it reads from <code>--env-file</code>. So in <strong><code>.env.lgtm</code></strong>:</p>
+<ul>
+<li><code>$$</code> collapses to a single <code>$</code> — measured: <code>GF_ADMIN_PASSWORD=ab$$cd</code> reaches the container as
+  <code>ab$cd</code>.</li>
+<li><code>$NAME</code> expands to that variable's value — measured: <code>xy$HOME</code> arrives as <code>xy/Users/ai</code>.</li>
+</ul>
+<p>Two consequences:</p>
+<ul>
+<li><strong>Avoid <code>$</code> in <code>GF_ADMIN_PASSWORD</code> entirely.</strong> The admin user is created exactly once, so the
+  first failed login is also the point at which fixing it means destroying <code>grafana_data</code>.</li>
+<li><strong>Every <code>$</code> in a bcrypt hash in <code>INGEST_USERS</code> must be doubled.</strong> <code>scripts/add-ingest-user.sh</code>
+  prints it doubled already, and <code>scripts/verify-ingest.sh</code> proves the round trip — a
+  mis-escaped hash produces a 401 indistinguishable from a wrong password.</li>
+</ul>
+<p><strong><code>.env.glitchtip</code> is the opposite.</strong> It is handed to containers via <code>env_file:</code> and is <em>not</em>
+interpolated, so a <code>$</code> there is literal. Two files, two rules — which is why they are two files.</p>
+<h2 id="8-health-and-first-response">8. Health and first response<a class="headerlink" href="#8-health-and-first-response" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span id="__span-4-1">curl<span class="w"> </span>-sf<span class="w"> </span>localhost:9090/-/healthy<span class="w">      </span><span class="c1"># prometheus</span>
+</span><span id="__span-4-2">curl<span class="w"> </span>-sf<span class="w"> </span>localhost:3100/ready<span class="w">          </span><span class="c1"># loki</span>
+</span><span id="__span-4-3">curl<span class="w"> </span>-sf<span class="w"> </span>localhost:3200/ready<span class="w">          </span><span class="c1"># tempo</span>
+</span><span id="__span-4-4">curl<span class="w"> </span>-sf<span class="w"> </span>localhost:3000/api/health<span class="w">     </span><span class="c1"># grafana</span>
+</span></code></pre></div>
+<p>Loki and Tempo have no container healthcheck: their images are distroless — <code>grafana/loki:3.7.1</code>
+ships only <code>/usr/bin/loki</code> — so there is no shell, no wget and no curl to run one with. Readiness
+is checked from the host instead.</p>
+<p><strong>After a restart, a <code>503</code> from Loki or Tempo is not yet a problem.</strong> Both answer
+<code>Ingester not ready: waiting for 15s after being ready</code> until the ingester has joined the ring
+and settled. Measured at 35s on a plain <code>docker restart</code>; observed at several minutes on a full
+stack restart against volumes holding a fortnight of data, with Tempo ready long before Loki.
+Poll rather than assuming a number, and only start looking for a cause once it has been
+minutes <em>and</em> the ring is not <code>ACTIVE</code>:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-5-1"><span class="k">until</span><span class="w"> </span>curl<span class="w"> </span>-sf<span class="w"> </span>localhost:3100/ready<span class="w"> </span>&gt;/dev/null<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span>sleep<span class="w"> </span><span class="m">3</span><span class="p">;</span><span class="w"> </span><span class="k">done</span>
+</span><span id="__span-5-2">curl<span class="w"> </span>-s<span class="w"> </span>localhost:3100/ring<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-o<span class="w"> </span>ACTIVE<span class="w">     </span><span class="c1"># what the ingester thinks it is</span>
+</span></code></pre></div>
+<p>Note that Loki keeps serving <code>/loki/api/v1/labels</code> and <code>/metrics</code> throughout, so "Loki is up" and
+"Loki is ready" are genuinely different questions.</p>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>First thing to check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>One app's metrics stop, logs continue</td>
+<td>That app's ingest credential, and its <code>expose:</code> — see <code>onboard-app.md</code>.</td>
+</tr>
+<tr>
+<td>Everything from one host stops</td>
+<td>The clock on that host. Loki rejects future-dated samples outright.</td>
+</tr>
+<tr>
+<td><code>duplicate sample for timestamp</code></td>
+<td>A container on two networks, scraped twice. Set <code>OBS_DOCKER_NETWORK</code> on that agent.</td>
+</tr>
+<tr>
+<td>Logs arrive with a seventh stream label</td>
+<td><code>discover_service_name</code> re-enabled somewhere. It must stay <code>[]</code>.</td>
+</tr>
+<tr>
+<td>Grafana graphs blank after a rename</td>
+<td><code>make verify-dashboards</code> — it names the panel.</td>
+</tr>
+</tbody>
+</table>
+<p>Traefik's access log is JSON and names the ingest user on every request, so push volume is
+attributable per app and a 401 tells you which credential.</p>
+<h2 id="9-out-of-scope-for-v1">9. Out of scope for v1<a class="headerlink" href="#9-out-of-scope-for-v1" title="Permanent link">&para;</a></h2>
+<p>Listed so their absence reads as a decision rather than an oversight:</p>
+<ul>
+<li>Stack self-monitoring dashboards — the agent does not collect its own logs, and nothing watches
+  the watcher. Read them with <code>docker compose logs alloy</code>.</li>
+<li>Grafana alerting and contact-point provisioning. The <code>alerting/</code> provisioning directory exists
+  and is empty.</li>
+<li>Pyroscope profiling.</li>
+<li>Mimir, or any multi-tenancy. Basic auth does not enforce label integrity — a credential for one
+  app can write another app's labels. The upgrade path is <code>X-Scope-OrgID</code>, documented in
+  <code>docs/archive/PLAN.md</code> §4.</li>
+<li>Community dashboard vendoring.</li>
+<li>HA. Single node, filesystem storage. §2 is the answer, and it is a real one only if the backups
+  leave the box.</li>
+</ul>
+<h2 id="10-memory-limits">10. Memory limits<a class="headerlink" href="#10-memory-limits" title="Permanent link">&para;</a></h2>
+<p>Every service carries a <code>mem_limit</code>. Without one, any single component can take the whole box: a
+wide Loki query, Tempo's compactor, GlitchTip's Celery workers, or Prometheus on a cardinality
+spike. The limit changes what that failure costs — an OOMKilled Prometheus replays its WAL and
+loses a bounded amount; an OOMKilled box loses everything on it, including the agent buffers on any
+app host that shares it. A limit converts the second failure into the first.</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th><code>mem_limit</code></th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>prometheus</td>
+<td><code>1g</code></td>
+<td>The one most likely to grow: cardinality, plus the 8h out-of-order head (§1).</td>
+</tr>
+<tr>
+<td>loki</td>
+<td><code>512m</code></td>
+<td></td>
+</tr>
+<tr>
+<td>tempo</td>
+<td><code>512m</code></td>
+<td>Bounded specifically because <code>local-blocks</code> stays off (§4) — this limit is what turns a re-enabled <code>local-blocks</code> into a restart instead of a box-wide OOM.</td>
+</tr>
+<tr>
+<td>grafana</td>
+<td><code>256m</code></td>
+<td>Query-time aggregation on a wide dashboard is the spike case.</td>
+</tr>
+<tr>
+<td>traefik</td>
+<td><code>128m</code></td>
+<td>Reverse proxy plus JSON access logging. Watch it if request volume grows a lot.</td>
+</tr>
+<tr>
+<td>glitchtip-postgres</td>
+<td><code>512m</code></td>
+<td></td>
+</tr>
+<tr>
+<td>glitchtip-valkey</td>
+<td><code>128m</code></td>
+<td>Queue and cache; small working set.</td>
+</tr>
+<tr>
+<td>glitchtip-web / -worker / -migrate</td>
+<td><code>512m</code> each</td>
+<td>Uniform, via the <code>x-glitchtip-app</code> anchor. <code>CELERY_WORKER_AUTOSCALE</code> is already capped at <code>1,3</code> for the same reason — the worker isn't meant to want more than this. <code>-migrate</code> is one-shot and exits before its limit matters.</td>
+</tr>
+<tr>
+<td>alloy (agent)</td>
+<td><code>256m</code></td>
+<td>Runs on the app host, not this one.</td>
+</tr>
+<tr>
+<td>cadvisor</td>
+<td><code>128m</code></td>
+<td></td>
+</tr>
+<tr>
+<td>postgres-exporter</td>
+<td><code>64m</code></td>
+<td></td>
+</tr>
+<tr>
+<td>demo-db / demo-api / demo-loadgen</td>
+<td><code>256m</code> / <code>128m</code> / <code>96m</code></td>
+<td>Local only. <code>demo-loadgen</code> measured at 73% of a <code>64m</code> limit within minutes of <code>demo-up</code>, so it got the extra margin.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Budget check</strong>, against §1 of <code>docs/deploy-server.md</code> ("4 GB works for a handful of apps"): LGTM
+alone — prometheus + loki + tempo + grafana — totals 2.25 GB, leaving headroom for the OS and the
+Docker daemon; <code>EDGE=1</code> adds traefik's 128m on top. GlitchTip, deployed as its own service, totals
+about 1.66 GB steady-state (web + worker + postgres + valkey; migrate is transient and exits before
+its limit is concurrent with the others) — comfortably less than the LGTM box, which fits it being
+the smaller of the two stacks.</p>
+<p>These are starting points, not measurements. Watch <code>docker stats</code> under real traffic, and once
+<code>container_spec_memory_limit_bytes</code> is non-zero — it reports zero for every container while nothing
+sets a limit — the "memory as % of limit" Grafana panel dropped during development for exactly that
+reason becomes viable again. A container that gets OOMKilled routinely is the signal to raise its
+limit, not evidence the limit was wrong to set.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../local-dev/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Local Development">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Local Development
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../agent/" class="md-footer__link md-footer__link--next" aria-label="Next: Agent">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Agent
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.annotate", "content.code.copy", "content.footnote.tooltips", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.instant.prefetch", "navigation.instant.progress", "navigation.path", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

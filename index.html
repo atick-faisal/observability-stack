@@ -1,0 +1,1295 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="An application-independent Grafana LGTM stack. One deployment on a VPS serves every project.">
+      
+      
+      
+        <link rel="canonical" href="https://atick-faisal.github.io/observability-stack/">
+      
+      
+      
+        <link rel="next" href="labels/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.3">
+    
+    
+      
+        <title>Observability Stack</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#observability-stack" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="." title="Observability Stack" class="md-header__button md-logo" aria-label="Observability Stack" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m21.9 8.9-1.7 1-4-6.9 1.7-1zm-12.1-1 3 5.2 6.1-3.5-3-5.2zm1.6 4.8-2-3.5-4.3 2.5 2 3.5zm-9.3 1.9 1 1.7 2.6-1.5-1-1.7zm10-.6-.3-.4-4.3 2.5.3.4c.2.3.5.6.8.8L7 22h2l1.4-4.3h.1L12 22h2l-1.9-5.6c.5-.7.5-1.6 0-2.4"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Observability Stack
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Home
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9 2C5.13 2 2 5.13 2 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7M6 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H6zm13-8h-2l-3.2 9h1.9l.7-2h3.2l.7 2h1.9zm-2.15 5.65L18 15l1.15 3.65z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7M9 21a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-1H9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="amber"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7M9 21v-1h6v1a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1m3-17a5 5 0 0 0-5 5c0 2.05 1.23 3.81 3 4.58V16h4v-2.42c1.77-.77 3-2.53 3-4.58a5 5 0 0 0-5-5"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/atick-faisal/observability-stack" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M202.1 328.7c0 20.9-10.9 55.1-36.7 55.1s-36.7-34.2-36.7-55.1 10.9-55.1 36.7-55.1 36.7 34.2 36.7 55.1M496 278.2c0 31.9-3.2 65.7-17.5 95-37.9 76.6-142.1 74.8-216.7 74.8-75.8 0-186.2 2.7-225.6-74.8-14.6-29-20.2-63.1-20.2-95 0-41.9 13.9-81.5 41.5-113.6-5.2-15.8-7.7-32.4-7.7-48.8 0-21.5 4.9-32.3 14.6-51.8 45.3 0 74.3 9 108.8 36 29-6.9 58.8-10 88.7-10 27 0 54.2 2.9 80.4 9.2 34-26.7 63-35.2 107.8-35.2 9.8 19.5 14.6 30.3 14.6 51.8 0 16.4-2.6 32.7-7.7 48.2 27.5 32.4 39 72.3 39 114.2m-64.3 50.5c0-43.9-26.7-82.6-73.5-82.6-18.9 0-37 3.4-56 6-14.9 2.3-29.8 3.2-45.1 3.2-15.2 0-30.1-.9-45.1-3.2-18.7-2.6-37-6-56-6-46.8 0-73.5 38.7-73.5 82.6 0 87.8 80.4 101.3 150.4 101.3h48.2c70.3 0 150.6-13.4 150.6-101.3m-82.6-55.1c-25.8 0-36.7 34.2-36.7 55.1s10.9 55.1 36.7 55.1 36.7-34.2 36.7-55.1-10.9-55.1-36.7-55.1"/></svg>
+  </div>
+  <div class="md-source__repository">
+    atick-faisal/observability-stack
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="labels/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Label Contract
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="deploy-server/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="agent/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="." title="Observability Stack" class="md-nav__button md-logo" aria-label="Observability Stack" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m21.9 8.9-1.7 1-4-6.9 1.7-1zm-12.1-1 3 5.2 6.1-3.5-3-5.2zm1.6 4.8-2-3.5-4.3 2.5 2 3.5zm-9.3 1.9 1 1.7 2.6-1.5-1-1.7zm10-.6-.3-.4-4.3 2.5.3.4c.2.3.5.6.8.8L7 22h2l1.4-4.3h.1L12 22h2l-1.9-5.6c.5-.7.5-1.6 0-2.4"/></svg>
+
+    </a>
+    Observability Stack
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/atick-faisal/observability-stack" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M202.1 328.7c0 20.9-10.9 55.1-36.7 55.1s-36.7-34.2-36.7-55.1 10.9-55.1 36.7-55.1 36.7 34.2 36.7 55.1M496 278.2c0 31.9-3.2 65.7-17.5 95-37.9 76.6-142.1 74.8-216.7 74.8-75.8 0-186.2 2.7-225.6-74.8-14.6-29-20.2-63.1-20.2-95 0-41.9 13.9-81.5 41.5-113.6-5.2-15.8-7.7-32.4-7.7-48.8 0-21.5 4.9-32.3 14.6-51.8 45.3 0 74.3 9 108.8 36 29-6.9 58.8-10 88.7-10 27 0 54.2 2.9 80.4 9.2 34-26.7 63-35.2 107.8-35.2 9.8 19.5 14.6 30.3 14.6 51.8 0 16.4-2.6 32.7-7.7 48.2 27.5 32.4 39 72.3 39 114.2m-64.3 50.5c0-43.9-26.7-82.6-73.5-82.6-18.9 0-37 3.4-56 6-14.9 2.3-29.8 3.2-45.1 3.2-15.2 0-30.1-.9-45.1-3.2-18.7-2.6-37-6-56-6-46.8 0-73.5 38.7-73.5 82.6 0 87.8 80.4 101.3 150.4 101.3h48.2c70.3 0 150.6-13.4 150.6-101.3m-82.6-55.1c-25.8 0-36.7 34.2-36.7 55.1s10.9 55.1 36.7 55.1 36.7-34.2 36.7-55.1-10.9-55.1-36.7-55.1"/></svg>
+  </div>
+  <div class="md-source__repository">
+    atick-faisal/observability-stack
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="." class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-you-get" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ✨ What You Get
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-two-halves" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🏗️ The Two Halves
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quickstart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🚀 Quickstart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#onboarding-an-app" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        📦 Onboarding an App
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#surviving-an-outage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🧯 Surviving an Outage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backup-restore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        💾 Backup &amp; Restore
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dashboards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        📊 Dashboards
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        📚 Documentation
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="labels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Label Contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="deploy-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deploy the Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="onboard-app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Onboard an App
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="local-dev/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="sdk/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python SDK
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-you-get" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ✨ What You Get
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-two-halves" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🏗️ The Two Halves
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quickstart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🚀 Quickstart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#onboarding-an-app" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        📦 Onboarding an App
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#surviving-an-outage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🧯 Surviving an Outage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backup-restore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        💾 Backup &amp; Restore
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dashboards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        📊 Dashboards
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        📚 Documentation
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<div align="center"><a href="https://donate.unrwa.org/int/en/general"><img src="https://raw.githubusercontent.com/Safouene1/support-palestine-banner/master/banner-support.svg" alt="Support Palestine" style="width: 100%;"></a></div>
+
+<h1 id="observability-stack">🔭 Observability Stack<a class="headerlink" href="#observability-stack" title="Permanent link">&para;</a></h1>
+<p align="center">
+An application-independent Grafana LGTM stack. One deployment on a VPS serves every project.
+</p>
+
+<p align="center">
+    <img src="https://img.shields.io/badge/Grafana-Dashboards-b7bdf8?style=for-the-badge&colorA=363a4f&colorB=b7bdf8&logo=grafana&logoColor=white"/>
+    <img src="https://img.shields.io/badge/Prometheus-Metrics-f5a97f?style=for-the-badge&colorA=363a4f&colorB=f5a97f&logo=prometheus&logoColor=white"/>
+    <img src="https://img.shields.io/badge/Loki-Logs-a6da95?style=for-the-badge&colorA=363a4f&colorB=a6da95&logo=grafana&logoColor=white"/>
+    <img src="https://img.shields.io/badge/Tempo-Traces-8aadf4?style=for-the-badge&colorA=363a4f&colorB=8aadf4&logo=grafana&logoColor=white"/>
+    <img src="https://img.shields.io/badge/Alloy-Agent-e0af68?style=for-the-badge&colorA=363a4f&colorB=e0af68&logo=grafana&logoColor=white"/>
+    <img src="https://img.shields.io/badge/Docker%20Compose-Deploy-89dceb?style=for-the-badge&colorA=363a4f&colorB=89dceb&logo=docker&logoColor=white"/>
+</p>
+
+<p align="center">
+    <a href="https://github.com/atick-faisal/observability-stack/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/atick-faisal/observability-stack/ci.yml?branch=main&style=for-the-badge&colorA=363a4f&colorB=a6da95&label=CI"></a>
+    <a href="https://github.com/atick-faisal/observability-stack/releases"><img src="https://img.shields.io/github/v/release/atick-faisal/observability-stack?style=for-the-badge&colorA=363a4f&colorB=b7bdf8"></a>
+    <a href="https://github.com/atick-faisal/observability-stack/issues"><img src="https://img.shields.io/github/issues/atick-faisal/observability-stack?style=for-the-badge&colorA=363a4f&colorB=f5a97f"></a>
+    <a href="https://github.com/atick-faisal/observability-stack/blob/main/LICENSE"><img src="https://img.shields.io/github/license/atick-faisal/observability-stack?style=for-the-badge&colorA=363a4f&colorB=8aadf4"></a>
+    <a href="https://atick-faisal.github.io/observability-stack/"><img src="https://img.shields.io/badge/Docs-Read-cba6f7?style=for-the-badge&colorA=363a4f&colorB=cba6f7&logo=materialformkdocs&logoColor=white"></a>
+</p>
+
+<p><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./diagrams/architecture-dark.png">
+  <img alt="On the app host, a FastAPI app, Postgres and cAdvisor plus host metrics all feed one Alloy container, which buffers to disk and makes a single authenticated HTTPS push to Traefik on the observability VPS. Traefik routes /api/v1/write to Prometheus, /loki/api/v1/push to Loki and /v1/traces to Tempo; Grafana queries all three. Errors go directly from the app to an opt-in GlitchTip." src="./diagrams/architecture.png">
+</picture></p>
+<p>Onboarding a new FastAPI + Postgres app is four steps: copy <code>agent/</code>, add a few Docker labels,
+<code>uv add obstack</code>, one function call.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>Status: pre-v1.</strong> Current milestone: <strong>M10 — ship</strong>. Everything below is built and verified
+against a local end-to-end run; what remains is the first real VPS deploy, the first onboarded
+app, and the <code>v0.1.0</code> tag.</p>
+</div>
+<h2 id="what-you-get">✨ What You Get<a class="headerlink" href="#what-you-get" title="Permanent link">&para;</a></h2>
+<ul>
+<li>📊 <strong>Metrics, logs and traces</strong> — Prometheus, Loki and Tempo behind one Grafana, all three
+  carrying the same identity labels so you can jump between them</li>
+<li>🔐 <strong>One authenticated ingest host</strong> — <code>ingest.&lt;domain&gt;</code> exposes three paths and nothing else
+  is reachable from outside</li>
+<li>🏷️ <strong>Docker-label discovery</strong> — the agent finds scrape targets and log streams from labels; no
+  per-app agent config</li>
+<li>💾 <strong>Outage-proof</strong> — the agent buffers all three signals to disk and replays them with their
+  original timestamps</li>
+<li>🐍 <strong>A four-step SDK</strong> — <code>obstack</code> wires up a FastAPI app in one call</li>
+<li>✅ <strong>Verified, not assumed</strong> — <code>make verify-signals</code> / <code>verify-dashboards</code> / <code>verify-resilience</code>
+  fail the build rather than a graph three months later</li>
+<li>🐛 <strong>Opt-in error tracking</strong> — GlitchTip, separate so a metrics-only stack doesn't pay for it</li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">Important</p>
+<p>Read <a href="labels/"><code>docs/labels.md</code></a> first. The four identity labels — <code>app</code>, <code>service</code>,
+<code>env</code>, <code>host</code> — are the contract everything else depends on. If any other document disagrees
+with it, that one wins.</p>
+</div>
+<h2 id="the-two-halves">🏗️ The Two Halves<a class="headerlink" href="#the-two-halves" title="Permanent link">&para;</a></h2>
+<p>Both are deployable independently.</p>
+<p><strong>Server</strong> — Traefik fronts Grafana and GlitchTip (<code>compose.glitchtip.yml</code>) on public subdomains, plus a single
+<code>ingest.&lt;domain&gt;</code> host exposing three authenticated paths that proxy to Prometheus
+remote-write, Loki push, and Tempo OTLP/HTTP. Nothing else is reachable from outside.</p>
+<p><strong>Agent</strong> — one Alloy container per app host. It discovers scrape targets and log streams from
+Docker labels, runs optional cAdvisor / postgres-exporter via Compose profiles, receives OTLP
+traces from the local app, and pushes everything to <code>ingest.&lt;domain&gt;</code> over HTTPS with basic
+auth and local buffering. The app exposes nothing publicly.</p>
+<p><strong><code>compose.lgtm.yml</code> on its own is the deployed shape</strong>: nothing published, each service
+building a small image with its config baked in, and Traefik routing driven by container
+labels. That is what a deploy points at. Set <code>OBS_EDGE_NETWORK</code> / <code>OBS_EDGE_EXTERNAL</code> to
+put it behind a proxy the host already runs, or add <code>compose.edge.yml</code> to bring your own.
+Publishing no port is deliberate: it is what stops the authenticated ingest path from
+being optional.</p>
+<h2 id="quickstart">🚀 Quickstart<a class="headerlink" href="#quickstart" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span id="__span-0-1">cp<span class="w"> </span>.env.lgtm.example<span class="w"> </span>.env.lgtm<span class="w">   </span><span class="c1"># set GF_ADMIN_PASSWORD and OBS_DOMAIN</span>
+</span><span id="__span-0-2">
+</span><span id="__span-0-3">make<span class="w"> </span><span class="nb">help</span><span class="w">          </span><span class="c1"># list targets</span>
+</span><span id="__span-0-4">make<span class="w"> </span>lgtm-up<span class="w">       </span><span class="c1"># start the LGTM stack</span>
+</span><span id="__span-0-5">make<span class="w"> </span>demo-up<span class="w">       </span><span class="c1"># start the local end-to-end demo (app + db + loadgen)</span>
+</span><span id="__span-0-6">make<span class="w"> </span>verify-signals<span class="w">   </span><span class="c1"># assert every signal arrives, with the label contract intact</span>
+</span><span id="__span-0-7">make<span class="w"> </span>verify-dashboards<span class="w">   </span><span class="c1"># assert every panel on every dashboard has data</span>
+</span></code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p><code>make lgtm-up</code> adds <code>compose.lgtm.local.yml</code>, which publishes Grafana <code>:3000</code>, Prometheus
+<code>:9090</code>, Loki <code>:3100</code> and Tempo <code>:3200</code> / <code>:4317</code> / <code>:4318</code> on <code>127.0.0.1</code> and bind-mounts the
+configs so an edit takes effect without a rebuild.</p>
+</div>
+<p>Error tracking is opt-in and separate — five more containers and a second Postgres, which
+a stack that only wants metrics, logs and traces should not pay for:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-1-1">cp<span class="w"> </span>.env.glitchtip.example<span class="w"> </span>.env.glitchtip<span class="w">   </span><span class="c1"># set SECRET_KEY and POSTGRES_PASSWORD</span>
+</span><span id="__span-1-2">make<span class="w"> </span>glitchtip-up<span class="w">                          </span><span class="c1"># GlitchTip on 127.0.0.1:8001, errors.&lt;domain&gt; via Traefik</span>
+</span><span id="__span-1-3">./scripts/verify-errors.sh<span class="w"> </span>--bootstrap<span class="w">     </span><span class="c1"># mint an organisation, a project and a DSN</span>
+</span><span id="__span-1-4"><span class="nv">OBS_ERROR_DSN</span><span class="o">=</span>&lt;the<span class="w"> </span>printed<span class="w"> </span>DSN&gt;<span class="w"> </span>make<span class="w"> </span>demo-up
+</span><span id="__span-1-5">make<span class="w"> </span>verify-errors<span class="w">                         </span><span class="c1"># assert /boom becomes an issue, correctly tagged</span>
+</span></code></pre></div>
+<h2 id="onboarding-an-app">📦 Onboarding an App<a class="headerlink" href="#onboarding-an-app" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span id="__span-2-1"><span class="c1"># 1. copy agent/ into the app repo as observability/, then label the containers</span>
+</span><span id="__span-2-2"><span class="nt">services</span><span class="p">:</span>
+</span><span id="__span-2-3"><span class="w">  </span><span class="nt">api</span><span class="p">:</span>
+</span><span id="__span-2-4"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
+</span><span id="__span-2-5"><span class="w">      </span><span class="nt">obs.service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api</span>
+</span><span id="__span-2-6"><span class="w">      </span><span class="nt">obs.metrics.port</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;8000&quot;</span>
+</span><span id="__span-2-7"><span class="w">      </span><span class="nt">obs.metrics.path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/metrics</span>
+</span><span id="__span-2-8"><span class="w">    </span><span class="nt">expose</span><span class="p">:</span>
+</span><span id="__span-2-9"><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;8000&quot;</span><span class="w">          </span><span class="c1"># the port has to be exposed; publishing it is not needed</span>
+</span></code></pre></div>
+<div class="highlight"><pre><span></span><code><span id="__span-3-1"><span class="c1"># 2. run the agent alongside the app</span>
+</span><span id="__span-3-2">docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>compose.lgtm.yml<span class="w"> </span>-f<span class="w"> </span>observability/compose.agent.yml<span class="w"> </span>up<span class="w"> </span>-d
+</span><span id="__span-3-3">
+</span><span id="__span-3-4"><span class="c1"># 3. add the SDK</span>
+</span><span id="__span-3-5">uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;obstack[grpc,sqlalchemy] @ git+https://github.com/atick-faisal/observability-stack@v0.1.0#subdirectory=sdk/obstack&quot;</span>
+</span></code></pre></div>
+<div class="highlight"><pre><span></span><code><span id="__span-4-1"><span class="c1"># 4. wire it up</span>
+</span><span id="__span-4-2"><span class="kn">from</span><span class="w"> </span><span class="nn">obstack</span><span class="w"> </span><span class="kn">import</span> <span class="n">setup_observability</span>
+</span><span id="__span-4-3">
+</span><span id="__span-4-4"><span class="n">setup_observability</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="n">engine</span><span class="p">)</span>
+</span></code></pre></div>
+<h2 id="surviving-an-outage">🧯 Surviving an Outage<a class="headerlink" href="#surviving-an-outage" title="Permanent link">&para;</a></h2>
+<p>The agent buffers all three signals to disk and replays them with their original timestamps, so
+a VPS that is down for a while leaves a continuous line rather than a hole.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Each buffer has a server-side window that has to be at least as generous — see the table in
+<a href="agent/"><code>agent/README.md</code></a>. A replay the server rejects as too old is worse than no
+buffer at all: it looks like it worked.</p>
+</div>
+<div class="highlight"><pre><span></span><code><span id="__span-5-1">make<span class="w"> </span>verify-resilience<span class="w">   </span><span class="c1"># stops the server for 15 min, asserts no gap in any signal</span>
+</span></code></pre></div>
+<h2 id="backup-restore">💾 Backup &amp; Restore<a class="headerlink" href="#backup-restore" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span id="__span-6-1">make<span class="w"> </span>backup<span class="w">                                   </span><span class="c1"># grafana.db + GlitchTip&#39;s database</span>
+</span><span id="__span-6-2">make<span class="w"> </span>backup<span class="w"> </span><span class="nv">ARGS</span><span class="o">=</span><span class="s2">&quot;--all --keep 7&quot;</span><span class="w">             </span><span class="c1"># ...plus the three TSDBs, keeping the newest 7</span>
+</span><span id="__span-6-3">make<span class="w"> </span>restore<span class="w"> </span><span class="nv">DIR</span><span class="o">=</span>backups/&lt;stamp&gt;<span class="w">              </span><span class="c1"># dry run: prints what it would replace</span>
+</span><span id="__span-6-4">make<span class="w"> </span>restore<span class="w"> </span><span class="nv">DIR</span><span class="o">=</span>backups/&lt;stamp&gt;<span class="w"> </span><span class="nv">ARGS</span><span class="o">=</span>--yes<span class="w">   </span><span class="c1"># and now for real</span>
+</span></code></pre></div>
+<div class="admonition danger">
+<p class="admonition-title">Caution</p>
+<p><code>make restore</code> is a dry run until you add <code>ARGS=--yes</code>. Read what it prints before you do.</p>
+</div>
+<p>Dashboards are files in git, so the irreplaceable state is smaller than it looks: <code>grafana.db</code>
+(the admin account, users, annotations, alert state) and GlitchTip's Postgres. Those two are the
+default set. The TSDBs are opt-in — they are retention-bounded and 25 GB-capped, and a routine
+backup should not be tens of gigabytes. Each is copied the way its storage engine allows rather
+than all three the same way; <code>scripts/backup.sh</code>'s header says which and why.</p>
+<h2 id="dashboards">📊 Dashboards<a class="headerlink" href="#dashboards" title="Permanent link">&para;</a></h2>
+<p>Grafana comes up with all three datasources and the <code>Applications</code> / <code>Databases</code> /
+<code>Infrastructure</code> folders already provisioned. They are read-only by design — dashboards
+are files in git, not UI state.</p>
+<p>Which is why <code>make verify-dashboards</code> exists: an expression that returns nothing renders as
+an empty graph, indistinguishable from a quiet period, and a dashboard nobody can edit in the
+browser is a dashboard nobody notices has gone blank. It runs every panel's query against the
+demo and fails on any that comes back empty, so a rename in <code>docs/labels.md</code> breaks the build
+rather than a graph three months later.</p>
+<h2 id="documentation">📚 Documentation<a class="headerlink" href="#documentation" title="Permanent link">&para;</a></h2>
+<p>All of it is on the <a href="https://atick-faisal.github.io/observability-stack/">documentation site</a>,
+and in this repo:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="labels/"><code>docs/labels.md</code></a></td>
+<td><strong>Read this first.</strong> The label contract everything else depends on.</td>
+</tr>
+<tr>
+<td><a href="sdk/"><code>sdk/obstack/README.md</code></a></td>
+<td>The Python SDK: settings, metric names, what one call gets you.</td>
+</tr>
+<tr>
+<td><a href="agent/"><code>agent/README.md</code></a></td>
+<td>The agent: labels to add, what it collects, what will bite you.</td>
+</tr>
+<tr>
+<td><a href="https://github.com/atick-faisal/observability-stack/tree/main/demo"><code>demo/</code></a></td>
+<td>A worked example of the four steps above — copy it when onboarding.</td>
+</tr>
+<tr>
+<td><a href="onboard-app/"><code>docs/onboard-app.md</code></a></td>
+<td>The four-step diff in detail.</td>
+</tr>
+<tr>
+<td><a href="deploy-server/"><code>docs/deploy-server.md</code></a></td>
+<td>Provisioning, DNS, first <code>up</code>, clock sync.</td>
+</tr>
+<tr>
+<td><a href="local-dev/"><code>docs/local-dev.md</code></a></td>
+<td>The demo stack, the verify scripts, macOS caveats.</td>
+</tr>
+<tr>
+<td><a href="operations/"><code>docs/operations.md</code></a></td>
+<td>Retention, backup/restore, cardinality, upgrades.</td>
+</tr>
+</tbody>
+</table>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/catppuccin/catppuccin/main/assets/footers/gray0_ctp_on_line.svg?sanitize=true" />
+</p>
+
+<p align="center">
+  <a href="https://sites.google.com/view/mchowdhury" target="_blank">Qatar University Machine Learning Group</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/atick-faisal/observability-stack/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/atick-faisal/observability-stack?style=for-the-badge&colorA=363a4f&colorB=b7bdf8"/>
+  </a>
+</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+        
+          
+          <a href="labels/" class="md-footer__link md-footer__link--next" aria-label="Next: Label Contract">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Label Contract
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["content.code.annotate", "content.code.copy", "content.footnote.tooltips", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.instant.prefetch", "navigation.instant.progress", "navigation.path", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

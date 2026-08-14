@@ -1,0 +1,1445 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="An application-independent Grafana LGTM stack. One deployment on a VPS serves every project.">
+      
+      
+      
+        <link rel="canonical" href="https://atick-faisal.github.io/observability-stack/deploy-server/">
+      
+      
+        <link rel="prev" href="../labels/">
+      
+      
+        <link rel="next" href="../onboard-app/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.3">
+    
+    
+      
+        <title>Deploy the Server - Observability Stack</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#deploying-the-server" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Observability Stack" class="md-header__button md-logo" aria-label="Observability Stack" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m21.9 8.9-1.7 1-4-6.9 1.7-1zm-12.1-1 3 5.2 6.1-3.5-3-5.2zm1.6 4.8-2-3.5-4.3 2.5 2 3.5zm-9.3 1.9 1 1.7 2.6-1.5-1-1.7zm10-.6-.3-.4-4.3 2.5.3.4c.2.3.5.6.8.8L7 22h2l1.4-4.3h.1L12 22h2l-1.9-5.6c.5-.7.5-1.6 0-2.4"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Observability Stack
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Deploy the Server
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9 2C5.13 2 2 5.13 2 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7M6 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H6zm13-8h-2l-3.2 9h1.9l.7-2h3.2l.7 2h1.9zm-2.15 5.65L18 15l1.15 3.65z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7M9 21a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-1H9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="amber"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7M9 21v-1h6v1a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1m3-17a5 5 0 0 0-5 5c0 2.05 1.23 3.81 3 4.58V16h4v-2.42c1.77-.77 3-2.53 3-4.58a5 5 0 0 0-5-5"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/atick-faisal/observability-stack" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M202.1 328.7c0 20.9-10.9 55.1-36.7 55.1s-36.7-34.2-36.7-55.1 10.9-55.1 36.7-55.1 36.7 34.2 36.7 55.1M496 278.2c0 31.9-3.2 65.7-17.5 95-37.9 76.6-142.1 74.8-216.7 74.8-75.8 0-186.2 2.7-225.6-74.8-14.6-29-20.2-63.1-20.2-95 0-41.9 13.9-81.5 41.5-113.6-5.2-15.8-7.7-32.4-7.7-48.8 0-21.5 4.9-32.3 14.6-51.8 45.3 0 74.3 9 108.8 36 29-6.9 58.8-10 88.7-10 27 0 54.2 2.9 80.4 9.2 34-26.7 63-35.2 107.8-35.2 9.8 19.5 14.6 30.3 14.6 51.8 0 16.4-2.6 32.7-7.7 48.2 27.5 32.4 39 72.3 39 114.2m-64.3 50.5c0-43.9-26.7-82.6-73.5-82.6-18.9 0-37 3.4-56 6-14.9 2.3-29.8 3.2-45.1 3.2-15.2 0-30.1-.9-45.1-3.2-18.7-2.6-37-6-56-6-46.8 0-73.5 38.7-73.5 82.6 0 87.8 80.4 101.3 150.4 101.3h48.2c70.3 0 150.6-13.4 150.6-101.3m-82.6-55.1c-25.8 0-36.7 34.2-36.7 55.1s10.9 55.1 36.7 55.1 36.7-34.2 36.7-55.1-10.9-55.1-36.7-55.1"/></svg>
+  </div>
+  <div class="md-source__repository">
+    atick-faisal/observability-stack
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../labels/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Label Contract
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../agent/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Observability Stack" class="md-nav__button md-logo" aria-label="Observability Stack" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m21.9 8.9-1.7 1-4-6.9 1.7-1zm-12.1-1 3 5.2 6.1-3.5-3-5.2zm1.6 4.8-2-3.5-4.3 2.5 2 3.5zm-9.3 1.9 1 1.7 2.6-1.5-1-1.7zm10-.6-.3-.4-4.3 2.5.3.4c.2.3.5.6.8.8L7 22h2l1.4-4.3h.1L12 22h2l-1.9-5.6c.5-.7.5-1.6 0-2.4"/></svg>
+
+    </a>
+    Observability Stack
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/atick-faisal/observability-stack" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M202.1 328.7c0 20.9-10.9 55.1-36.7 55.1s-36.7-34.2-36.7-55.1 10.9-55.1 36.7-55.1 36.7 34.2 36.7 55.1M496 278.2c0 31.9-3.2 65.7-17.5 95-37.9 76.6-142.1 74.8-216.7 74.8-75.8 0-186.2 2.7-225.6-74.8-14.6-29-20.2-63.1-20.2-95 0-41.9 13.9-81.5 41.5-113.6-5.2-15.8-7.7-32.4-7.7-48.8 0-21.5 4.9-32.3 14.6-51.8 45.3 0 74.3 9 108.8 36 29-6.9 58.8-10 88.7-10 27 0 54.2 2.9 80.4 9.2 34-26.7 63-35.2 107.8-35.2 9.8 19.5 14.6 30.3 14.6 51.8 0 16.4-2.6 32.7-7.7 48.2 27.5 32.4 39 72.3 39 114.2m-64.3 50.5c0-43.9-26.7-82.6-73.5-82.6-18.9 0-37 3.4-56 6-14.9 2.3-29.8 3.2-45.1 3.2-15.2 0-30.1-.9-45.1-3.2-18.7-2.6-37-6-56-6-46.8 0-73.5 38.7-73.5 82.6 0 87.8 80.4 101.3 150.4 101.3h48.2c70.3 0 150.6-13.4 150.6-101.3m-82.6-55.1c-25.8 0-36.7 34.2-36.7 55.1s10.9 55.1 36.7 55.1 36.7-34.2 36.7-55.1-10.9-55.1-36.7-55.1"/></svg>
+  </div>
+  <div class="md-source__repository">
+    atick-faisal/observability-stack
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../labels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Label Contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deploy the Server
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deploy the Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-what-the-box-needs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. What the box needs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. What the box needs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bound-the-log-files-before-anything-else" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bound the log files before anything else
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-dns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. DNS
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-configure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Configure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-which-edge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Which edge
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-verify-the-deploy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Verify the deploy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-check-the-clock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Check the clock
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-error-tracking-optionally" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Error tracking, optionally
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-after-the-first-deploy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. After the first deploy
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../onboard-app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Onboard an App
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../local-dev/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python SDK
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-what-the-box-needs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. What the box needs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. What the box needs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bound-the-log-files-before-anything-else" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bound the log files before anything else
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-dns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. DNS
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-configure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Configure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-which-edge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Which edge
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-verify-the-deploy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Verify the deploy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-check-the-clock" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Check the clock
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-error-tracking-optionally" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Error tracking, optionally
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-after-the-first-deploy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. After the first deploy
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href=".." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="./" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Guides
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="deploying-the-server">Deploying the server<a class="headerlink" href="#deploying-the-server" title="Permanent link">&para;</a></h1>
+<p>One VPS serves every app. This is the half that receives; <a href="../onboard-app/"><code>onboard-app.md</code></a>
+is the half that sends.</p>
+<p>The whole deployed shape is <code>compose.lgtm.yml</code> on its own — nothing published, each service building a
+small image with its config baked in, routing driven by container labels. Everything below is
+either filling in <code>.env.lgtm</code> or deciding which of two edge shapes you are in.</p>
+<hr />
+<h2 id="1-what-the-box-needs">1. What the box needs<a class="headerlink" href="#1-what-the-box-needs" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RAM</td>
+<td>4 GB works for a handful of apps. Prometheus and Tempo's metrics-generator are the two that grow. <code>docs/operations.md</code> §10 has the per-service <code>mem_limit</code> breakdown this budget assumes.</td>
+</tr>
+<tr>
+<td>Disk</td>
+<td>60 GB. The TSDBs are capped (§4) but GlitchTip's Postgres and the Docker images are not counted in that cap.</td>
+</tr>
+<tr>
+<td>Ports</td>
+<td><code>80</code> and <code>443</code> reachable from the internet. <code>80</code> is not optional — ACME's HTTP-01 challenge uses it, and the redirect to HTTPS keeps it in play.</td>
+</tr>
+<tr>
+<td>Software</td>
+<td>Docker Engine with the Compose plugin. Nothing else — no Python, no Go, no Grafana packages.</td>
+</tr>
+<tr>
+<td>Clock</td>
+<td><code>chrony</code> or <code>systemd-timesyncd</code>, running. See §6; this is the failure that looks like a different failure.</td>
+</tr>
+</tbody>
+</table>
+<p>Nothing in the stack needs root beyond Docker itself, and no service runs as <code>user: "0"</code>.</p>
+<h3 id="bound-the-log-files-before-anything-else">Bound the log files before anything else<a class="headerlink" href="#bound-the-log-files-before-anything-else" title="Permanent link">&para;</a></h3>
+<p>Docker's default <code>json-file</code> driver has <strong>no <code>max-size</code> and no <code>max-file</code></strong> — a container log grows
+until the disk is full. Every compose file here sets a 10 MB × 3 bound per service, but that only
+covers services this repo declares. Set the daemon default too, so anything added later inherits
+one:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-0-1"><span class="c1">// /etc/docker/daemon.json</span>
+</span><span id="__span-0-2"><span class="p">{</span>
+</span><span id="__span-0-3"><span class="w">  </span><span class="nt">&quot;log-driver&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;json-file&quot;</span><span class="p">,</span>
+</span><span id="__span-0-4"><span class="w">  </span><span class="nt">&quot;log-opts&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;max-size&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;10m&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;max-file&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;3&quot;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-0-5"><span class="p">}</span>
+</span></code></pre></div>
+<div class="highlight"><pre><span></span><code><span id="__span-1-1">sudo<span class="w"> </span>systemctl<span class="w"> </span>restart<span class="w"> </span>docker<span class="w">      </span><span class="c1"># existing containers keep their old setting until recreated</span>
+</span></code></pre></div>
+<p>This matters more here than on a typical box. Every stack container carries <code>obs.logs: "false"</code>, so
+the agent does not ship these logs — nothing reads them and nothing truncates them, and they
+accumulate unobserved on the same disk as <code>prometheus_data</code>, <code>loki_data</code>, <code>tempo_data</code> and
+GlitchTip's Postgres. Traefik with <code>--accesslog.format=json</code> is the fastest writer of the set.</p>
+<h2 id="2-dns">2. DNS<a class="headerlink" href="#2-dns" title="Permanent link">&para;</a></h2>
+<p>Three A records, all pointing at the VPS:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-2-1">grafana.&lt;domain&gt;    A    &lt;vps-ip&gt;
+</span><span id="__span-2-2">ingest.&lt;domain&gt;     A    &lt;vps-ip&gt;
+</span><span id="__span-2-3">errors.&lt;domain&gt;     A    &lt;vps-ip&gt;     # only if you run GlitchTip
+</span></code></pre></div>
+<p>They must resolve <strong>before</strong> the first <code>up</code>. Traefik requests a certificate per hostname on
+startup, and Let's Encrypt counts <strong>5 failed validations per hostname per hour</strong> against you on
+the production CA — so a stack brought up against DNS that has not propagated locks itself out
+of certificates for the rest of the hour.</p>
+<p><code>ingest.&lt;domain&gt;</code> is the only one apps ever talk to. It exposes exactly three paths, each
+authenticated; everything else on that host 404s (§5).</p>
+<h2 id="3-configure">3. Configure<a class="headerlink" href="#3-configure" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span id="__span-3-1">git<span class="w"> </span>clone<span class="w"> </span>&lt;this-repo&gt;<span class="w"> </span>observability-stack<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>observability-stack
+</span><span id="__span-3-2">cp<span class="w"> </span>.env.lgtm.example<span class="w"> </span>.env.lgtm
+</span></code></pre></div>
+<p><code>.env.lgtm.example</code> documents every variable inline. Four matter on a first deploy:</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OBS_DOMAIN</code></td>
+<td>The bare domain. The three hostnames are derived from it.</td>
+</tr>
+<tr>
+<td><code>GF_ADMIN_PASSWORD</code></td>
+<td>Read <strong>once</strong>, when Grafana first creates the admin user. Editing it later does nothing.</td>
+</tr>
+<tr>
+<td><code>GF_SERVER_ROOT_URL</code></td>
+<td>Set to <code>https://grafana.&lt;domain&gt;</code>. Share and alert links are built from it, so a wrong value produces links to <code>localhost</code>.</td>
+</tr>
+<tr>
+<td><code>ACME_EMAIL</code></td>
+<td>Only read by <code>compose.edge.yml</code>. Let's Encrypt rejects an address whose domain is not a real TLD.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Do not put a <code>$</code> in <code>GF_ADMIN_PASSWORD</code>.</strong> Compose interpolates values it reads from
+<code>--env-file</code>, so <code>$$</code> collapses to one <code>$</code> and <code>$NAME</code> expands to that variable's value.
+Measured: <code>GF_ADMIN_PASSWORD=ab$$cd</code> reaches Grafana as <code>ab$cd</code>. What you type is not what
+gets set, and because the admin user is created exactly once, the first login failure is also
+the point at which fixing it means destroying <code>grafana_data</code>. The same trap applies to
+<code>INGEST_USERS</code>, where it is handled for you — see §5, and to <code>.env.glitchtip</code> (§7). One rule,
+everywhere: <strong>anything Compose reads from an <code>--env-file</code> or an environment UI is interpolated.</strong>
+Keep generated secrets alphanumeric and it never fires.</p>
+</blockquote>
+<p>Then mint one ingest credential per app+env:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-4-1">./scripts/add-ingest-user.sh<span class="w"> </span>myapp-production
+</span></code></pre></div>
+<p>It prints both halves — what goes in the app host's <code>.env.agent</code>, and the bcrypt hash to append
+to <code>INGEST_USERS</code> here, already <code>$$</code>-doubled. It edits neither file: <code>.env.lgtm</code> may already
+hold other credentials, and a script that rewrites a secrets file is a script that can lose one.</p>
+<p><strong>Replace the default <code>INGEST_USERS</code> value before this is reachable.</strong> It ships as <code>demo:demo</code>,
+which is what the local demo pushes with.</p>
+<h2 id="4-which-edge">4. Which edge<a class="headerlink" href="#4-which-edge" title="Permanent link">&para;</a></h2>
+<p>Two shapes, and picking the wrong one costs you a fight over <code>:443</code>.</p>
+<p><strong>A — nothing else on the box owns <code>:80</code>/<code>:443</code>.</strong> Use ours:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-5-1">docker<span class="w"> </span>compose<span class="w"> </span>--env-file<span class="w"> </span>.env.lgtm<span class="w"> </span>-f<span class="w"> </span>compose.lgtm.yml<span class="w"> </span>-f<span class="w"> </span>compose.edge.yml<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>--build
+</span></code></pre></div>
+<p><strong>B — the host already runs a proxy</strong> (Dokploy, Coolify, an existing Traefik). Deploy
+<code>compose.lgtm.yml</code> alone and point it at that proxy's network:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-6-1"><span class="c1"># in .env.lgtm, or the platform&#39;s environment UI</span>
+</span><span id="__span-6-2"><span class="nv">OBS_EDGE_NETWORK</span><span class="o">=</span>dokploy-network
+</span><span id="__span-6-3"><span class="nv">OBS_EDGE_EXTERNAL</span><span class="o">=</span><span class="nb">true</span>
+</span></code></pre></div>
+<div class="highlight"><pre><span></span><code><span id="__span-7-1">docker<span class="w"> </span>compose<span class="w"> </span>--env-file<span class="w"> </span>.env.lgtm<span class="w"> </span>-f<span class="w"> </span>compose.lgtm.yml<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>--build
+</span></code></pre></div>
+<p>The <code>traefik.*</code> labels are inert without a Traefik reading them, and Traefik ignores containers
+that are not on its own network — so one set of labels serves both shapes and there is no second
+compose file to keep in sync.</p>
+<blockquote>
+<p><strong>What shape B shares.</strong> Everything else on that edge network can reach Prometheus, Loki and
+Tempo <em>directly</em>, bypassing the basic auth Traefik applies. The <code>obs</code> network stays private,
+but the edge network is only as trusted as the host. That is the stated single-owner-box
+assumption in <code>docs/archive/PLAN.md</code> §7, and on a shared host it is a real exposure rather than a
+theoretical one.</p>
+</blockquote>
+<p>A second ACME client contending for <code>:443</code> buys nothing, which is why B is not simply "run ours
+anyway". On a single box the isolation argument is imaginary — the box dying takes both.</p>
+<p>Check what a deploy will actually render, without needing that network to exist locally:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-8-1">make<span class="w"> </span>verify-config
+</span></code></pre></div>
+<h2 id="5-verify-the-deploy">5. Verify the deploy<a class="headerlink" href="#5-verify-the-deploy" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span id="__span-9-1">curl<span class="w"> </span>-sI<span class="w"> </span>https://grafana.&lt;domain&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-1<span class="w">                  </span><span class="c1"># 200, and a Let&#39;s Encrypt chain</span>
+</span><span id="__span-9-2">curl<span class="w"> </span>-sI<span class="w"> </span>-o<span class="w"> </span>/dev/null<span class="w"> </span>-w<span class="w"> </span><span class="s1">&#39;%{http_code}\n&#39;</span><span class="w"> </span>https://ingest.&lt;domain&gt;/api/v1/write<span class="w">   </span><span class="c1"># 401</span>
+</span></code></pre></div>
+<p>A <code>401</code> there is the point of the whole edge. Then, from an app host with a real credential,
+<code>scripts/verify-ingest.sh</code> asserts the full matrix: a wrong credential gets 401, a right one
+reaches the backend, and every path that is not one of the three ingest paths 404s — including
+<code>/api/v1/query</code>, <code>/-/quit</code> and <code>/api/v1/admin/tsdb/delete_series</code>.</p>
+<p>The three ingest paths are the native upstream ones, unrewritten:</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Backend</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/api/v1/write</code></td>
+<td>Prometheus</td>
+<td>remote-write</td>
+</tr>
+<tr>
+<td><code>/loki/api/v1/push</code></td>
+<td>Loki</td>
+<td></td>
+</tr>
+<tr>
+<td><code>/v1/traces</code></td>
+<td>Tempo</td>
+<td>OTLP/<strong>HTTP</strong>, not gRPC — gRPC through Traefik needs h2c passthrough and end-to-end HTTP/2</td>
+</tr>
+</tbody>
+</table>
+<p>A rate limit of 100 req/s average, 200 burst, per client IP sits in front of all three. It is a
+blast-radius guard, not a quota: an agent in a retry loop is indistinguishable from an attack,
+and the cost of being wrong is dropped samples the agent's WAL replays anyway.</p>
+<h2 id="6-check-the-clock">6. Check the clock<a class="headerlink" href="#6-check-the-clock" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span id="__span-10-1">timedatectl<span class="w"> </span>status<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;System clock synchronized|NTP service&#39;</span>
+</span></code></pre></div>
+<p>Both must say <code>yes</code>/<code>active</code>. This is worth its own step because skew does not fail loudly:</p>
+<ul>
+<li>Loki rejects samples too far in the future outright, so an app host running fast simply stops
+  having logs — with a 400 in the agent's log and nothing at all in Grafana.</li>
+<li>A host running slow interleaves its lines wrongly against every other host's, and the log view
+  looks fine. You only find it by noticing a response logged before its request.</li>
+</ul>
+<p>The agent's disk buffers make this worse rather than better, because they replay with the
+original timestamps: a skewed host's backlog arrives skewed. Fix the clock before backfilling.</p>
+<h2 id="7-error-tracking-optionally">7. Error tracking, optionally<a class="headerlink" href="#7-error-tracking-optionally" title="Permanent link">&para;</a></h2>
+<p>GlitchTip is five more containers and a second Postgres, so it is opt-in and separate. Its
+settings live in <code>.env.glitchtip</code>, which is only ever GlitchTip's — nothing in it is shared with
+<code>.env.lgtm</code>, so it can be handed over or rotated on its own.</p>
+<div class="highlight"><pre><span></span><code><span id="__span-11-1">cp<span class="w"> </span>.env.glitchtip.example<span class="w"> </span>.env.glitchtip<span class="w">     </span><span class="c1"># SECRET_KEY, POSTGRES_PASSWORD, ALLOWED_HOSTS</span>
+</span></code></pre></div>
+<p>Keep the deployed values in <code>.env.glitchtip.production</code> rather than in <code>.env.glitchtip</code>. The
+Makefile reads the latter and it holds the local values; the <code>.production</code> file is read by nothing
+and exists to be pasted into the platform's environment UI and to record what was pasted. Both are
+gitignored. The same convention applies to <code>.env.lgtm</code> and <code>agent/.env.agent</code>.</p>
+<p><strong><code>.env.glitchtip.production</code> is the whole environment.</strong> Nothing is supplied by <code>.env.lgtm</code>, including the
+four values that describe <em>where</em> GlitchTip runs — <code>OBS_DOMAIN</code>, <code>GLITCHTIP_DOMAIN</code>,
+<code>OBS_EDGE_NETWORK</code> and <code>OBS_EDGE_EXTERNAL</code>. They are duplicated between the two files because two
+independently deployed services means two environments, and each has to say where it runs.</p>
+<div class="highlight"><pre><span></span><code><span id="__span-12-1">OBS_DOMAIN=example.com
+</span><span id="__span-12-2">GLITCHTIP_DOMAIN=https://errors.example.com
+</span><span id="__span-12-3">OBS_EDGE_NETWORK=dokploy-network
+</span><span id="__span-12-4">OBS_EDGE_EXTERNAL=true
+</span></code></pre></div>
+<blockquote>
+<p><strong>Do not skip them.</strong> Every one has a default that is right locally and wrong on a VPS, and none
+of them fails the render. Rendered with them unset you get <code>Host(`errors.localhost`)</code>, an
+<code>observability_edge</code> bridge the platform's Traefik is not on, and <code>http://localhost:8001</code> as the
+base of every DSN GlitchTip issues — a deploy that comes up healthy and is unreachable.</p>
+</blockquote>
+<p><code>GLITCHTIP_DOMAIN</code> is what DSNs and outbound links are generated from, and its scheme decides
+whether session cookies get the <code>Secure</code> flag. Its host must be <code>errors.${OBS_DOMAIN}</code>, which is
+what the Traefik label routes and what <code>ALLOWED_HOSTS</code> has to list.</p>
+<p><strong>On an existing platform.</strong> Dokploy and Coolify deploy one compose file per service, so add a
+second service pointing at <code>compose.glitchtip.yml</code> and paste <code>.env.glitchtip</code> into its environment.
+It renders and routes on its own — <code>make verify-config</code> checks both deployed shapes, including
+this one, and is worth running before you push.</p>
+<blockquote>
+<p><strong>A separate service is a separate Compose project, so <code>obs</code> is project-local.</strong>
+<code>glitchtip-web:8000</code> is <em>not</em> reachable from the LGTM project's containers — apps report over
+<code>https://errors.&lt;domain&gt;</code> instead, which is what an app on any other host does anyway. Nothing
+in the stack depends on the in-network path.</p>
+</blockquote>
+<p><strong>On the same box, one project.</strong> <code>make glitchtip-up</code> is the local shape: it passes
+<code>COMPOSE_PROJECT_NAME=observability</code>, so <code>glitchtip-web</code> joins the same <code>obs</code> network as everything
+else and an app here can report to <code>http://&lt;key&gt;@glitchtip-web:8000/1</code> without leaving the host.
+The project name is set on the command line rather than as <code>name:</code> in <code>compose.glitchtip.yml</code>,
+because that file has to take its name from whatever deploys it.</p>
+<p>Leave <code>ENABLE_USER_REGISTRATION=true</code> for the first signup, which becomes the first
+organisation's owner, then set it false and bring it up again. Invite everyone else. With it
+false from the start there is no way in short of <code>manage.py createsuperuser</code> on the box.</p>
+<p>Set a real <code>EMAIL_URL</code> before anyone depends on this. The default <code>consolemail://</code> prints mail
+to the container's stdout, and password-reset links are mail — with no transport, the only
+account recovery is a shell on the box. It is also the one value here you did not generate, so
+it is where the <code>$$</code> rule from §3 actually bites — as does percent-encoding a <code>#</code> or <code>@</code>, since
+it is a URL.</p>
+<p>Verify:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-13-1">curl<span class="w"> </span>-sI<span class="w"> </span>https://errors.&lt;domain&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-1<span class="w">        </span><span class="c1"># 200, Let&#39;s Encrypt chain</span>
+</span><span id="__span-13-2">curl<span class="w"> </span>-s<span class="w">  </span>https://errors.&lt;domain&gt;/_health/<span class="w">         </span><span class="c1"># ok</span>
+</span></code></pre></div>
+<p>Then register, create an organisation and a project, and point an app at the DSN it hands you.
+<code>scripts/verify-errors.sh</code> asserts the whole path end to end — an unhandled exception in the demo
+becoming an issue tagged with the same <code>app</code>/<code>env</code>/<code>host</code> the dashboards filter by — but it reads
+through <code>docker compose exec</code> and <code>localhost:8001</code>, so it only checks a <strong>local</strong> GlitchTip. For
+a deployed one, run it on the VPS or check the UI.</p>
+<h2 id="8-after-the-first-deploy">8. After the first deploy<a class="headerlink" href="#8-after-the-first-deploy" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../operations/"><code>operations.md</code></a> — retention, backups, cardinality, upgrades.</li>
+<li><a href="../onboard-app/"><code>onboard-app.md</code></a> — pointing the first app at <code>ingest.&lt;domain&gt;</code>.</li>
+</ul>
+<p>Back up before you need to: <code>make backup</code> covers the two things that cannot be rebuilt from git,
+<code>grafana.db</code> and GlitchTip's database. Dashboards are files in this repo, so the irreplaceable
+state is smaller than it looks.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../labels/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Label Contract">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Label Contract
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../onboard-app/" class="md-footer__link md-footer__link--next" aria-label="Next: Onboard an App">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Onboard an App
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.annotate", "content.code.copy", "content.footnote.tooltips", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.instant.prefetch", "navigation.instant.progress", "navigation.path", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

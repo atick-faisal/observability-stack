@@ -1,0 +1,1800 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="An application-independent Grafana LGTM stack. One deployment on a VPS serves every project.">
+      
+      
+      
+        <link rel="canonical" href="https://atick-faisal.github.io/observability-stack/labels/">
+      
+      
+        <link rel="prev" href="..">
+      
+      
+        <link rel="next" href="../deploy-server/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.3">
+    
+    
+      
+        <title>Label Contract - Observability Stack</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#label-taxonomy" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Observability Stack" class="md-header__button md-logo" aria-label="Observability Stack" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m21.9 8.9-1.7 1-4-6.9 1.7-1zm-12.1-1 3 5.2 6.1-3.5-3-5.2zm1.6 4.8-2-3.5-4.3 2.5 2 3.5zm-9.3 1.9 1 1.7 2.6-1.5-1-1.7zm10-.6-.3-.4-4.3 2.5.3.4c.2.3.5.6.8.8L7 22h2l1.4-4.3h.1L12 22h2l-1.9-5.6c.5-.7.5-1.6 0-2.4"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Observability Stack
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Label Contract
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9 2C5.13 2 2 5.13 2 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7M6 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H6zm13-8h-2l-3.2 9h1.9l.7-2h3.2l.7 2h1.9zm-2.15 5.65L18 15l1.15 3.65z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7M9 21a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-1H9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="amber"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7M9 21v-1h6v1a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1m3-17a5 5 0 0 0-5 5c0 2.05 1.23 3.81 3 4.58V16h4v-2.42c1.77-.77 3-2.53 3-4.58a5 5 0 0 0-5-5"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/atick-faisal/observability-stack" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M202.1 328.7c0 20.9-10.9 55.1-36.7 55.1s-36.7-34.2-36.7-55.1 10.9-55.1 36.7-55.1 36.7 34.2 36.7 55.1M496 278.2c0 31.9-3.2 65.7-17.5 95-37.9 76.6-142.1 74.8-216.7 74.8-75.8 0-186.2 2.7-225.6-74.8-14.6-29-20.2-63.1-20.2-95 0-41.9 13.9-81.5 41.5-113.6-5.2-15.8-7.7-32.4-7.7-48.8 0-21.5 4.9-32.3 14.6-51.8 45.3 0 74.3 9 108.8 36 29-6.9 58.8-10 88.7-10 27 0 54.2 2.9 80.4 9.2 34-26.7 63-35.2 107.8-35.2 9.8 19.5 14.6 30.3 14.6 51.8 0 16.4-2.6 32.7-7.7 48.2 27.5 32.4 39 72.3 39 114.2m-64.3 50.5c0-43.9-26.7-82.6-73.5-82.6-18.9 0-37 3.4-56 6-14.9 2.3-29.8 3.2-45.1 3.2-15.2 0-30.1-.9-45.1-3.2-18.7-2.6-37-6-56-6-46.8 0-73.5 38.7-73.5 82.6 0 87.8 80.4 101.3 150.4 101.3h48.2c70.3 0 150.6-13.4 150.6-101.3m-82.6-55.1c-25.8 0-36.7 34.2-36.7 55.1s10.9 55.1 36.7 55.1 36.7-34.2 36.7-55.1-10.9-55.1-36.7-55.1"/></svg>
+  </div>
+  <div class="md-source__repository">
+    atick-faisal/observability-stack
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Label Contract
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../deploy-server/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../agent/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Observability Stack" class="md-nav__button md-logo" aria-label="Observability Stack" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m21.9 8.9-1.7 1-4-6.9 1.7-1zm-12.1-1 3 5.2 6.1-3.5-3-5.2zm1.6 4.8-2-3.5-4.3 2.5 2 3.5zm-9.3 1.9 1 1.7 2.6-1.5-1-1.7zm10-.6-.3-.4-4.3 2.5.3.4c.2.3.5.6.8.8L7 22h2l1.4-4.3h.1L12 22h2l-1.9-5.6c.5-.7.5-1.6 0-2.4"/></svg>
+
+    </a>
+    Observability Stack
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/atick-faisal/observability-stack" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M202.1 328.7c0 20.9-10.9 55.1-36.7 55.1s-36.7-34.2-36.7-55.1 10.9-55.1 36.7-55.1 36.7 34.2 36.7 55.1M496 278.2c0 31.9-3.2 65.7-17.5 95-37.9 76.6-142.1 74.8-216.7 74.8-75.8 0-186.2 2.7-225.6-74.8-14.6-29-20.2-63.1-20.2-95 0-41.9 13.9-81.5 41.5-113.6-5.2-15.8-7.7-32.4-7.7-48.8 0-21.5 4.9-32.3 14.6-51.8 45.3 0 74.3 9 108.8 36 29-6.9 58.8-10 88.7-10 27 0 54.2 2.9 80.4 9.2 34-26.7 63-35.2 107.8-35.2 9.8 19.5 14.6 30.3 14.6 51.8 0 16.4-2.6 32.7-7.7 48.2 27.5 32.4 39 72.3 39 114.2m-64.3 50.5c0-43.9-26.7-82.6-73.5-82.6-18.9 0-37 3.4-56 6-14.9 2.3-29.8 3.2-45.1 3.2-15.2 0-30.1-.9-45.1-3.2-18.7-2.6-37-6-56-6-46.8 0-73.5 38.7-73.5 82.6 0 87.8 80.4 101.3 150.4 101.3h48.2c70.3 0 150.6-13.4 150.6-101.3m-82.6-55.1c-25.8 0-36.7 34.2-36.7 55.1s10.9 55.1 36.7 55.1 36.7-34.2 36.7-55.1-10.9-55.1-36.7-55.1"/></svg>
+  </div>
+  <div class="md-source__repository">
+    atick-faisal/observability-stack
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Label Contract
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Label Contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-the-four-identity-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. The four identity labels
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-identity-versus-dimension" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Identity versus dimension
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-injection-points-one-per-signal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Injection points — one per signal
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Injection points — one per signal">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-metrics-prometheus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Metrics → Prometheus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-logs-loki" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 Logs → Loki
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-traces-tempo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 Traces → Tempo
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-span-metrics-prometheus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 Span metrics → Prometheus
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-hard-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Hard rules
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Hard rules">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-one-spelling-per-concept-across-all-three-signals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 One spelling per concept, across all three signals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-never-a-label" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Never a label
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-http-paths-are-always-the-matched-route-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 HTTP paths are always the matched route pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-app-never-appears-in-a-metric-name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 app never appears in a metric name
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-labels-are-lowercase-flat-and-underscore-free-where-possible" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 Labels are lowercase, flat, and underscore-free where possible
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-where-each-label-actually-comes-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Where each label actually comes from
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-consequences-for-later-milestones" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Consequences for later milestones
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-worked-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Worked example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-obs_-is-three-namespaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. OBS_* is three namespaces
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deploy-server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deploy the Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../onboard-app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Onboard an App
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../local-dev/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Local Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdk/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python SDK
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-the-four-identity-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. The four identity labels
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-identity-versus-dimension" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Identity versus dimension
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-injection-points-one-per-signal" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Injection points — one per signal
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Injection points — one per signal">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-metrics-prometheus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Metrics → Prometheus
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-logs-loki" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 Logs → Loki
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-traces-tempo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 Traces → Tempo
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-span-metrics-prometheus" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 Span metrics → Prometheus
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-hard-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Hard rules
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Hard rules">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-one-spelling-per-concept-across-all-three-signals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 One spelling per concept, across all three signals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-never-a-label" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Never a label
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-http-paths-are-always-the-matched-route-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 HTTP paths are always the matched route pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-app-never-appears-in-a-metric-name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 app never appears in a metric name
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-labels-are-lowercase-flat-and-underscore-free-where-possible" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 Labels are lowercase, flat, and underscore-free where possible
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-where-each-label-actually-comes-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Where each label actually comes from
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-consequences-for-later-milestones" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Consequences for later milestones
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-worked-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Worked example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-obs_-is-three-namespaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. OBS_* is three namespaces
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="label-taxonomy">Label taxonomy<a class="headerlink" href="#label-taxonomy" title="Permanent link">&para;</a></h1>
+<p>This is the contract. Every milestone after M0 depends on it. If a config, dashboard, or SDK
+change disagrees with this document, the change is wrong — not the document.</p>
+<p>The one-sentence version: <strong>four identity labels, spelled identically in metrics, logs, and
+traces, injected at exactly one choke point per signal.</strong></p>
+<hr />
+<h2 id="1-the-four-identity-labels">1. The four identity labels<a class="headerlink" href="#1-the-four-identity-labels" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Label</th>
+<th>Meaning</th>
+<th>Cardinality</th>
+<th>Allowed values</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>app</code></td>
+<td>Deployment unit — one value per app repo</td>
+<td>~10s</td>
+<td><code>[a-z0-9-]+</code></td>
+<td><code>asset-management</code></td>
+</tr>
+<tr>
+<td><code>service</code></td>
+<td>Process role inside the app</td>
+<td>~5 per app</td>
+<td><code>[a-z0-9-]+</code></td>
+<td><code>api</code>, <code>worker</code>, <code>db</code></td>
+</tr>
+<tr>
+<td><code>env</code></td>
+<td>Deployment environment</td>
+<td>exactly 3</td>
+<td><code>production</code> | <code>staging</code> | <code>local</code></td>
+<td><code>production</code></td>
+</tr>
+<tr>
+<td><code>host</code></td>
+<td>Machine the agent runs on</td>
+<td>~10s</td>
+<td><code>[a-z0-9.-]+</code></td>
+<td><code>app-vps-01</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>app</code> is the <em>deployment unit</em>, not the framework, not the language, not the container image.
+One app repo produces one value of <code>app</code>. Two apps never share a value; one app never has two.</p>
+<p><code>service</code> is the <em>role a process plays inside</em> that app. It answers "which part of the app is
+this?", not "what software is it?". A Postgres container belonging to <code>asset-management</code> is
+<code>app=asset-management, service=db</code> — not <code>app=postgres</code>.</p>
+<p>Together, <code>(app, service, env, host)</code> identifies a running process uniquely enough to be the
+join key across all three signals. That is the entire purpose of these four.</p>
+<h2 id="2-identity-versus-dimension">2. Identity versus dimension<a class="headerlink" href="#2-identity-versus-dimension" title="Permanent link">&para;</a></h2>
+<p>Identity is the four labels above <strong>and nothing else</strong>. Everything else is a dimension: useful
+for slicing within a signal, never used to correlate across signals.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Labels</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Identity</strong> (all signals, same spelling)</td>
+<td><code>app</code>, <code>service</code>, <code>env</code>, <code>host</code></td>
+</tr>
+<tr>
+<td><strong>Dimension</strong> (signal-local)</td>
+<td><code>job</code>, <code>instance</code>, <code>container</code>, <code>level</code>, <code>method</code>, <code>status_code</code>, <code>route</code>, <code>span_name</code>, <code>span_kind</code>, <code>span_status</code></td>
+</tr>
+</tbody>
+</table>
+<p>The practical difference: you may add, rename, or drop a dimension in one signal without
+touching the others. Changing an identity label is a breaking change to every dashboard and
+every correlation link at once.</p>
+<h2 id="3-injection-points-one-per-signal">3. Injection points — one per signal<a class="headerlink" href="#3-injection-points-one-per-signal" title="Permanent link">&para;</a></h2>
+<p>Identity is attached in exactly one place per signal. Not per job, not per exporter, not per
+container. This is what guarantees that <em>every</em> series carries it, including the ones nobody
+thought about.</p>
+<table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>Choke point</th>
+<th>What it sets</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Metrics</td>
+<td><code>prometheus.remote_write "obs"</code> → <code>external_labels</code> in <code>agent/config.alloy</code></td>
+<td><code>app</code>, <code>env</code>, <code>host</code></td>
+</tr>
+<tr>
+<td>Logs</td>
+<td><code>loki.process</code> → <code>stage.labels</code> in <code>agent/config.alloy</code></td>
+<td><code>app</code>, <code>env</code>, <code>host</code>, <code>service</code>, <code>container</code>, <code>level</code></td>
+</tr>
+<tr>
+<td>Traces</td>
+<td>OTel <code>Resource</code> in <code>obstack</code>'s <code>tracing.py</code></td>
+<td><code>app</code>, <code>service</code>, <code>env</code>, <code>host</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="31-metrics-prometheus">3.1 Metrics → Prometheus<a class="headerlink" href="#31-metrics-prometheus" title="Permanent link">&para;</a></h3>
+<p><code>app</code>, <code>env</code>, and <code>host</code> are set once as <code>external_labels</code> on the agent's
+<code>prometheus.remote_write</code>. Because they are applied at the exit, they land on <strong>every</strong> series
+the agent forwards — the app's own <code>/metrics</code>, <code>node_*</code> from <code>prometheus.exporter.unix</code>,
+<code>container_*</code> from cAdvisor, and <code>pg_*</code> from postgres-exporter — with no per-job configuration
+and no way to forget one.</p>
+<p><code>service</code> comes from discovery relabels, sourced from the <code>obs.service</code> Docker label on the
+container being scraped.</p>
+<p><code>instance</code> is pinned to a stable value via a relabel rule. Left to its default it is the
+container IP, which changes on every restart and silently breaks any dashboard variable built
+on it.</p>
+<p>Metrics carry <code>app</code>, <code>env</code>, <code>host</code>, <code>service</code> — four labels, same spelling as everywhere else.</p>
+<p>One overlap is deliberate: <code>obstack</code> also stamps <code>app</code>, <code>service</code>, and <code>env</code> onto the app's own
+series, so a <code>/metrics</code> page is self-describing and readable without the agent in front of it.
+<code>external_labels</code> are only <em>added</em> where absent, so the SDK's values win for those series and the
+agent's still cover everything else. Both halves read the same <code>OBS_*</code> variables from the same
+<code>.env</code> (§5), which is what keeps them from disagreeing. The SDK does <strong>not</strong> set <code>host</code> on
+metrics — a container reports its container id as its hostname, so the agent stays authoritative.</p>
+<h3 id="32-logs-loki">3.2 Logs → Loki<a class="headerlink" href="#32-logs-loki" title="Permanent link">&para;</a></h3>
+<p>Loki stream labels are <strong>exactly these six, and no others</strong>:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-0-1">app, env, host, service, container, level
+</span></code></pre></div>
+<p>All six are bounded. Adding a seventh, or making any of these unbounded, multiplies the number
+of active streams and is the single fastest way to make Loki unusable.</p>
+<ul>
+<li><code>trace_id</code> and <code>span_id</code> go to <strong>structured metadata</strong>, never to labels. They are indexed and
+  filterable there, without creating a stream per request.</li>
+<li>Everything else stays in the JSON log body and is queried with <code>| json</code> at read time.</li>
+</ul>
+<p>Not every log line is JSON. Postgres and Traefik emit plain text, so JSON parsing must be
+<strong>conditional</strong> (see §6) — unconditional parsing mangles those lines.</p>
+<p>Only JSON containers get a <code>level</code> <strong>label</strong>. For the rest, Loki's <code>discover_log_levels</code> writes
+<code>detected_level</code> into structured metadata, which is a different thing under a different name, and
+it reads <code>unknown</code> for any format it does not recognise — Postgres' <code>LOG:</code> / <code>ERROR:</code> prefixes
+among them. A panel that filters plain-text containers by severity has to say
+<code>| detected_level = "error"</code>, not <code>{level="error"}</code>.</p>
+<p>Loki will also mint a <code>service_name</code> stream label of its own unless <code>discover_service_name: []</code>
+is set. It duplicates <code>service</code> under a second spelling, which is precisely what this document
+exists to prevent, so the server config turns it off.</p>
+<h3 id="33-traces-tempo">3.3 Traces → Tempo<a class="headerlink" href="#33-traces-tempo" title="Permanent link">&para;</a></h3>
+<p>The SDK sets OTel resource attributes using the flat names — <code>app</code>, <code>service</code>, <code>env</code>, <code>host</code> —
+<em>and additionally</em> the OTel semantic-convention names:</p>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Value</th>
+<th>Why both</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>app</code>, <code>service</code>, <code>env</code>, <code>host</code></td>
+<td>as defined above</td>
+<td>correlation by identical name</td>
+</tr>
+<tr>
+<td><code>service.name</code></td>
+<td><code>"{app}-{service}"</code></td>
+<td>semconv; drives Tempo's service graph and the Grafana trace UI</td>
+</tr>
+<tr>
+<td><code>deployment.environment.name</code></td>
+<td>same as <code>env</code></td>
+<td>semconv</td>
+</tr>
+</tbody>
+</table>
+<p>The flat names are what dashboards and correlation links use. The semconv names are what Tempo
+and Grafana's built-in trace tooling expect. Setting both costs nothing and avoids choosing.</p>
+<p>The SDK also sets <code>OTEL_SEMCONV_STABILITY_OPT_IN=http</code>, so HTTP spans carry the stable
+attribute names — <code>http.request.method</code>, <code>http.response.status_code</code>, <code>url.path</code>,
+<code>server.address</code> — rather than the pre-1.0 <code>http.method</code> / <code>http.status_code</code> / <code>http.target</code>
+that OpenTelemetry Python still emits by default. It is a process-wide global read once, so it
+affects every HTTP instrumentation in the process, not only the ones the SDK installs. Anything
+configured against the stable names — Tempo's <code>http.response.status_code</code> dimension below, a
+TraceQL query, a dashboard — produces <strong>nothing at all</strong> without it, silently.</p>
+<h3 id="34-span-metrics-prometheus">3.4 Span metrics → Prometheus<a class="headerlink" href="#34-span-metrics-prometheus" title="Permanent link">&para;</a></h3>
+<p>Tempo's generator turns spans into metrics, which means a fourth producer writing into the same
+Prometheus. It does not speak the taxonomy on its own, and reconciling it takes one config block.</p>
+<p>The generator has four <strong>intrinsic</strong> labels — <code>service</code>, <code>span_name</code>, <code>span_kind</code>, <code>status_code</code>
+— and writes <code>service</code> from <code>service.name</code>, i.e. <code>"{app}-{service}"</code>. A configured dimension
+whose name collides with an intrinsic is renamed with a <code>__</code> prefix, against a hardcoded list, so
+neither <code>intrinsic_dimensions</code> nor <code>dimension_mappings</code> can win the name back. Left alone the
+result is <code>service="demo-api"</code> alongside <code>__service="api"</code>, <code>http_route</code>, a <code>status_code</code> holding
+the <em>span</em> status, and <code>__metrics_gen_instance</code> holding the generator container's id.</p>
+<p><code>write_relabel_configs</code> on the generator's remote-write reconciles all of it, on the way out,
+where nothing downstream has to know it happened:</p>
+<table>
+<thead>
+<tr>
+<th>Generator writes</th>
+<th>Stored as</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>__service</code></td>
+<td><code>service</code></td>
+<td>ours wins; <code>service.name</code> remains the fallback</td>
+</tr>
+<tr>
+<td><code>http_route</code></td>
+<td><code>route</code></td>
+<td>the name the app's own metrics use</td>
+</tr>
+<tr>
+<td><code>http_response_status_code</code></td>
+<td><code>status_code</code></td>
+<td>likewise — HTTP status, same meaning as §2</td>
+</tr>
+<tr>
+<td><code>status_code</code> (span status)</td>
+<td><code>span_status</code></td>
+<td>a different concept; it does not get to keep the name</td>
+</tr>
+<tr>
+<td><code>__metrics_gen_instance</code></td>
+<td><em>dropped</em></td>
+<td>the Tempo container id, so a restart re-identifies every series</td>
+</tr>
+</tbody>
+</table>
+<p>The result is that <code>traces_spanmetrics_*</code> and <code>fastapi_requests_total</code> agree on
+<code>(app, env, service, route, status_code)</code> and can be joined, compared, or graphed together —
+which is what <code>tracesToMetrics</code> does on every trace you open.</p>
+<p>Service-graph edges get <code>dimensions: [app, env]</code> for the same reason: without them a service map
+cannot be scoped to one app. Their <code>client</code> and <code>server</code> labels deliberately stay <code>service.name</code>,
+because Grafana uses those as node names and clicks through to Tempo's service search on the
+value.</p>
+<h2 id="4-hard-rules">4. Hard rules<a class="headerlink" href="#4-hard-rules" title="Permanent link">&para;</a></h2>
+<h3 id="41-one-spelling-per-concept-across-all-three-signals">4.1 One spelling per concept, across all three signals<a class="headerlink" href="#41-one-spelling-per-concept-across-all-three-signals" title="Permanent link">&para;</a></h3>
+<p><code>env</code> is <code>env</code> in metrics, <code>env</code> in logs, and <code>env</code> in traces. Never <code>environment</code>, never
+<code>deployment_env</code>, never <code>ENV</code>.</p>
+<p>This is the rule that makes everything else work. Grafana's <code>tracesToLogsV2</code> and
+<code>tracesToMetrics</code> map span attributes onto target-datasource labels <strong>by name</strong>. When the names
+already match, the configuration is:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-1-1"><span class="nt">tags</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[{</span><span class="nt"> key</span><span class="p">:</span><span class="w"> </span><span class="nv">app</span><span class="w"> </span><span class="p p-Indicator">},</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> key</span><span class="p">:</span><span class="w"> </span><span class="nv">service</span><span class="w"> </span><span class="p p-Indicator">},</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> key</span><span class="p">:</span><span class="w"> </span><span class="nv">env</span><span class="w"> </span><span class="p p-Indicator">}]</span>
+</span></code></pre></div>
+<p>— one block, in <code>datasources.yaml</code>, correct for every app forever. When the names don't match,
+every pair needs an explicit rename, and every new app needs the list extended.</p>
+<blockquote>
+<p>The reference stack (<code>ai-asset-management</code>) writes <code>env="production"</code> on its Prometheus
+targets and <code>environment="production"</code> on its Loki streams. They mean the same thing and
+Grafana cannot know it. That is why this rule is first.</p>
+</blockquote>
+<h3 id="42-never-a-label">4.2 Never a label<a class="headerlink" href="#42-never-a-label" title="Permanent link">&para;</a></h3>
+<p>Not in metrics, not as a Loki stream label, not as a span-metrics dimension:</p>
+<table>
+<thead>
+<tr>
+<th>Never a label</th>
+<th>Because</th>
+<th>Put it here instead</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>trace_id</code>, <code>span_id</code></td>
+<td>unique per request — unbounded</td>
+<td>Loki structured metadata; span identity</td>
+</tr>
+<tr>
+<td><code>user_id</code>, <code>request_id</code>, session/tenant ids</td>
+<td>unbounded, and often personal data</td>
+<td>log body</td>
+</tr>
+<tr>
+<td>Raw URL path (<code>/users/8123/orders/55</code>)</td>
+<td>unbounded — one series per id</td>
+<td>matched route pattern (§4.3)</td>
+</tr>
+<tr>
+<td>SQL text</td>
+<td>unbounded, and leaks data into an unencrypted index</td>
+<td>log body / span attribute</td>
+</tr>
+<tr>
+<td>Full error message</td>
+<td>unbounded — messages interpolate values</td>
+<td>exception <em>type</em> as the label, message in the body</td>
+</tr>
+</tbody>
+</table>
+<p>The test: <em>can this take a value derived from user input or from time?</em> If yes, it is not a
+label.</p>
+<h3 id="43-http-paths-are-always-the-matched-route-pattern">4.3 HTTP paths are always the matched route pattern<a class="headerlink" href="#43-http-paths-are-always-the-matched-route-pattern" title="Permanent link">&para;</a></h3>
+<p>Metrics record <code>/users/{user_id}/orders/{order_id}</code>, never <code>/users/8123/orders/55</code>. The pattern
+is bounded by the number of routes in the app; the raw path is bounded by the number of rows in
+the database.</p>
+<p>In FastAPI the pattern is <code>scope["route"].path</code> — the router already computed it while
+dispatching, so there is nothing to recompute. Where no route object is in scope, fall back to
+walking <code>app.routes</code> and testing <code>route.matches(scope) == Match.FULL</code>. <code>request.url.path</code> is
+always the raw path and must never reach a metric label.</p>
+<p>Unmatched requests (404s) collapse to a single <code>route=""</code>, deliberately: an open endpoint being
+scanned would otherwise generate one series per probed URL.</p>
+<h3 id="44-app-never-appears-in-a-metric-name">4.4 <code>app</code> never appears in a metric name<a class="headerlink" href="#44-app-never-appears-in-a-metric-name" title="Permanent link">&para;</a></h3>
+<p>Metric names are generic and describe <em>what is measured</em>. Identity lives in labels.</p>
+<div class="highlight"><pre><span></span><code><span id="__span-2-1">fastapi_requests_total{app=&quot;asset-management&quot;, service=&quot;api&quot;}      ✅
+</span><span id="__span-2-2">imgworker_images_processed_total                                    ❌
+</span><span id="__span-2-3">asset_management_requests_total                                     ❌
+</span></code></pre></div>
+<p>A metric name containing the app name cannot be graphed by a shared dashboard, cannot be
+aggregated across apps, and forces a new dashboard per app — which defeats the purpose of this
+repo. The reference stack namespaces its worker metrics <code>imgworker_*</code>; those panels work for
+exactly one app and are not portable.</p>
+<p>The same applies to <code>service</code> and <code>env</code>.</p>
+<h3 id="45-labels-are-lowercase-flat-and-underscore-free-where-possible">4.5 Labels are lowercase, flat, and underscore-free where possible<a class="headerlink" href="#45-labels-are-lowercase-flat-and-underscore-free-where-possible" title="Permanent link">&para;</a></h3>
+<p><code>app</code>, not <code>App</code> or <code>app.name</code>. Dots are legal in OTel attributes but not in Prometheus label
+names, where they become underscores — so a dotted attribute silently changes spelling when it
+crosses into metrics, breaking §4.1. Keeping the four identity labels flat and single-word
+sidesteps the whole translation problem.</p>
+<h2 id="5-where-each-label-actually-comes-from">5. Where each label actually comes from<a class="headerlink" href="#5-where-each-label-actually-comes-from" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Label</th>
+<th>Agent (<code>agent/config.alloy</code>)</th>
+<th>App (<code>obstack</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>app</code></td>
+<td><code>OBS_APP</code> env var</td>
+<td><code>OBS_APP</code> → <code>ObservabilitySettings.app</code> — <strong>required</strong>, startup fails without it</td>
+</tr>
+<tr>
+<td><code>service</code></td>
+<td><code>obs.service</code> Docker label on the container</td>
+<td><code>OBS_SERVICE</code> → <code>.service</code>, default <code>api</code></td>
+</tr>
+<tr>
+<td><code>env</code></td>
+<td><code>OBS_ENV</code> env var</td>
+<td><code>OBS_ENV</code> → <code>.env</code>, default <code>local</code></td>
+</tr>
+<tr>
+<td><code>host</code></td>
+<td><code>OBS_HOST</code> env var</td>
+<td><code>OBS_HOST</code> → <code>.host</code>, default <code>socket.gethostname()</code></td>
+</tr>
+</tbody>
+</table>
+<p>Both halves read the same variable names from <code>.env</code>, so a single file configures the agent and
+the app consistently.</p>
+<p><code>host</code> is split, and it is the one place the two halves can disagree. On <strong>metrics</strong> and <strong>logs</strong>
+the agent is authoritative: it sets <code>host</code> at the exit, so nothing an app does can get it wrong.
+On <strong>traces</strong> the app's value is used as-is. An app that leaves <code>OBS_HOST</code> unset reports
+<code>socket.gethostname()</code>, which in a container is its id — so its spans say one thing and its
+metrics another. No correlation link uses <code>host</code> (§4.1's <code>tags</code> are <code>app</code>/<code>service</code>/<code>env</code>, and it
+is not a span-metrics dimension), so the damage is confined to reading a trace; setting <code>OBS_HOST</code>
+in the file both halves already read avoids it entirely.</p>
+<p>An app opts a container into collection with Docker labels:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-3-1"><span class="nt">services</span><span class="p">:</span>
+</span><span id="__span-3-2"><span class="w">  </span><span class="nt">api</span><span class="p">:</span>
+</span><span id="__span-3-3"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
+</span><span id="__span-3-4"><span class="w">      </span><span class="nt">obs.service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api</span>
+</span><span id="__span-3-5"><span class="w">      </span><span class="nt">obs.metrics.port</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;8000&quot;</span><span class="w">     </span><span class="c1"># presence = scrape me</span>
+</span><span id="__span-3-6"><span class="w">      </span><span class="nt">obs.metrics.path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/metrics</span>
+</span><span id="__span-3-7"><span class="w">  </span><span class="nt">db</span><span class="p">:</span>
+</span><span id="__span-3-8"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
+</span><span id="__span-3-9"><span class="w">      </span><span class="nt">obs.service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">db</span><span class="w">              </span><span class="c1"># logs only, no metrics port</span>
+</span><span id="__span-3-10"><span class="w">  </span><span class="nt">migrations</span><span class="p">:</span>
+</span><span id="__span-3-11"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
+</span><span id="__span-3-12"><span class="w">      </span><span class="nt">obs.logs</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;false&quot;</span><span class="w">            </span><span class="c1"># opt out entirely</span>
+</span></code></pre></div>
+<p><code>obs.metrics.port</code> must also be <code>EXPOSE</code>d in the image or <code>expose:</code>d in Compose — the agent
+matches it against Docker's published port metadata.</p>
+<h2 id="6-consequences-for-later-milestones">6. Consequences for later milestones<a class="headerlink" href="#6-consequences-for-later-milestones" title="Permanent link">&para;</a></h2>
+<p>Recorded here so they are not rediscovered the hard way:</p>
+<ul>
+<li><strong>JSON log parsing must be conditional.</strong> Guard <code>stage.json</code> with a <code>stage.match</code> selector so
+  plain-text containers (Postgres, Traefik) pass through untouched. Parsing unconditionally
+  corrupts them. The selector matches on <code>container</code>: <code>app</code> is added by <code>loki.write</code>'s
+  <code>external_labels</code>, which run <em>after</em> the process stage, so a selector on <code>app</code> matches nothing
+  and silently disables parsing everywhere. <em>(M4)</em></li>
+<li><strong>Tempo's span-metrics generator owns four label names</strong> — <code>service</code>, <code>span_name</code>, <code>span_kind</code>,
+  <code>status_code</code> — and a dimension colliding with one is renamed <code>__</code>-prefixed against a hardcoded
+  list. Only <code>write_relabel_configs</code> on the generator's remote-write can win the names back;
+  <code>intrinsic_dimensions</code> and <code>dimension_mappings</code> cannot. §3.4 has the mapping. <em>(M5, done)</em></li>
+<li><strong>A dimension configured against an attribute nothing emits fails silently.</strong> Tempo accepted
+  <code>http.response.status_code</code> for three milestones and produced no such label, because the SDK
+  was on pre-1.0 semconv. Whenever a dimension is added, check that the label appeared — the
+  config is not the evidence. <em>(M5)</em></li>
+<li><strong>Provisioned dashboards are immutable.</strong> <code>allowUiUpdates: false</code> on the dashboard provider —
+  a dashboard edited in the UI and not in git is a dashboard that will be silently reverted.
+  <em>(M2)</em></li>
+<li><strong>Grafana's provisioning loader interpolates <code>$VAR</code>.</strong> <code>$__tags</code> and <code>${__value.raw}</code> must be
+  written <code>$$__tags</code> and <code>$${__value.raw}</code> in <code>datasources.yaml</code>. This is Grafana, not Docker
+  Compose. <em>(M2)</em></li>
+<li><strong>Use <code>tracesToLogsV2</code>, not <code>tracesToLogs</code>.</strong> The v1 field is deprecated and has no <code>tags</code>
+  support, so trace→log links fall back to trace-id-only matching and lose the app/service/env
+  filter. <em>(M2)</em></li>
+</ul>
+<h2 id="7-worked-example">7. Worked example<a class="headerlink" href="#7-worked-example" title="Permanent link">&para;</a></h2>
+<p>One app, <code>asset-management</code>, running its API in production on <code>app-vps-01</code>.</p>
+<p><strong>Identity, identical in all three signals:</strong></p>
+<div class="highlight"><pre><span></span><code><span id="__span-4-1">app=asset-management  service=api  env=production  host=app-vps-01
+</span></code></pre></div>
+<p><strong>Metrics</strong> — a request-rate series:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-5-1">fastapi_requests_total{
+</span><span id="__span-5-2">  app=&quot;asset-management&quot;, service=&quot;api&quot;, env=&quot;production&quot;, host=&quot;app-vps-01&quot;,
+</span><span id="__span-5-3">  method=&quot;GET&quot;, route=&quot;/assets/{asset_id}&quot;, instance=&quot;app-vps-01&quot;
+</span><span id="__span-5-4">}
+</span></code></pre></div>
+<p><strong>Logs</strong> — a stream, plus one line's structured metadata:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-6-1">{app=&quot;asset-management&quot;, service=&quot;api&quot;, env=&quot;production&quot;,
+</span><span id="__span-6-2"> host=&quot;app-vps-01&quot;, container=&quot;assetmgmt-api-1&quot;, level=&quot;error&quot;}
+</span><span id="__span-6-3">   ↳ structured metadata: trace_id=4bf92f..., span_id=00f067...
+</span><span id="__span-6-4">   ↳ body: {&quot;event&quot;:&quot;HTTP&quot;,&quot;status_code&quot;:500,&quot;route&quot;:&quot;/assets/{asset_id}&quot;,&quot;duration_ms&quot;:812}
+</span></code></pre></div>
+<p><strong>Traces</strong> — a span's resource attributes:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-7-1">app=asset-management  service=api  env=production  host=app-vps-01
+</span><span id="__span-7-2">service.name=asset-management-api
+</span><span id="__span-7-3">deployment.environment.name=production
+</span></code></pre></div>
+<p><strong>Selecting it in each query language</strong> — note that the label matcher is character-for-character
+the same in all three:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-8-1"><span class="k">sum</span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">fastapi_requests_total</span><span class="p">{</span><span class="nl">app</span><span class="o">=</span><span class="p">&quot;</span><span class="s">asset-management</span><span class="p">&quot;,</span><span class="w"> </span><span class="nl">service</span><span class="o">=</span><span class="p">&quot;</span><span class="s">api</span><span class="p">&quot;,</span><span class="w"> </span><span class="nl">env</span><span class="o">=</span><span class="p">&quot;</span><span class="s">production</span><span class="p">&quot;}[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span>
+</span></code></pre></div>
+<div class="highlight"><pre><span></span><code><span id="__span-9-1">{app=&quot;asset-management&quot;, service=&quot;api&quot;, env=&quot;production&quot;} | json | status_code &gt;= 500
+</span></code></pre></div>
+<div class="highlight"><pre><span></span><code><span id="__span-10-1">{ resource.app = &quot;asset-management&quot; &amp;&amp; resource.service = &quot;api&quot; &amp;&amp; resource.env = &quot;production&quot; }
+</span></code></pre></div>
+<p>That identity is what a dashboard variable substitutes into, what an exemplar carries from a
+metric to a trace, and what a derived field carries from a log line back to a trace. It works
+because the four names never change spelling.</p>
+<h2 id="8-obs_-is-three-namespaces">8. <code>OBS_*</code> is three namespaces<a class="headerlink" href="#8-obs_-is-three-namespaces" title="Permanent link">&para;</a></h2>
+<p>Every environment variable in this repo starts <code>OBS_</code>, and it is tempting to read that as one
+thing. It is three, with different readers and different failure modes:</p>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Examples</th>
+<th>Read by</th>
+<th>Read when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>App identity</td>
+<td><code>OBS_APP</code>, <code>OBS_SERVICE</code>, <code>OBS_ENV</code>, <code>OBS_HOST</code></td>
+<td>the SDK, inside the container</td>
+<td>at app start</td>
+</tr>
+<tr>
+<td>Agent config</td>
+<td><code>OBS_PROM_URL</code>, <code>OBS_INGEST_*</code>, <code>OBS_DOCKER_NETWORK</code></td>
+<td>Alloy's <code>sys.env()</code>, inside the container</td>
+<td>at agent start</td>
+</tr>
+<tr>
+<td>Deploy shape</td>
+<td><code>OBS_DOMAIN</code>, <code>OBS_EDGE_NETWORK</code>, <code>OBS_EDGE_EXTERNAL</code></td>
+<td>Compose, at render time</td>
+<td>at <code>up</code></td>
+</tr>
+</tbody>
+</table>
+<p>The first two tiers are read <em>inside</em> a container, from whatever process reads <code>.env</code> files
+there — a <code>$</code> in one of those values is literal. The third tier is not observability
+configuration at all; it is placement, and it is the only tier Compose itself interpolates —
+which makes it the only one the <code>$$</code>-doubling trap (<code>docs/operations.md</code> §7) applies to.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href=".." class="md-footer__link md-footer__link--prev" aria-label="Previous: Home">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Home
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../deploy-server/" class="md-footer__link md-footer__link--next" aria-label="Next: Deploy the Server">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Deploy the Server
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.annotate", "content.code.copy", "content.footnote.tooltips", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.instant.prefetch", "navigation.instant.progress", "navigation.path", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
