@@ -1,0 +1,7 @@
+# Documentation site only — the three Python subprojects (sdk/obstack, demo/app,
+# demo/loadgen) each carry their own uv-managed pyproject.toml and are untouched
+# by this. Used by `make docs` and .github/workflows/docs.yml.
+mkdocs>=1.6,<2.0
+mkdocs-material==9.7.3
+mkdocs-github-admonitions-plugin==0.1.1
+Pygments

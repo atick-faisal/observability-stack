@@ -20,6 +20,7 @@ An application-independent Grafana LGTM stack. One deployment on a VPS serves ev
     <a href="https://github.com/atick-faisal/observability-stack/releases"><img src="https://img.shields.io/github/v/release/atick-faisal/observability-stack?style=for-the-badge&colorA=363a4f&colorB=b7bdf8"></a>
     <a href="https://github.com/atick-faisal/observability-stack/issues"><img src="https://img.shields.io/github/issues/atick-faisal/observability-stack?style=for-the-badge&colorA=363a4f&colorB=f5a97f"></a>
     <a href="https://github.com/atick-faisal/observability-stack/blob/main/LICENSE"><img src="https://img.shields.io/github/license/atick-faisal/observability-stack?style=for-the-badge&colorA=363a4f&colorB=8aadf4"></a>
+    <a href="https://atick-faisal.github.io/observability-stack/"><img src="https://img.shields.io/badge/Docs-Read-cba6f7?style=for-the-badge&colorA=363a4f&colorB=cba6f7&logo=materialformkdocs&logoColor=white"></a>
 </p>
 
 <picture>
@@ -33,7 +34,7 @@ Onboarding a new FastAPI + Postgres app is four steps: copy `agent/`, add a few 
 > [!NOTE]
 > **Status: pre-v1.** Current milestone: **M10 — ship**. Everything below is built and verified
 > against a local end-to-end run; what remains is the first real VPS deploy, the first onboarded
-> app, and the `v0.1.0` tag. See [`TASKS.md`](./TASKS.md) for what is done and what is next.
+> app, and the `v0.1.0` tag.
 
 ## ✨ What You Get
 
@@ -178,14 +179,15 @@ rather than a graph three months later.
 
 ## 📚 Documentation
 
+All of it is on the [documentation site](https://atick-faisal.github.io/observability-stack/),
+and in this repo:
+
 | | |
 |---|---|
 | [`docs/labels.md`](./docs/labels.md) | **Read this first.** The label contract everything else depends on. |
-| [`PLAN.md`](./PLAN.md) | Design and rationale — the *why*. |
-| [`TASKS.md`](./TASKS.md) | Implementation checklist — the *what next*. |
 | [`sdk/obstack/README.md`](./sdk/obstack/README.md) | The Python SDK: settings, metric names, what one call gets you. |
 | [`agent/README.md`](./agent/README.md) | The agent: labels to add, what it collects, what will bite you. |
-| [`demo/`](./demo/) | A worked example of the four steps above — copy it when onboarding. |
+| [`demo/`](https://github.com/atick-faisal/observability-stack/tree/main/demo) | A worked example of the four steps above — copy it when onboarding. |
 | [`docs/onboard-app.md`](./docs/onboard-app.md) | The four-step diff in detail. |
 | [`docs/deploy-server.md`](./docs/deploy-server.md) | Provisioning, DNS, first `up`, clock sync. |
 | [`docs/local-dev.md`](./docs/local-dev.md) | The demo stack, the verify scripts, macOS caveats. |

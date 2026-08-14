@@ -48,7 +48,7 @@ DEMO_PROFILES := --profile postgres --profile containers
 # Push-only: the VPS routes grafana.<domain> and three ingest PathPrefixes and
 # nothing else, so its query APIs are not reachable and `make verify-signals` cannot
 # follow. Confirm the push in Grafana. scripts/verify-deployed.sh is the assertion
-# that belongs here and does not exist yet (REFACTOR_TASKS.md P4).
+# that belongs here and does not exist yet (docs/archive/REFACTOR_TASKS.md P4).
 #
 # Identity is unaffected — compose.demo.yml sets OBS_APP / OBS_ENV / OBS_HOST
 # under `environment:`, which outranks any --env-file — so this arrives on the VPS
@@ -67,7 +67,7 @@ DEMO_ENV      += ACME_CASERVER=https://acme-staging-v02.api.letsencrypt.org/dire
 endif
 # SECOND_AGENT=1 adds a second, independent app+agent pair (compose.demo2.yml)
 # to the demo, so `make verify-resilience` can exercise the out-of-order
-# window a single agent structurally cannot (REFACTOR_TASKS.md P4, §B3).
+# window a single agent structurally cannot (docs/archive/REFACTOR_TASKS.md P4, §B3).
 # Direct push only — it does not follow EDGE/REMOTE.
 ifdef SECOND_AGENT
 DEMO_FILES    += -f compose.demo2.yml
@@ -106,7 +106,7 @@ DEMO_DIRS     := demo/app demo/loadgen
 
 .DEFAULT_GOAL := help
 
-.PHONY: help lgtm-up lgtm-down lgtm-logs demo-up demo-down demo-logs verify-signals verify-ingest verify-dashboards verify-errors verify-resilience backup restore glitchtip-up glitchtip-down glitchtip-logs verify-config lint test env-check glitchtip-env-check remote-check print-%
+.PHONY: help lgtm-up lgtm-down lgtm-logs demo-up demo-down demo-logs verify-signals verify-ingest verify-dashboards verify-errors verify-resilience backup restore glitchtip-up glitchtip-down glitchtip-logs verify-config lint test docs docs-build env-check glitchtip-env-check remote-check print-%
 
 env-check:
 	@test -f .env.lgtm || { echo "missing .env.lgtm — cp .env.lgtm.example .env.lgtm"; exit 1; }
@@ -212,6 +212,18 @@ lint: ## Type-check and lint the SDK and the demo
 
 test: ## Run the SDK test suite
 	cd $(SDK_DIR) && uv run pytest
+
+# No root pyproject.toml exists — the three Python subprojects each own theirs —
+# so the docs dependencies live in requirements-docs.txt and uv builds a throwaway
+# environment from it. Same script and same requirements file CI uses, so a page
+# that renders here renders there.
+docs: ## Serve the documentation site locally on :8000
+	./scripts/assemble-docs.sh
+	uv run --with-requirements requirements-docs.txt mkdocs serve
+
+docs-build: ## Build the documentation site into site/, failing on any broken link
+	./scripts/assemble-docs.sh
+	uv run --with-requirements requirements-docs.txt mkdocs build --strict
 
 # So CI can render the same -f/--env-file combinations `make` itself builds
 # (SERVER_FILES, DEMO_FILES, GT_FILES, ...) without a second, driftable copy of

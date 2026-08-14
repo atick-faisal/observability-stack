@@ -3,7 +3,7 @@
 # writes keep advancing Prometheus's head while agent 2 buffers and replays
 # stale timestamps, which is the only way to force the out-of-order path a
 # single agent's in-order replay barely touches. docs/operations.md §1 and
-# REFACTOR_PLAN.md §B3 have the full reasoning.
+# docs/archive/REFACTOR_PLAN.md §B3 have the full reasoning.
 #
 # Everything here is a full duplicate of the corresponding alloy/demo-api/
 # demo-loadgen service, not an overlay on them — Compose can't rename a
