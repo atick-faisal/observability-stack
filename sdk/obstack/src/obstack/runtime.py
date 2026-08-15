@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Atick Faisal
+# SPDX-License-Identifier: MIT
+
 from __future__ import annotations
 
 from collections.abc import Collection
@@ -35,9 +38,9 @@ class Observability:
         self.tracer_provider.shutdown()
 
 
-def _bootstrap(settings: ObservabilitySettings | None) -> tuple[
-    ObservabilitySettings, TracerProvider | None
-]:
+def _bootstrap(
+    settings: ObservabilitySettings | None,
+) -> tuple[ObservabilitySettings, TracerProvider | None]:
     resolved = settings if settings is not None else ObservabilitySettings.load()
     configure_logging(resolved)
     setup_error_reporting(resolved)

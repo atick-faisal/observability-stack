@@ -22,8 +22,9 @@ So the local stack is where a change gets proven, not CI.
 1. Open an issue describing the change.
 2. Fork and branch off `main`, naming the branch `<type>/<slug>` — `feat/alloy-retry`,
    `docs/operations-backup`.
-3. Make the change, and run the checks below.
-4. Open the PR with a description of what changed and how you verified it.
+3. Run `make hooks` once, to install the pre-commit hooks.
+4. Make the change, and run the checks below.
+5. Open the PR with a description of what changed and how you verified it.
 
 ## Before you open the PR
 
@@ -49,6 +50,22 @@ If your change touches the edge or the agent's buffering, the matching targets a
 
 Scripts under `scripts/` are checked with `shellcheck --severity=warning`, and workflow
 files with `actionlint`. CI runs all of the above.
+
+## Pre-commit hooks
+
+`make hooks` installs them; they then run on every commit. Between them they cover
+formatting, ruff, `pyright`, `shellcheck`, `actionlint`, a secret scan, and the MIT
+licence header every `.py` file carries. Same versions CI pins, so a green commit
+should mean a green build.
+
+To run them across the whole tree — worth doing after a rebase, or the first time:
+
+```bash
+uvx pre-commit run --all-files
+```
+
+Hooks that reformat a file fail the commit by design. Re-stage and commit again. To get
+past them in a genuine emergency, `git commit --no-verify`; CI will still object.
 
 ## Commit messages
 

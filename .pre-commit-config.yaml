@@ -1,0 +1,131 @@
+# 🪝 Pre-commit hooks — the same gates ci.yml applies, moved to commit time so a lint
+# slip costs a restage instead of a round trip through a red pull request.
+#
+# Install with `make hooks`. Run across the whole tree with `uvx pre-commit run -a`.
+#
+# Versions here are pinned to match what CI and the lockfiles use: ruff to the version
+# sdk/obstack/uv.lock resolves, actionlint to the tag ci.yml installs. When Renovate
+# bumps one, bump the other in the same PR or the hook and the workflow start
+# disagreeing about the same file.
+
+# Generated output and vendored state. docs/diagrams/*.html is written by
+# docs/diagrams/generate.py — a whitespace fixer editing it would put the committed
+# HTML out of step with its generator.
+exclude: |
+  (?x)^(
+      docs/diagrams/.*\.(html|png)|
+      site/.*|
+      backups/.*
+  )$
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        # The two architecture PNGs are ~152K each; this leaves headroom without
+        # letting a stray container image or database dump through.
+        args: ["--maxkb=512"]
+      - id: check-yaml
+        # mkdocs.yml uses `!!python/name:pymdownx...`, which the safe loader rejects.
+        args: ["--unsafe"]
+      - id: check-toml
+      - id: check-json
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: detect-private-key
+
+  # 🐍 Ruff resolves config per file, so each of the three uv projects keeps its own
+  # [tool.ruff] and everything else falls back to the root ruff.toml.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.1
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  # 🐚 --severity=warning matches ci.yml: the scripts lean on `A && B || C` and on
+  # single-quoted `$` in printf formats throughout, both info-level and both deliberate.
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        args: [--severity=warning]
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+
+  # 🔐 This repo handles ingest credentials, htpasswd hashes and GlitchTip secrets.
+  # .gitignore covers the .env files, but `git add -f` walks straight past it.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: local
+    hooks:
+      - id: license-header
+        name: MIT licence header
+        entry: python scripts/check_license_header.py
+        language: python
+        types: [python]
+
+      - id: forbid-env-files
+        name: refuse to commit a real .env file
+        language: fail
+        entry: "env files hold credentials — commit the .example instead"
+        files: '(^|/)\.env[^/]*$'
+        exclude: '\.example$'
+
+      # `uv lock --check` needs a project to run against and there is no root
+      # workspace, so this is one hook per uv project rather than one for the repo.
+      - id: uv-lock-sdk
+        name: uv lock --check (sdk/obstack)
+        entry: uv lock --check --directory sdk/obstack
+        language: system
+        pass_filenames: false
+        files: '^sdk/obstack/(pyproject\.toml|uv\.lock)$'
+
+      - id: uv-lock-demo-app
+        name: uv lock --check (demo/app)
+        entry: uv lock --check --directory demo/app
+        language: system
+        pass_filenames: false
+        files: '^(demo/app/(pyproject\.toml|uv\.lock)|sdk/obstack/pyproject\.toml)$'
+
+      - id: uv-lock-demo-loadgen
+        name: uv lock --check (demo/loadgen)
+        entry: uv lock --check --directory demo/loadgen
+        language: system
+        pass_filenames: false
+        files: '^(demo/loadgen/(pyproject\.toml|uv\.lock)|sdk/obstack/pyproject\.toml)$'
+
+      # Pyright is only accurate with the project's dependencies importable, so it runs
+      # through uv rather than in a pre-commit-managed virtualenv. Each hook reads its
+      # own [tool.pyright] include list, hence pass_filenames: false.
+      - id: pyright-sdk
+        name: pyright (sdk/obstack)
+        entry: uv run --directory sdk/obstack pyright
+        language: system
+        pass_filenames: false
+        files: '^sdk/obstack/.*\.py$'
+
+      - id: pyright-demo-app
+        name: pyright (demo/app)
+        entry: uv run --directory demo/app pyright
+        language: system
+        pass_filenames: false
+        files: '^(demo/app/.*\.py|sdk/obstack/src/.*\.py)$'
+
+      - id: pyright-demo-loadgen
+        name: pyright (demo/loadgen)
+        entry: uv run --directory demo/loadgen pyright
+        language: system
+        pass_filenames: false
+        files: '^(demo/loadgen/.*\.py|sdk/obstack/src/.*\.py)$'

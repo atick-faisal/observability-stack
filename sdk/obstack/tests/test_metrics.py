@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Atick Faisal
+# SPDX-License-Identifier: MIT
+
 from __future__ import annotations
 
 from prometheus_client.parser import text_string_to_metric_families

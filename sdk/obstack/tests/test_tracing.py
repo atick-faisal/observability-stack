@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Atick Faisal
+# SPDX-License-Identifier: MIT
+
 from __future__ import annotations
 
 import json
@@ -68,9 +71,7 @@ def test_span_correlates_with_log_line_and_exemplar(
     def item(item_id: int) -> dict[str, int]:
         return {"item_id": item_id}
 
-    obs = setup_observability(
-        app, settings=make_settings(otlp_endpoint="http://alloy:4317")
-    )
+    obs = setup_observability(app, settings=make_settings(otlp_endpoint="http://alloy:4317"))
     client = TestClient(app)
 
     capsys.readouterr()

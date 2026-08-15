@@ -106,7 +106,7 @@ DEMO_DIRS     := demo/app demo/loadgen
 
 .DEFAULT_GOAL := help
 
-.PHONY: help lgtm-up lgtm-down lgtm-logs demo-up demo-down demo-logs verify-signals verify-ingest verify-dashboards verify-errors verify-resilience backup restore glitchtip-up glitchtip-down glitchtip-logs verify-config lint test docs docs-build env-check glitchtip-env-check remote-check print-%
+.PHONY: help lgtm-up lgtm-down lgtm-logs demo-up demo-down demo-logs verify-signals verify-ingest verify-dashboards verify-errors verify-resilience backup restore glitchtip-up glitchtip-down glitchtip-logs verify-config hooks lint test docs docs-build env-check glitchtip-env-check remote-check print-%
 
 env-check:
 	@test -f .env.lgtm || { echo "missing .env.lgtm — cp .env.lgtm.example .env.lgtm"; exit 1; }
@@ -202,6 +202,11 @@ verify-config: env-check glitchtip-env-check ## Render both deployed compose sha
 	@OBS_EDGE_NETWORK=dokploy-network OBS_EDGE_EXTERNAL=true \
 		$(COMPOSE) $(GT_ENV) -f compose.glitchtip.yml config >/dev/null \
 		&& echo "compose.glitchtip.yml (deployed shape) OK"
+
+# uvx rather than a `pre-commit` on PATH: uv is already required to build anything here,
+# so this works on a fresh clone with nothing else installed.
+hooks: ## Install the git pre-commit hooks
+	uvx pre-commit install
 
 lint: ## Type-check and lint the SDK and the demo
 	cd $(SDK_DIR) && uv run pyright && uv run ruff check .

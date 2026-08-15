@@ -1,0 +1,21 @@
+# Fallback ruff config for the Python files that sit outside the three uv projects —
+# scripts/ and docs/diagrams/generate.py — which would otherwise be checked against
+# ruff's 88-column defaults while everything else uses 100.
+#
+# Ruff resolves the *nearest* config walking up from each file, so sdk/obstack,
+# demo/app and demo/loadgen keep their own [tool.ruff] blocks. Keep the settings
+# below in step with those three.
+
+line-length = 100
+# The SDK's requires-python floor. These files have no requires-python of their own for
+# ruff to infer from, and docs/diagrams/generate.py runs under whatever bare `python3` is
+# on PATH, so pin it rather than let the UP rules suggest newer-than-supported syntax.
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[lint.per-file-ignores]
+# The long lines are embedded SVG and HTML markup inside template strings, where a
+# line break would change the generated output and a `# noqa` cannot be placed.
+"docs/diagrams/generate.py" = ["E501"]

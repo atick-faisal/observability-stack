@@ -127,6 +127,7 @@ measured at 382s to replay to the end of a 901s window. `make demo-up SECOND_AGE
 checks 8/9, which force the out-of-order path a single agent can't reach — see `agent/README.md`.
 
 ```bash
+make hooks                # once per clone — installs the pre-commit hooks
 make lint && make test    # pyright + ruff on three projects, 41 tests
 ```
 

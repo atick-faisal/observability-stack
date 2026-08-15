@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Atick Faisal
+# SPDX-License-Identifier: MIT
+
 from __future__ import annotations
 
 import asyncio
@@ -52,9 +55,7 @@ async def _run(
             requests.labels(**identity, route=route, status_code="error").inc()
             log.warning("request failed", route=route, error=str(exc))
         else:
-            requests.labels(
-                **identity, route=route, status_code=str(response.status_code)
-            ).inc()
+            requests.labels(**identity, route=route, status_code=str(response.status_code)).inc()
             emit = log.warning if response.status_code >= 500 else log.debug
             emit("request", route=route, status_code=response.status_code)
 
