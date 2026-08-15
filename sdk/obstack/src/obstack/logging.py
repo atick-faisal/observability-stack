@@ -37,7 +37,7 @@ def _add_otel_context(
     _logger: WrappedLogger, _method: str, event_dict: EventDict
 ) -> EventDict:
     ctx = trace.get_current_span().get_span_context()
-    if ctx is not None and ctx.trace_id != 0:
+    if ctx.trace_id != 0:
         event_dict["trace_id"] = format(ctx.trace_id, "032x")
         event_dict["span_id"] = format(ctx.span_id, "016x")
     return event_dict

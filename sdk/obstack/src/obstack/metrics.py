@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import cast
 
 from prometheus_client import (
     CollectorRegistry,
@@ -10,11 +11,14 @@ from prometheus_client import (
     Info,
     disable_created_metrics,
 )
-from prometheus_client.openmetrics.exposition import CONTENT_TYPE_LATEST, generate_latest
+from prometheus_client.openmetrics.exposition import (
+    CONTENT_TYPE_LATEST,
+    generate_latest,  # pyright: ignore[reportUnknownVariableType]  — untyped upstream
+)
 
 from obstack.settings import ObservabilitySettings
 
-disable_created_metrics()  # type: ignore[no-untyped-call]
+disable_created_metrics()
 
 _IDENTITY = ("app", "service", "env")
 _BUCKETS = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0)
@@ -74,4 +78,4 @@ def build_metrics(settings: ObservabilitySettings) -> Metrics:
 
 
 def render(registry: CollectorRegistry) -> tuple[bytes, str]:
-    return generate_latest(registry), CONTENT_TYPE_LATEST  # type: ignore[no-untyped-call]
+    return cast(bytes, generate_latest(registry)), CONTENT_TYPE_LATEST

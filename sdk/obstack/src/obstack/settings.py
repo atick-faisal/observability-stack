@@ -43,7 +43,9 @@ class ObservabilitySettings(BaseSettings):
     @classmethod
     def load(cls) -> ObservabilitySettings:
         try:
-            return cls()  # type: ignore[call-arg]
+            # Every field is env-populated, but pydantic-settings' generated __init__
+            # still declares them required and pyright has no plugin to know better.
+            return cls()  # pyright: ignore[reportCallIssue]
         except ValidationError as exc:
             raise ObservabilityConfigError(
                 f"invalid observability configuration (OBS_* environment variables):\n{exc}"

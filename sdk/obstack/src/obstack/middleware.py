@@ -30,7 +30,7 @@ def _route_pattern(scope: Scope) -> str:
 
 def _exemplar() -> dict[str, str] | None:
     ctx = trace.get_current_span().get_span_context()
-    if ctx is not None and ctx.trace_id != 0:
+    if ctx.trace_id != 0:
         return {"trace_id": format(ctx.trace_id, "032x")}
     return None
 

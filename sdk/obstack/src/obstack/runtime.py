@@ -71,7 +71,7 @@ def setup_observability(
     if resolved.metrics_enabled:
 
         @app.get(resolved.metrics_path, include_in_schema=False)
-        def expose_metrics() -> Response:
+        def expose_metrics() -> Response:  # pyright: ignore[reportUnusedFunction]  — the decorator is the use
             body, content_type = render(metrics.registry)
             return Response(content=body, media_type=content_type)
 

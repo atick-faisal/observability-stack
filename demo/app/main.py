@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import random
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS demo_events (
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
     async with engine.begin() as conn:
         await conn.execute(text(_DDL))
     log.info("demo app ready", database=engine.url.render_as_string(hide_password=True))

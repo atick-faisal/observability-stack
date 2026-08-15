@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["mypy>=1.18.2", "ruff>=0.14.0"]
+dev = ["pyright>=1.1.407", "ruff>=0.14.0"]
 
 [tool.uv]
 package = false
@@ -18,9 +18,13 @@ package = false
 [tool.uv.sources]
 obstack = { path = "../../sdk/obstack" }
 
-[tool.mypy]
-python_version = "3.13"
-strict = true
+[tool.pyright]
+include = ["main.py"]
+pythonVersion = "3.13"
+typeCheckingMode = "strict"
+reportUnreachable = "error"
+# See sdk/obstack/pyproject.toml — the OTel instrumentation packages ship no py.typed.
+reportMissingTypeStubs = "none"
 
 [tool.ruff]
 line-length = 100
