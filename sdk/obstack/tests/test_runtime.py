@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Atick Faisal
+# SPDX-License-Identifier: MIT
+
 from __future__ import annotations
 
 import json
@@ -128,9 +131,7 @@ def test_request_log_line(capsys: pytest.CaptureFixture[str]) -> None:
     client.get("/items/7")
 
     lines = [
-        json.loads(line)
-        for line in capsys.readouterr().out.splitlines()
-        if line.startswith("{")
+        json.loads(line) for line in capsys.readouterr().out.splitlines() if line.startswith("{")
     ]
     http = next(line for line in lines if line["event"] == "HTTP")
     assert http["method"] == "GET"

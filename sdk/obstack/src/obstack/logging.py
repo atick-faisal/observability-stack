@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Atick Faisal
+# SPDX-License-Identifier: MIT
+
 from __future__ import annotations
 
 import logging
@@ -33,9 +36,7 @@ def bind_request_context(**fields: Any) -> None:
     bind_contextvars(**fields)
 
 
-def _add_otel_context(
-    _logger: WrappedLogger, _method: str, event_dict: EventDict
-) -> EventDict:
+def _add_otel_context(_logger: WrappedLogger, _method: str, event_dict: EventDict) -> EventDict:
     ctx = trace.get_current_span().get_span_context()
     if ctx.trace_id != 0:
         event_dict["trace_id"] = format(ctx.trace_id, "032x")
@@ -78,9 +79,7 @@ def configure_logging(settings: ObservabilitySettings) -> None:
 
     # ProcessorFormatter passes logger=None for stdlib records, and filter_by_level
     # reads logger.disabled. Level filtering for those records is root_logger's job.
-    foreign_pre_chain = [
-        p for p in shared_processors if p is not structlog.stdlib.filter_by_level
-    ]
+    foreign_pre_chain = [p for p in shared_processors if p is not structlog.stdlib.filter_by_level]
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(

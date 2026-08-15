@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Atick Faisal
+# SPDX-License-Identifier: MIT
+
 from __future__ import annotations
 
 import asyncio
@@ -15,9 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 log = structlog.get_logger("demo")
 
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL", "postgresql+asyncpg://demo:demo@demo-db:5432/demo"
-)
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql+asyncpg://demo:demo@demo-db:5432/demo")
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS demo_events (

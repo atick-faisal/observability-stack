@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026 Atick Faisal
+# SPDX-License-Identifier: MIT
+
 """Generate the README architecture diagram in light and dark.
 
 One geometry, two skins — edit here, never the generated HTML, so the two
@@ -165,25 +168,37 @@ def svg(t):
     a(arrow("M 272,256 H 328", t=t))
     a(arrow("M 272,352 H 432 Q 440,352 440,344 V 312", t=t))
     # errors bypass Alloy: SDK -> Traefik (errors.<domain>)
-    a(arrow("M 200,128 V 112 Q 200,104 208,104 H 616 Q 624,104 624,112 V 184",
-            t=t, style="dashed"))
+    a(arrow("M 200,128 V 112 Q 200,104 208,104 H 616 Q 624,104 624,112 V 184", t=t, style="dashed"))
     # the one permitted ingress
     a(arrow("M 472,256 H 592", t=t, style="accent"))
     # Traefik -> stores, one router per path
-    a(arrow("M 768,220 H 848 Q 856,220 856,212 V 168 Q 856,160 864,160 H 944",
-            t=t, style="link"))
+    a(arrow("M 768,220 H 848 Q 856,220 856,212 V 168 Q 856,160 864,160 H 944", t=t, style="link"))
     a(arrow("M 768,256 H 944", t=t, style="link"))
-    a(arrow("M 768,292 H 848 Q 856,292 856,300 V 344 Q 856,352 864,352 H 944",
-            t=t, style="link"))
+    a(arrow("M 768,292 H 848 Q 856,292 856,300 V 344 Q 856,352 864,352 H 944", t=t, style="link"))
     # Traefik -> GlitchTip
     a(arrow("M 680,328 V 440", t=t, style="dashed"))
     # stores -> Grafana (nested lanes, no crossings)
-    a(arrow("M 1144,352 H 1152 Q 1160,352 1160,360 V 448 Q 1160,456 1152,456 H 1144",
-            t=t, style="dashed"))
-    a(arrow("M 1144,256 H 1168 Q 1176,256 1176,264 V 464 Q 1176,472 1168,472 H 1144",
-            t=t, style="dashed"))
-    a(arrow("M 1144,160 H 1184 Q 1192,160 1192,168 V 480 Q 1192,488 1184,488 H 1144",
-            t=t, style="dashed"))
+    a(
+        arrow(
+            "M 1144,352 H 1152 Q 1160,352 1160,360 V 448 Q 1160,456 1152,456 H 1144",
+            t=t,
+            style="dashed",
+        )
+    )
+    a(
+        arrow(
+            "M 1144,256 H 1168 Q 1176,256 1176,264 V 464 Q 1176,472 1168,472 H 1144",
+            t=t,
+            style="dashed",
+        )
+    )
+    a(
+        arrow(
+            "M 1144,160 H 1184 Q 1192,160 1192,168 V 480 Q 1192,488 1184,488 H 1144",
+            t=t,
+            style="dashed",
+        )
+    )
 
     a("<!-- Arrow labels -->")
     a(alabel(t, "SENTRY DSN", cx=400, mask_w=96, baseline=124))
@@ -194,33 +209,154 @@ def svg(t):
     a(alabel(t, "ERRORS", cx=720, mask_w=64, baseline=388))
 
     a("<!-- Nodes -->")
-    a(node(t, x=72, y=128, w=200, h=64, tag="APP", tag_w=32,
-           name="FastAPI app", subs=["obstack · /metrics"], kind="service"))
-    a(node(t, x=72, y=224, w=200, h=64, tag="DB", tag_w=28,
-           name="Postgres", subs=["exporter :9187"], kind="store"))
-    a(node(t, x=72, y=320, w=200, h=64, tag="HOST", tag_w=36,
-           name="cAdvisor + host", subs=[":8080 · /proc /sys"], kind="external"))
-    a(node(t, x=328, y=200, w=144, h=112, tag="AGENT", tag_w=44, name="Alloy",
-           subs=["docker logs", "otlp :4317", "8h disk buffer"], kind="focal"))
+    a(
+        node(
+            t,
+            x=72,
+            y=128,
+            w=200,
+            h=64,
+            tag="APP",
+            tag_w=32,
+            name="FastAPI app",
+            subs=["obstack · /metrics"],
+            kind="service",
+        )
+    )
+    a(
+        node(
+            t,
+            x=72,
+            y=224,
+            w=200,
+            h=64,
+            tag="DB",
+            tag_w=28,
+            name="Postgres",
+            subs=["exporter :9187"],
+            kind="store",
+        )
+    )
+    a(
+        node(
+            t,
+            x=72,
+            y=320,
+            w=200,
+            h=64,
+            tag="HOST",
+            tag_w=36,
+            name="cAdvisor + host",
+            subs=[":8080 · /proc /sys"],
+            kind="external",
+        )
+    )
+    a(
+        node(
+            t,
+            x=328,
+            y=200,
+            w=144,
+            h=112,
+            tag="AGENT",
+            tag_w=44,
+            name="Alloy",
+            subs=["docker logs", "otlp :4317", "8h disk buffer"],
+            kind="focal",
+        )
+    )
 
-    a(node(t, x=592, y=184, w=176, h=144, tag="EDGE", tag_w=36, name="Traefik",
-           subs=["ingest.&lt;domain&gt;", "/api/v1/write", "/loki/api/v1/push",
-                 "/v1/traces"], kind="focal"))
-    a(node(t, x=944, y=128, w=200, h=64, tag="TSDB", tag_w=36,
-           name="Prometheus", subs=[":9090 · 30d"], kind="store"))
-    a(node(t, x=944, y=224, w=200, h=64, tag="LOGS", tag_w=36,
-           name="Loki", subs=[":3100 · 14d"], kind="store"))
-    a(node(t, x=944, y=320, w=200, h=64, tag="TRACE", tag_w=40,
-           name="Tempo", subs=[":3200 · 7d"], kind="store"))
-    a(node(t, x=944, y=440, w=200, h=64, tag="UI", tag_w=24,
-           name="Grafana", subs=["grafana.&lt;domain&gt;"], kind="service"))
-    a(node(t, x=592, y=440, w=176, h=64, tag="OPT", tag_w=32,
-           name="GlitchTip", subs=["errors.&lt;domain&gt;"], kind="optional"))
+    a(
+        node(
+            t,
+            x=592,
+            y=184,
+            w=176,
+            h=144,
+            tag="EDGE",
+            tag_w=36,
+            name="Traefik",
+            subs=["ingest.&lt;domain&gt;", "/api/v1/write", "/loki/api/v1/push", "/v1/traces"],
+            kind="focal",
+        )
+    )
+    a(
+        node(
+            t,
+            x=944,
+            y=128,
+            w=200,
+            h=64,
+            tag="TSDB",
+            tag_w=36,
+            name="Prometheus",
+            subs=[":9090 · 30d"],
+            kind="store",
+        )
+    )
+    a(
+        node(
+            t,
+            x=944,
+            y=224,
+            w=200,
+            h=64,
+            tag="LOGS",
+            tag_w=36,
+            name="Loki",
+            subs=[":3100 · 14d"],
+            kind="store",
+        )
+    )
+    a(
+        node(
+            t,
+            x=944,
+            y=320,
+            w=200,
+            h=64,
+            tag="TRACE",
+            tag_w=40,
+            name="Tempo",
+            subs=[":3200 · 7d"],
+            kind="store",
+        )
+    )
+    a(
+        node(
+            t,
+            x=944,
+            y=440,
+            w=200,
+            h=64,
+            tag="UI",
+            tag_w=24,
+            name="Grafana",
+            subs=["grafana.&lt;domain&gt;"],
+            kind="service",
+        )
+    )
+    a(
+        node(
+            t,
+            x=592,
+            y=440,
+            w=176,
+            h=64,
+            tag="OPT",
+            tag_w=32,
+            name="GlitchTip",
+            subs=["errors.&lt;domain&gt;"],
+            kind="optional",
+        )
+    )
 
     a("<!-- Legend -->")
     a(f'<line x1="40" y1="576" x2="1240" y2="576" stroke="{t["ink_10"]}" stroke-width="0.8"/>')
-    a(f'<text x="40" y="596" fill="{t["muted"]}" font-size="8" font-family="{MONO}" '
-      f'letter-spacing="0.18em">LEGEND</text>')
+    a(
+        f'<text x="40" y="596" fill="{t["muted"]}" font-size="8" font-family="{MONO}" '
+        f'letter-spacing="0.18em">LEGEND</text>'
+    )
 
     swatches = [
         (40, t["accent_tint"], t["accent"], None, "Focal"),
@@ -230,10 +366,14 @@ def svg(t):
     ]
     for x, fill, stroke, dash, text in swatches:
         d = f' stroke-dasharray="{dash}"' if dash else ""
-        a(f'<rect x="{x}" y="{616}" width="16" height="12" rx="2" fill="{fill}" '
-          f'stroke="{stroke}" stroke-width="1"{d}/>')
-        a(f'<text x="{x + 24}" y="{624}" fill="{t["muted"]}" font-size="10" '
-          f'font-family="{SANS}">{text}</text>')
+        a(
+            f'<rect x="{x}" y="{616}" width="16" height="12" rx="2" fill="{fill}" '
+            f'stroke="{stroke}" stroke-width="1"{d}/>'
+        )
+        a(
+            f'<text x="{x + 24}" y="{624}" fill="{t["muted"]}" font-size="10" '
+            f'font-family="{SANS}">{text}</text>'
+        )
 
     lines = [
         (640, t["accent"], "1.6", None, "arrow-accent", "Authenticated push"),
@@ -242,10 +382,14 @@ def svg(t):
     ]
     for x, stroke, width, dash, marker, text in lines:
         d = f' stroke-dasharray="{dash}"' if dash else ""
-        a(f'<line x1="{x}" y1="620" x2="{x + 28}" y2="620" stroke="{stroke}" '
-          f'stroke-width="{width}"{d} marker-end="url(#{marker})"/>')
-        a(f'<text x="{x + 36}" y="{624}" fill="{t["muted"]}" font-size="10" '
-          f'font-family="{SANS}">{text}</text>')
+        a(
+            f'<line x1="{x}" y1="620" x2="{x + 28}" y2="620" stroke="{stroke}" '
+            f'stroke-width="{width}"{d} marker-end="url(#{marker})"/>'
+        )
+        a(
+            f'<text x="{x + 36}" y="{624}" fill="{t["muted"]}" font-size="10" '
+            f'font-family="{SANS}">{text}</text>'
+        )
 
     slug = t["slug"]
     body = "\n        ".join(p)
@@ -253,9 +397,9 @@ def svg(t):
       <title id="{slug}-title">Observability stack — the two halves</title>
       <desc id="{slug}-desc">Architecture diagram: on an app host, a FastAPI app, Postgres and cAdvisor plus host metrics all feed a single Alloy agent that buffers to disk; Alloy makes one authenticated HTTPS push to Traefik on the observability VPS, which routes each ingest path to Prometheus, Loki or Tempo, with Grafana querying all three and an opt-in GlitchTip receiving errors sent directly by the application.</desc>
         <defs>
-          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="{t['muted']}"/></marker>
-          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="{t['accent']}"/></marker>
-          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="{t['link']}"/></marker>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="{t["muted"]}"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="{t["accent"]}"/></marker>
+          <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="{t["link"]}"/></marker>
         </defs>
 
         {body}
@@ -334,7 +478,10 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     for t in (LIGHT, DARK):
         html = PAGE.format(
-            paper=t["paper"], ink=t["ink"], muted=t["muted"], accent=t["accent"],
+            paper=t["paper"],
+            ink=t["ink"],
+            muted=t["muted"],
+            accent=t["accent"],
             svg=svg(t),
         )
         (out_dir / f"{t['slug']}.html").write_text(html, encoding="utf-8")

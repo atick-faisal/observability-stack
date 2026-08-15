@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Atick Faisal
+# SPDX-License-Identifier: MIT
+
 from __future__ import annotations
 
 import time
@@ -133,13 +136,7 @@ class RequestLoggingMiddleware:
             )
             raise
 
-        emit = (
-            log.error
-            if status_code >= 500
-            else log.warning
-            if status_code >= 400
-            else log.info
-        )
+        emit = log.error if status_code >= 500 else log.warning if status_code >= 400 else log.info
         emit(
             "HTTP",
             method=scope["method"],
