@@ -3,7 +3,8 @@
 # 🔭 Observability Stack
 
 <p align="center">
-An application-independent Grafana LGTM stack. One deployment on a VPS serves every project.
+An application-independent Grafana LGTM stack. One deployment on a VPS serves every project. Onboarding a new FastAPI + Postgres app is four steps: copy `agent/`, add a few Docker labels,
+`uv add obstack`, one function call.
 </p>
 
 <p align="center">
@@ -30,13 +31,12 @@ An application-independent Grafana LGTM stack. One deployment on a VPS serves ev
     <a href="https://atick-faisal.github.io/observability-stack/"><img src="https://img.shields.io/badge/Docs-Read-cba6f7?style=for-the-badge&colorA=363a4f&colorB=cba6f7&logo=materialformkdocs&logoColor=white"></a>
 </p>
 
+## 🏗️ Architecture
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./docs/diagrams/architecture-dark.png">
   <img alt="On the app host, a FastAPI app, Postgres and cAdvisor plus host metrics all feed one Alloy container, which buffers to disk and makes a single authenticated HTTPS push to Traefik on the observability VPS. Traefik routes /api/v1/write to Prometheus, /loki/api/v1/push to Loki and /v1/traces to Tempo; Grafana queries all three. Errors go directly from the app to an opt-in GlitchTip." src="./docs/diagrams/architecture.png">
 </picture>
-
-Onboarding a new FastAPI + Postgres app is four steps: copy `agent/`, add a few Docker labels,
-`uv add obstack`, one function call.
 
 ## ✨ What You Get
 
