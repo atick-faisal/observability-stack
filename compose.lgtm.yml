@@ -180,7 +180,13 @@ services:
     build: ./lgtm/grafana
     restart: unless-stopped
     logging: *obs-logging
-    mem_limit: 256m
+    # 512m, not the 256m this started at: Grafana 13 idles at ~178 MiB here, so
+    # 256m left 78 MiB of headroom and rendering a dashboard closed it. The cgroup
+    # OOM-killed it 22 times in 14 days, and because the router lives on this
+    # container's labels (below), each kill deregistered the route — so the browser
+    # saw a bare Traefik 404, then 502 while it came back, then 504 while it warmed.
+    # docs/operations.md §10 has the measurements.
+    mem_limit: 512m
     environment:
       GF_SECURITY_ADMIN_USER: ${GF_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:?set GF_ADMIN_PASSWORD in .env.lgtm}
@@ -210,6 +216,22 @@ services:
       traefik.http.routers.obs-grafana.tls.certresolver: "letsencrypt"
       traefik.http.routers.obs-grafana.middlewares: "obs-secure-headers@docker"
       traefik.http.services.obs-grafana.loadbalancer.server.port: "3000"
+      # The router above matches the whole Host, which published Grafana's
+      # /metrics to the internet — process_resident_memory_bytes and
+      # process_start_time_seconds readable by anyone. This takes the path back
+      # with a higher priority and denies it at the edge; Prometheus scrapes the
+      # same endpoint over `obs`, which never passes through Traefik.
+      #
+      # ipallowlist rather than a 403-returning service because Traefik has no
+      # built-in "reject" middleware, and a source range that matches no external
+      # client is the conventional spelling.
+      traefik.http.routers.obs-grafana-metrics.rule: "Host(`grafana.${OBS_DOMAIN:-localhost}`) && PathPrefix(`/metrics`)"
+      traefik.http.routers.obs-grafana-metrics.priority: "100"
+      traefik.http.routers.obs-grafana-metrics.entrypoints: "websecure"
+      traefik.http.routers.obs-grafana-metrics.tls.certresolver: "letsencrypt"
+      traefik.http.routers.obs-grafana-metrics.service: "obs-grafana"
+      traefik.http.routers.obs-grafana-metrics.middlewares: "obs-deny@docker"
+      traefik.http.middlewares.obs-deny.ipallowlist.sourcerange: "127.0.0.1/32"
       # Defined here rather than alongside the ingest middlewares because it is
       # the only one Grafana uses, and a middleware is defined wherever it is
       # convenient — Traefik reads the definition off any labelled container.

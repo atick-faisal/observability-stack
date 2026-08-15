@@ -29,11 +29,46 @@ storage:
     max_exemplars: 200000
 
 scrape_configs:
-  # Everything else arrives via remote_write from the agents. This is the only
-  # pull target on the server.
+  # Everything else arrives via remote_write from the agents. These are the only
+  # pull targets on the server, and they are the stack watching itself.
+  #
+  # Metrics only — the `obs.logs: "false"` on every service in compose.lgtm.yml
+  # stays. That flag is about Loki ingesting its own logs, a feedback loop these
+  # do not have.
+  #
+  # Why this exists at all: Grafana was OOM-killed 22 times in 14 days and not one
+  # of them left a trace anywhere in this stack. Diagnosing it needed journalctl
+  # on the host, which is the wrong answer for an observability system. The two
+  # series that would have shown it immediately are process_resident_memory_bytes
+  # (against the mem_limit) and process_start_time_seconds — a drop in
+  # `time() - process_start_time_seconds` is a restart, whatever caused it.
+  #
+  # Note the recorder survives what it records: Prometheus is not the process
+  # that dies.
   - job_name: prometheus
     static_configs:
       - targets: ["localhost:9090"]
         labels:
           app: observability
           service: prometheus
+
+  - job_name: grafana
+    static_configs:
+      - targets: ["grafana:3000"]
+        labels:
+          app: observability
+          service: grafana
+
+  - job_name: loki
+    static_configs:
+      - targets: ["loki:3100"]
+        labels:
+          app: observability
+          service: loki
+
+  - job_name: tempo
+    static_configs:
+      - targets: ["tempo:3200"]
+        labels:
+          app: observability
+          service: tempo
