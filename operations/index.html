@@ -804,6 +804,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="10. Memory limits">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#when-this-was-wrong" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When this was wrong
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -1136,6 +1153,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="10. Memory limits">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#when-this-was-wrong" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When this was wrong
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1592,8 +1626,8 @@ app host that shares it. A limit converts the second failure into the first.</p>
 </tr>
 <tr>
 <td>grafana</td>
-<td><code>256m</code></td>
-<td>Query-time aggregation on a wide dashboard is the spike case.</td>
+<td><code>512m</code></td>
+<td>Query-time aggregation on a wide dashboard is the spike case, and it is not a theoretical one — see "When this was wrong" below. Measured idle at ~178 MiB on Grafana 13.</td>
 </tr>
 <tr>
 <td>traefik</td>
@@ -1638,16 +1672,46 @@ app host that shares it. A limit converts the second failure into the first.</p>
 </tbody>
 </table>
 <p><strong>Budget check</strong>, against §1 of <code>docs/deploy-server.md</code> ("4 GB works for a handful of apps"): LGTM
-alone — prometheus + loki + tempo + grafana — totals 2.25 GB, leaving headroom for the OS and the
+alone — prometheus + loki + tempo + grafana — totals 2.5 GB, leaving headroom for the OS and the
 Docker daemon; <code>EDGE=1</code> adds traefik's 128m on top. GlitchTip, deployed as its own service, totals
 about 1.66 GB steady-state (web + worker + postgres + valkey; migrate is transient and exits before
 its limit is concurrent with the others) — comfortably less than the LGTM box, which fits it being
 the smaller of the two stacks.</p>
+<div class="admonition warning">
+<p class="admonition-title">Important</p>
+<p><strong>On a platform host, the platform comes out of the same 4 GB.</strong> The budget above counts only
+this repo's containers — right for shape <strong>A</strong> of <code>docs/deploy-server.md</code> §4, wrong for shape
+<strong>B</strong>. Measured on a Dokploy host: the <code>dokploy</code> container alone holds <strong>~930 MB</strong> — larger
+than any container in this repo — plus its Postgres (~90 MB), Redis (~5 MB), and Traefik
+(~45 MB), and any other app deployed on the box. Run <code>docker stats</code> <strong>before</strong> sizing anything
+here, and treat the two stacks as fitting in what is left, not in 4 GB.</p>
+</div>
 <p>These are starting points, not measurements. Watch <code>docker stats</code> under real traffic. Setting a
 limit is also what makes <code>container_spec_memory_limit_bytes</code> non-zero — it reports zero for every
 container while nothing sets one — so a "memory as % of limit" panel is worth building only once
 these are in place. A container that gets OOMKilled routinely is the signal to raise its limit,
 not evidence the limit was wrong to set.</p>
+<h3 id="when-this-was-wrong">When this was wrong<a class="headerlink" href="#when-this-was-wrong" title="Permanent link">&para;</a></h3>
+<p>Grafana shipped at <code>256m</code> against a measured idle of ~178 MiB — 70% of its own limit before
+serving anything. Rendering a dashboard closed the remaining 78 MiB, and the cgroup OOM killer
+took it <strong>22 times in 14 days</strong>, always while someone was browsing.</p>
+<p>The symptom did not look like memory. Because Traefik's Docker provider keeps the router on the
+container's labels, each kill deregistered the route, so the browser saw an intermittent <strong>404</strong>
+on paths that plainly exist (<code>/api/ds/query</code>, <code>/api/login/ping</code>, static assets), then <strong>502</strong> as
+the container came back, then <strong>504</strong> while it warmed up. Three status codes, one cause.</p>
+<p>Two things to know if this recurs:</p>
+<ul>
+<li><strong><code>docker inspect</code> lied.</strong> <code>.State.OOMKilled</code> read <code>false</code> for all 22 kills. Trust
+  <code>journalctl -k | grep -i oom</code> instead — <code>constraint=CONSTRAINT_MEMCG</code> there means the container
+  hit its own limit, <code>CONSTRAINT_NONE</code> means the host ran out and the victim may be innocent.</li>
+<li><strong><code>process_resident_memory_bytes</code> reads above the limit and that is normal.</strong> It counts
+  <code>anon-rss + file-rss</code>, and the cgroup reclaims file-backed pages before it OOMs. Do not read
+  RSS &gt; <code>mem_limit</code> as proof the limit is not being enforced. Compare <code>anon-rss</code> from the kill
+  message, or <code>docker stats</code>, which reports against the cap.</li>
+</ul>
+<p>Counting the kills is the one-liner worth keeping:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-6-1">journalctl<span class="w"> </span>-k<span class="w"> </span>--since<span class="w"> </span><span class="s1">&#39;14 days ago&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;Killed process.*grafana&#39;</span>
+</span></code></pre></div>
 
 
 
