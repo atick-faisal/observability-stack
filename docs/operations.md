@@ -296,7 +296,7 @@ app host that shares it. A limit converts the second failure into the first.
 | prometheus | `1g` | The one most likely to grow: cardinality, plus the 8h out-of-order head (§1). |
 | loki | `512m` | |
 | tempo | `512m` | Bounded specifically because `local-blocks` stays off (§4) — this limit is what turns a re-enabled `local-blocks` into a restart instead of a box-wide OOM. |
-| grafana | `256m` | Query-time aggregation on a wide dashboard is the spike case. |
+| grafana | `512m` | Query-time aggregation on a wide dashboard is the spike case, and it is not a theoretical one — see "When this was wrong" below. Measured idle at ~178 MiB on Grafana 13. |
 | traefik | `128m` | Reverse proxy plus JSON access logging. Watch it if request volume grows a lot. |
 | glitchtip-postgres | `512m` | |
 | glitchtip-valkey | `128m` | Queue and cache; small working set. |
@@ -307,14 +307,49 @@ app host that shares it. A limit converts the second failure into the first.
 | demo-db / demo-api / demo-loadgen | `256m` / `128m` / `96m` | Local only. `demo-loadgen` measured at 73% of a `64m` limit within minutes of `demo-up`, so it got the extra margin. |
 
 **Budget check**, against §1 of `docs/deploy-server.md` ("4 GB works for a handful of apps"): LGTM
-alone — prometheus + loki + tempo + grafana — totals 2.25 GB, leaving headroom for the OS and the
+alone — prometheus + loki + tempo + grafana — totals 2.5 GB, leaving headroom for the OS and the
 Docker daemon; `EDGE=1` adds traefik's 128m on top. GlitchTip, deployed as its own service, totals
 about 1.66 GB steady-state (web + worker + postgres + valkey; migrate is transient and exits before
 its limit is concurrent with the others) — comfortably less than the LGTM box, which fits it being
 the smaller of the two stacks.
+
+> [!IMPORTANT]
+> **On a platform host, the platform comes out of the same 4 GB.** The budget above counts only
+> this repo's containers — right for shape **A** of `docs/deploy-server.md` §4, wrong for shape
+> **B**. Measured on a Dokploy host: the `dokploy` container alone holds **~930 MB** — larger
+> than any container in this repo — plus its Postgres (~90 MB), Redis (~5 MB), and Traefik
+> (~45 MB), and any other app deployed on the box. Run `docker stats` **before** sizing anything
+> here, and treat the two stacks as fitting in what is left, not in 4 GB.
 
 These are starting points, not measurements. Watch `docker stats` under real traffic. Setting a
 limit is also what makes `container_spec_memory_limit_bytes` non-zero — it reports zero for every
 container while nothing sets one — so a "memory as % of limit" panel is worth building only once
 these are in place. A container that gets OOMKilled routinely is the signal to raise its limit,
 not evidence the limit was wrong to set.
+
+### When this was wrong
+
+Grafana shipped at `256m` against a measured idle of ~178 MiB — 70% of its own limit before
+serving anything. Rendering a dashboard closed the remaining 78 MiB, and the cgroup OOM killer
+took it **22 times in 14 days**, always while someone was browsing.
+
+The symptom did not look like memory. Because Traefik's Docker provider keeps the router on the
+container's labels, each kill deregistered the route, so the browser saw an intermittent **404**
+on paths that plainly exist (`/api/ds/query`, `/api/login/ping`, static assets), then **502** as
+the container came back, then **504** while it warmed up. Three status codes, one cause.
+
+Two things to know if this recurs:
+
+- **`docker inspect` lied.** `.State.OOMKilled` read `false` for all 22 kills. Trust
+  `journalctl -k | grep -i oom` instead — `constraint=CONSTRAINT_MEMCG` there means the container
+  hit its own limit, `CONSTRAINT_NONE` means the host ran out and the victim may be innocent.
+- **`process_resident_memory_bytes` reads above the limit and that is normal.** It counts
+  `anon-rss + file-rss`, and the cgroup reclaims file-backed pages before it OOMs. Do not read
+  RSS > `mem_limit` as proof the limit is not being enforced. Compare `anon-rss` from the kill
+  message, or `docker stats`, which reports against the cap.
+
+Counting the kills is the one-liner worth keeping:
+
+```sh
+journalctl -k --since '14 days ago' | grep -c 'Killed process.*grafana'
+```
