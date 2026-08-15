@@ -20,7 +20,7 @@ env:
 
 jobs:
   # 🔍 The same checks `make lint` and `make test` run, across the range the
-  # package claims to support. 3.11 is requires-python's floor and mypy's
+  # package claims to support. 3.11 is requires-python's floor and pyright's
   # target; 3.13 is what the lockfile was resolved on and what the demo runs.
   checks:
     name: 🔍 Checks (py${{ matrix.python-version }})
@@ -48,9 +48,12 @@ jobs:
         working-directory: ${{ env.PACKAGE_DIR }}
         run: uv sync --all-extras --dev --locked --python ${{ matrix.python-version }}
 
+      # --pythonversion is what makes the matrix mean anything: pyright would
+      # otherwise read pythonVersion from pyproject.toml and check against 3.11
+      # in both legs, regardless of the interpreter uv resolved.
       - name: 🔍 Type-check
         working-directory: ${{ env.PACKAGE_DIR }}
-        run: uv run --python ${{ matrix.python-version }} mypy src
+        run: uv run --python ${{ matrix.python-version }} pyright --pythonversion ${{ matrix.python-version }}
 
       - name: 🔍 Lint
         working-directory: ${{ env.PACKAGE_DIR }}

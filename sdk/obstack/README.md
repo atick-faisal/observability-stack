@@ -128,6 +128,6 @@ gauges and exemplars behave differently under it.
 ```bash
 uv sync --all-extras
 uv run pytest
-uv run mypy src
+uv run pyright
 uv run ruff check .
 ```

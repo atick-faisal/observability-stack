@@ -39,7 +39,7 @@ errors = ["sentry-sdk>=2.60.0"]
 [dependency-groups]
 dev = [
     "httpx2>=2.0.0",
-    "mypy>=1.18.2",
+    "pyright>=1.1.407",
     "pytest>=8.4.2",
     "ruff>=0.14.0",
     "sqlalchemy>=2.0.44",
@@ -56,10 +56,15 @@ packages = ["src/obstack"]
 testpaths = ["tests"]
 addopts = "-q"
 
-[tool.mypy]
-python_version = "3.11"
-strict = true
-warn_unreachable = true
+[tool.pyright]
+include = ["src"]
+pythonVersion = "3.11"
+typeCheckingMode = "strict"
+reportUnreachable = "error"
+# The OTel instrumentation packages ship no py.typed and typeshed has no stubs for
+# them, so this rule only ever reports a dependency's packaging, never our code.
+# useLibraryCodeForTypes (on by default) still infers their signatures from source.
+reportMissingTypeStubs = "none"
 
 [tool.ruff]
 line-length = 100

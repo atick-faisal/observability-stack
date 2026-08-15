@@ -204,10 +204,10 @@ verify-config: env-check glitchtip-env-check ## Render both deployed compose sha
 		&& echo "compose.glitchtip.yml (deployed shape) OK"
 
 lint: ## Type-check and lint the SDK and the demo
-	cd $(SDK_DIR) && uv run mypy src && uv run ruff check .
+	cd $(SDK_DIR) && uv run pyright && uv run ruff check .
 	@for d in $(DEMO_DIRS); do \
 		echo "==> $$d"; \
-		uv run --directory $$d mypy main.py && uv run --directory $$d ruff check . || exit 1; \
+		uv run --directory $$d pyright && uv run --directory $$d ruff check . || exit 1; \
 	done
 
 test: ## Run the SDK test suite
