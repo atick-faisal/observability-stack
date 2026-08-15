@@ -7,6 +7,13 @@ An application-independent Grafana LGTM stack. One deployment on a VPS serves ev
 </p>
 
 <p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/screenshots/grafana_dark.png">
+    <img alt="The provisioned Grafana dashboard showing metrics, logs and traces for the demo app." src="./docs/screenshots/grafana_light.png">
+  </picture>
+</p>
+
+<p align="center">
     <img src="https://img.shields.io/badge/Grafana-Dashboards-b7bdf8?style=for-the-badge&colorA=363a4f&colorB=b7bdf8&logo=grafana&logoColor=white"/>
     <img src="https://img.shields.io/badge/Prometheus-Metrics-f5a97f?style=for-the-badge&colorA=363a4f&colorB=f5a97f&logo=prometheus&logoColor=white"/>
     <img src="https://img.shields.io/badge/Loki-Logs-a6da95?style=for-the-badge&colorA=363a4f&colorB=a6da95&logo=grafana&logoColor=white"/>
