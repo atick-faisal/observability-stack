@@ -1142,7 +1142,8 @@ asserts no gap in any signal. <code>OUTAGE_SECONDS=120 make verify-resilience</c
 run takes longer than the outage because <code>remote_write</code>'s reconnect backoff dominates the drain —
 measured at 382s to replay to the end of a 901s window. <code>make demo-up SECOND_AGENT=1</code> first adds
 checks 8/9, which force the out-of-order path a single agent can't reach — see <code>agent/README.md</code>.</p>
-<div class="highlight"><pre><span></span><code><span id="__span-7-1">make<span class="w"> </span>lint<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span><span class="nb">test</span><span class="w">    </span><span class="c1"># mypy + ruff on three projects, 41 tests</span>
+<div class="highlight"><pre><span></span><code><span id="__span-7-1">make<span class="w"> </span>hooks<span class="w">                </span><span class="c1"># once per clone — installs the pre-commit hooks</span>
+</span><span id="__span-7-2">make<span class="w"> </span>lint<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span><span class="nb">test</span><span class="w">    </span><span class="c1"># pyright + ruff on three projects, 41 tests</span>
 </span></code></pre></div>
 <h2 id="error-tracking">Error tracking<a class="headerlink" href="#error-tracking" title="Permanent link">&para;</a></h2>
 <p>Opt-in, and five more containers:</p>
