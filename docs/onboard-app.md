@@ -59,8 +59,8 @@ services:
 
 Same variable names, plus `OBS_NETWORK` (this app's Docker network name — required, because
 Docker network names are global to the host) and `COMPOSE_PROFILES=postgres,containers` in place of
-`--profile`. [`agent/README.md`](./agent.md) has the detail; `compose.demo.deploy.yml` in this repo
-is the worked example. The same trap applies to `postgres-exporter-init.sql` — bake it into a
+`--profile`. [`agent/README.md`](./agent.md) has the detail; `compose.demo.deploy.yml` and
+`.env.demo.example` in this repo are the worked example and its annotated environment. The same trap applies to `postgres-exporter-init.sql` — bake it into a
 Postgres image rather than mounting it, as `demo/db/Dockerfile` does.
 
 ## 2. Label the containers
