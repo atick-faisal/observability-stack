@@ -1188,8 +1188,8 @@ which builds <code>config.alloy</code> into an image and reads its settings from
 </span></code></pre></div>
 <p>Same variable names, plus <code>OBS_NETWORK</code> (this app's Docker network name — required, because
 Docker network names are global to the host) and <code>COMPOSE_PROFILES=postgres,containers</code> in place of
-<code>--profile</code>. <a href="../agent/"><code>agent/README.md</code></a> has the detail; <code>compose.demo.deploy.yml</code> in this repo
-is the worked example. The same trap applies to <code>postgres-exporter-init.sql</code> — bake it into a
+<code>--profile</code>. <a href="../agent/"><code>agent/README.md</code></a> has the detail; <code>compose.demo.deploy.yml</code> and
+<code>.env.demo.example</code> in this repo are the worked example and its annotated environment. The same trap applies to <code>postgres-exporter-init.sql</code> — bake it into a
 Postgres image rather than mounting it, as <code>demo/db/Dockerfile</code> does.</p>
 <h2 id="2-label-the-containers">2. Label the containers<a class="headerlink" href="#2-label-the-containers" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span id="__span-3-1"><span class="nt">services</span><span class="p">:</span>
