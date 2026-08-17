@@ -40,6 +40,29 @@ docker compose -f compose.lgtm.yml -f observability/compose.agent.yml up -d
 
 Add `--profile postgres` for `postgres-exporter`, `--profile containers` for cAdvisor, or both.
 
+### If the app deploys from git
+
+Dokploy, Coolify and anything else that re-clones the repo on every deploy takes one compose file
+and re-creates the working tree each time, which breaks two things silently: a bind-mounted repo
+file comes back empty or missing, and variables from the platform's UI are written to a `.env` for
+interpolation rather than injected into containers. Use `observability/compose.agent.deploy.yml`,
+which builds `config.alloy` into an image and reads its settings from `environment:`:
+
+```yaml
+# the one file the platform points at
+include:
+  - observability/compose.agent.deploy.yml
+
+services:
+  api: { networks: [obs], expose: ["8000"], labels: { obs.service: api, obs.metrics.port: "8000" } }
+```
+
+Same variable names, plus `OBS_NETWORK` (this app's Docker network name — required, because
+Docker network names are global to the host) and `COMPOSE_PROFILES=postgres,containers` in place of
+`--profile`. [`agent/README.md`](./agent.md) has the detail; `compose.demo.deploy.yml` in this repo
+is the worked example. The same trap applies to `postgres-exporter-init.sql` — bake it into a
+Postgres image rather than mounting it, as `demo/db/Dockerfile` does.
+
 ## 2. Label the containers
 
 ```yaml
@@ -91,8 +114,14 @@ shares with your app:
 OBS_DOCKER_NETWORK=yourapp_default    # form: <project>_<network>
 ```
 
-Logs are unaffected — the Docker log source keys its tailers by container id, so a container with
-three exposed ports is still tailed exactly once.
+Exposing three ports is not the same problem: the Docker log source keys its tailers by container
+id, so that container is still tailed exactly once.
+
+`OBS_DOCKER_NETWORK` also **scopes log collection**, which is the reason to set it even where
+nothing is scraped twice. Unset, the agent tails every container on the host and stamps this app's
+identity on all of them — fine on a dedicated app host, wrong on a box that runs anything else, and
+on a box running two apps each agent ships the other's logs under its own name. The cost of setting
+it is that a container with no interface on that network is not collected at all.
 
 ## 3. Add the SDK
 

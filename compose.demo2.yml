@@ -11,13 +11,12 @@
 # agent/ payload that ships into app repos. agent/config.alloy itself is
 # reused unmodified, mounted read-only, same as agent 1's.
 #
-# NOTE: alloy2's own docker.sock-based log discovery has no network filter
-# (config.alloy's log_targets, unlike metrics_targets, isn't scoped by
-# OBS_DOCKER_NETWORK) — it will also tail and forward every other container's
-# logs on this host, and agent 1 will do the same for agent 2's containers.
-# Harmless for the checks (they query by full app+service label, which only
-# each agent's own external_labels stamp) but a real deployment never runs
-# two agents on one host, so this duplication is demo-only.
+# Both agents set OBS_DOCKER_NETWORK, which scopes log discovery as well as
+# metrics discovery — so agent 2 tails only what is on obs2 and agent 1 only what
+# is on obs, and neither ships the other's containers. That filter did not always
+# exist on the log side; without it each agent forwarded every container on the
+# host under its own identity, which was harmless for these checks (they query by
+# full app+service label) and would not have been on a real host.
 
 x-obs-logging: &obs-logging
   driver: json-file
@@ -76,9 +75,10 @@ services:
       OBS_INGEST_USER: demo
       OBS_INGEST_PASSWORD: demo
       OBS_INGEST_TLS_INSECURE: "false"
-      # Scopes alloy2's own *metrics* scrape (config.alloy's metrics_targets
-      # only — see the file header note on log_targets) to obs2, so it never
-      # discovers demo-api/demo-loadgen (agent 1's, only on obs).
+      # Scopes both of alloy2's discoveries to obs2, so it never picks up
+      # demo-api/demo-loadgen (agent 1's, only on obs) as scrape targets or as
+      # log streams. demo-db is on both networks and so is tailed by both agents,
+      # under two identities — two streams, which Loki is happy to keep apart.
       OBS_DOCKER_NETWORK: observability_obs2
     depends_on:
       prometheus:

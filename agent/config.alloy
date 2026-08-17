@@ -112,6 +112,25 @@ discovery.relabel "extra_target" {
 discovery.relabel "log_targets" {
 	targets = discovery.docker.containers.targets
 
+	// Same filter as metrics_targets, and it matters more here: unset, this agent
+	// tails *every* container on the host and stamps its own app label on all of
+	// them. Right on a dedicated app host; wrong the moment the box runs anything
+	// else — two apps with two agents ship each other's logs, twice, under two
+	// different app labels.
+	//
+	// Note what this does that the metrics side does not: a container with no
+	// interface on this network stops having its logs collected at all. That is
+	// the intent — it is not yours — but it is a real behaviour change if the
+	// variable was set for the duplicate-samples reason alone.
+	//
+	// Two networks is still one tailer, not two: loki.source.docker keys by
+	// container id, so a matched container cannot be shipped twice.
+	rule {
+		source_labels = ["__meta_docker_network_name"]
+		regex         = coalesce(sys.env("OBS_DOCKER_NETWORK"), ".+")
+		action        = "keep"
+	}
+
 	rule {
 		source_labels = ["__meta_docker_container_label_obs_logs"]
 		regex         = "false"
