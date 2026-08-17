@@ -61,7 +61,8 @@ no sane default fail the render when unset instead of producing an agent that pu
 labels every series `app=""`.
 
 The observability-stack repo's own `compose.demo.deploy.yml` is a worked example: it includes this
-file unmodified and adds three services.
+file unmodified and adds three services. `.env.demo.example` beside it is the matching environment,
+annotated variable by variable.
 
 ## Label your containers
 
