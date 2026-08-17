@@ -587,6 +587,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="1. Copy the agent">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#if-the-app-deploys-from-git" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        If the app deploys from git
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -920,6 +937,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="1. Copy the agent">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#if-the-app-deploys-from-git" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        If the app deploys from git
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1139,21 +1173,39 @@ password needs no escaping here. (The server's <code>.env.lgtm</code> is the opp
 <div class="highlight"><pre><span></span><code><span id="__span-1-1">docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>compose.lgtm.yml<span class="w"> </span>-f<span class="w"> </span>observability/compose.agent.yml<span class="w"> </span>up<span class="w"> </span>-d
 </span></code></pre></div>
 <p>Add <code>--profile postgres</code> for <code>postgres-exporter</code>, <code>--profile containers</code> for cAdvisor, or both.</p>
+<h3 id="if-the-app-deploys-from-git">If the app deploys from git<a class="headerlink" href="#if-the-app-deploys-from-git" title="Permanent link">&para;</a></h3>
+<p>Dokploy, Coolify and anything else that re-clones the repo on every deploy takes one compose file
+and re-creates the working tree each time, which breaks two things silently: a bind-mounted repo
+file comes back empty or missing, and variables from the platform's UI are written to a <code>.env</code> for
+interpolation rather than injected into containers. Use <code>observability/compose.agent.deploy.yml</code>,
+which builds <code>config.alloy</code> into an image and reads its settings from <code>environment:</code>:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-2-1"><span class="c1"># the one file the platform points at</span>
+</span><span id="__span-2-2"><span class="nt">include</span><span class="p">:</span>
+</span><span id="__span-2-3"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">observability/compose.agent.deploy.yml</span>
+</span><span id="__span-2-4">
+</span><span id="__span-2-5"><span class="nt">services</span><span class="p">:</span>
+</span><span id="__span-2-6"><span class="w">  </span><span class="nt">api</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> networks</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">obs</span><span class="p p-Indicator">],</span><span class="nt"> expose</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;8000&quot;</span><span class="p p-Indicator">],</span><span class="nt"> labels</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> obs.service</span><span class="p">:</span><span class="w"> </span><span class="nv">api</span><span class="p p-Indicator">,</span><span class="nt"> obs.metrics.port</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;8000&quot;</span><span class="w"> </span><span class="p p-Indicator">}</span><span class="w"> </span><span class="p p-Indicator">}</span>
+</span></code></pre></div>
+<p>Same variable names, plus <code>OBS_NETWORK</code> (this app's Docker network name — required, because
+Docker network names are global to the host) and <code>COMPOSE_PROFILES=postgres,containers</code> in place of
+<code>--profile</code>. <a href="../agent/"><code>agent/README.md</code></a> has the detail; <code>compose.demo.deploy.yml</code> in this repo
+is the worked example. The same trap applies to <code>postgres-exporter-init.sql</code> — bake it into a
+Postgres image rather than mounting it, as <code>demo/db/Dockerfile</code> does.</p>
 <h2 id="2-label-the-containers">2. Label the containers<a class="headerlink" href="#2-label-the-containers" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span id="__span-2-1"><span class="nt">services</span><span class="p">:</span>
-</span><span id="__span-2-2"><span class="w">  </span><span class="nt">api</span><span class="p">:</span>
-</span><span id="__span-2-3"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
-</span><span id="__span-2-4"><span class="w">      </span><span class="nt">obs.service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api</span>
-</span><span id="__span-2-5"><span class="w">      </span><span class="nt">obs.metrics.port</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;8000&quot;</span><span class="w">    </span><span class="c1"># presence = scrape me</span>
-</span><span id="__span-2-6"><span class="w">      </span><span class="nt">obs.metrics.path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/metrics</span><span class="w">  </span><span class="c1"># optional, defaults to /metrics</span>
-</span><span id="__span-2-7"><span class="w">    </span><span class="nt">expose</span><span class="p">:</span>
-</span><span id="__span-2-8"><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;8000&quot;</span><span class="w">                    </span><span class="c1"># required — see below</span>
-</span><span id="__span-2-9"><span class="w">  </span><span class="nt">db</span><span class="p">:</span>
-</span><span id="__span-2-10"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
-</span><span id="__span-2-11"><span class="w">      </span><span class="nt">obs.service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">db</span><span class="w">             </span><span class="c1"># logs only</span>
-</span><span id="__span-2-12"><span class="w">  </span><span class="nt">migrations</span><span class="p">:</span>
-</span><span id="__span-2-13"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
-</span><span id="__span-2-14"><span class="w">      </span><span class="nt">obs.logs</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;false&quot;</span><span class="w">           </span><span class="c1"># collect nothing</span>
+<div class="highlight"><pre><span></span><code><span id="__span-3-1"><span class="nt">services</span><span class="p">:</span>
+</span><span id="__span-3-2"><span class="w">  </span><span class="nt">api</span><span class="p">:</span>
+</span><span id="__span-3-3"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
+</span><span id="__span-3-4"><span class="w">      </span><span class="nt">obs.service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api</span>
+</span><span id="__span-3-5"><span class="w">      </span><span class="nt">obs.metrics.port</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;8000&quot;</span><span class="w">    </span><span class="c1"># presence = scrape me</span>
+</span><span id="__span-3-6"><span class="w">      </span><span class="nt">obs.metrics.path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/metrics</span><span class="w">  </span><span class="c1"># optional, defaults to /metrics</span>
+</span><span id="__span-3-7"><span class="w">    </span><span class="nt">expose</span><span class="p">:</span>
+</span><span id="__span-3-8"><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;8000&quot;</span><span class="w">                    </span><span class="c1"># required — see below</span>
+</span><span id="__span-3-9"><span class="w">  </span><span class="nt">db</span><span class="p">:</span>
+</span><span id="__span-3-10"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
+</span><span id="__span-3-11"><span class="w">      </span><span class="nt">obs.service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">db</span><span class="w">             </span><span class="c1"># logs only</span>
+</span><span id="__span-3-12"><span class="w">  </span><span class="nt">migrations</span><span class="p">:</span>
+</span><span id="__span-3-13"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
+</span><span id="__span-3-14"><span class="w">      </span><span class="nt">obs.logs</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;false&quot;</span><span class="w">           </span><span class="c1"># collect nothing</span>
 </span></code></pre></div>
 <p>Everything is collected by default: a container with no labels still has its logs shipped, with
 <code>service</code> falling back to its container name. Only <code>obs.metrics.port</code> is opt-in, because scraping
@@ -1169,19 +1221,24 @@ port metadata, which means <code>EXPOSE</code> in the image or <code>expose:</co
 port (<code>ports:</code>) is neither required nor wanted — the app should expose nothing to the host.</p>
 </div>
 <p>A container that genuinely cannot expose its port is what <code>OBS_EXTRA_TARGET</code> is for:</p>
-<div class="highlight"><pre><span></span><code><span id="__span-3-1"><span class="nv">OBS_EXTRA_TARGET</span><span class="o">=</span>host.docker.internal:9100
-</span><span id="__span-3-2"><span class="nv">OBS_EXTRA_SERVICE</span><span class="o">=</span>worker
+<div class="highlight"><pre><span></span><code><span id="__span-4-1"><span class="nv">OBS_EXTRA_TARGET</span><span class="o">=</span>host.docker.internal:9100
+</span><span id="__span-4-2"><span class="nv">OBS_EXTRA_SERVICE</span><span class="o">=</span>worker
 </span></code></pre></div>
 <h3 id="a-container-on-two-networks-is-scraped-twice">A container on two networks is scraped twice<a class="headerlink" href="#a-container-on-two-networks-is-scraped-twice" title="Permanent link">&para;</a></h3>
 <p>Docker discovery emits one target per <strong>(network × exposed port)</strong>, so the same series arrives
 twice with the same timestamp and Prometheus rejects the whole write. Set the network the agent
 shares with your app:</p>
-<div class="highlight"><pre><span></span><code><span id="__span-4-1"><span class="nv">OBS_DOCKER_NETWORK</span><span class="o">=</span>yourapp_default<span class="w">    </span><span class="c1"># form: &lt;project&gt;_&lt;network&gt;</span>
+<div class="highlight"><pre><span></span><code><span id="__span-5-1"><span class="nv">OBS_DOCKER_NETWORK</span><span class="o">=</span>yourapp_default<span class="w">    </span><span class="c1"># form: &lt;project&gt;_&lt;network&gt;</span>
 </span></code></pre></div>
-<p>Logs are unaffected — the Docker log source keys its tailers by container id, so a container with
-three exposed ports is still tailed exactly once.</p>
+<p>Exposing three ports is not the same problem: the Docker log source keys its tailers by container
+id, so that container is still tailed exactly once.</p>
+<p><code>OBS_DOCKER_NETWORK</code> also <strong>scopes log collection</strong>, which is the reason to set it even where
+nothing is scraped twice. Unset, the agent tails every container on the host and stamps this app's
+identity on all of them — fine on a dedicated app host, wrong on a box that runs anything else, and
+on a box running two apps each agent ships the other's logs under its own name. The cost of setting
+it is that a container with no interface on that network is not collected at all.</p>
 <h2 id="3-add-the-sdk">3. Add the SDK<a class="headerlink" href="#3-add-the-sdk" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span id="__span-5-1">uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;obstack[grpc,sqlalchemy]&quot;</span>
+<div class="highlight"><pre><span></span><code><span id="__span-6-1">uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;obstack[grpc,sqlalchemy]&quot;</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -1210,23 +1267,23 @@ three exposed ports is still tailed exactly once.</p>
 </tbody>
 </table>
 <h2 id="4-wire-it-up">4. Wire it up<a class="headerlink" href="#4-wire-it-up" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span id="__span-6-1"><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastAPI</span>
-</span><span id="__span-6-2"><span class="kn">from</span><span class="w"> </span><span class="nn">obstack</span><span class="w"> </span><span class="kn">import</span> <span class="n">setup_observability</span>
-</span><span id="__span-6-3">
-</span><span id="__span-6-4"><span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">()</span>
-</span><span id="__span-6-5"><span class="n">obs</span> <span class="o">=</span> <span class="n">setup_observability</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="n">engine</span><span class="p">,</span> <span class="n">excluded_paths</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;/health&quot;</span><span class="p">])</span>
+<div class="highlight"><pre><span></span><code><span id="__span-7-1"><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastAPI</span>
+</span><span id="__span-7-2"><span class="kn">from</span><span class="w"> </span><span class="nn">obstack</span><span class="w"> </span><span class="kn">import</span> <span class="n">setup_observability</span>
+</span><span id="__span-7-3">
+</span><span id="__span-7-4"><span class="n">app</span> <span class="o">=</span> <span class="n">FastAPI</span><span class="p">()</span>
+</span><span id="__span-7-5"><span class="n">obs</span> <span class="o">=</span> <span class="n">setup_observability</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="n">engine</span><span class="p">,</span> <span class="n">excluded_paths</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;/health&quot;</span><span class="p">])</span>
 </span></code></pre></div>
 <p>One call configures structlog, registers the metrics and request-logging middleware, serves
 <code>/metrics</code>, and starts exporting traces when <code>OBS_OTLP_ENDPOINT</code> is set. For a process with no
 FastAPI app, <code>setup_worker_observability(metrics_port=9100)</code>.</p>
 <p>Then set the app's own environment:</p>
-<div class="highlight"><pre><span></span><code><span id="__span-7-1"><span class="nt">environment</span><span class="p">:</span>
-</span><span id="__span-7-2"><span class="w">  </span><span class="nt">OBS_APP</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">yourapp</span>
-</span><span id="__span-7-3"><span class="w">  </span><span class="nt">OBS_SERVICE</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api</span>
-</span><span id="__span-7-4"><span class="w">  </span><span class="nt">OBS_ENV</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">production</span>
-</span><span id="__span-7-5"><span class="w">  </span><span class="nt">OBS_HOST</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">app-vps-01</span>
-</span><span id="__span-7-6"><span class="w">  </span><span class="nt">OBS_VERSION</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.4.0</span>
-</span><span id="__span-7-7"><span class="w">  </span><span class="nt">OBS_OTLP_ENDPOINT</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://alloy:4317</span><span class="w">   </span><span class="c1"># the only address the app needs</span>
+<div class="highlight"><pre><span></span><code><span id="__span-8-1"><span class="nt">environment</span><span class="p">:</span>
+</span><span id="__span-8-2"><span class="w">  </span><span class="nt">OBS_APP</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">yourapp</span>
+</span><span id="__span-8-3"><span class="w">  </span><span class="nt">OBS_SERVICE</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api</span>
+</span><span id="__span-8-4"><span class="w">  </span><span class="nt">OBS_ENV</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">production</span>
+</span><span id="__span-8-5"><span class="w">  </span><span class="nt">OBS_HOST</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">app-vps-01</span>
+</span><span id="__span-8-6"><span class="w">  </span><span class="nt">OBS_VERSION</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.4.0</span>
+</span><span id="__span-8-7"><span class="w">  </span><span class="nt">OBS_OTLP_ENDPOINT</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://alloy:4317</span><span class="w">   </span><span class="c1"># the only address the app needs</span>
 </span></code></pre></div>
 <div class="admonition warning">
 <p class="admonition-title">Important</p>
@@ -1258,8 +1315,8 @@ malformed selector or an unresolvable endpoint passes validation and fails at st
 <code>docker compose logs alloy</code> after the first <code>up</code>.</p>
 <h2 id="verify-the-onboarding">Verify the onboarding<a class="headerlink" href="#verify-the-onboarding" title="Permanent link">&para;</a></h2>
 <p>From the app host:</p>
-<div class="highlight"><pre><span></span><code><span id="__span-8-1">docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>alloy<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>error<span class="w">     </span><span class="c1"># expect nothing</span>
-</span><span id="__span-8-2">curl<span class="w"> </span>-s<span class="w"> </span>localhost:12345/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w">        </span><span class="c1"># Alloy&#39;s own UI; /graph shows what it discovered</span>
+<div class="highlight"><pre><span></span><code><span id="__span-9-1">docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>alloy<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>error<span class="w">     </span><span class="c1"># expect nothing</span>
+</span><span id="__span-9-2">curl<span class="w"> </span>-s<span class="w"> </span>localhost:12345/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w">        </span><span class="c1"># Alloy&#39;s own UI; /graph shows what it discovered</span>
 </span></code></pre></div>
 <p>From Grafana, within a minute or two: <code>fastapi_requests_total{app="yourapp"}</code> has series, the
 <code>Applications</code> dashboard populates when you pick your <code>app</code>, and a log line for that app carries a
@@ -1269,8 +1326,8 @@ missing, it is the credential — the server's Traefik access log names the user
 and a 401 there is a wrong or mis-escaped hash rather than a wrong URL.</p>
 <h2 id="postgres-metrics">Postgres metrics<a class="headerlink" href="#postgres-metrics" title="Permanent link">&para;</a></h2>
 <p>The exporter connects as its own least-privilege role, not the application user:</p>
-<div class="highlight"><pre><span></span><code><span id="__span-9-1"><span class="nv">POSTGRES_EXPORTER_PASSWORD</span><span class="o">=</span>...<span class="w"> </span>docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-T<span class="w"> </span>db<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-9-2"><span class="w">  </span>psql<span class="w"> </span>-U<span class="w"> </span>postgres<span class="w"> </span>-d<span class="w"> </span>appdb<span class="w"> </span>-f<span class="w"> </span>-<span class="w"> </span>&lt;<span class="w"> </span>observability/postgres-exporter-init.sql
+<div class="highlight"><pre><span></span><code><span id="__span-10-1"><span class="nv">POSTGRES_EXPORTER_PASSWORD</span><span class="o">=</span>...<span class="w"> </span>docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-T<span class="w"> </span>db<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-10-2"><span class="w">  </span>psql<span class="w"> </span>-U<span class="w"> </span>postgres<span class="w"> </span>-d<span class="w"> </span>appdb<span class="w"> </span>-f<span class="w"> </span>-<span class="w"> </span>&lt;<span class="w"> </span>observability/postgres-exporter-init.sql
 </span></code></pre></div>
 <p>On a database that does not exist yet, mount that file into <code>/docker-entrypoint-initdb.d/</code>
 instead and set <code>POSTGRES_EXPORTER_PASSWORD</code> on the Postgres container — it reads the variable
@@ -1280,7 +1337,7 @@ out of <code>pg_stat_bgwriter</code> into <code>pg_stat_checkpointer</code>, and
 <code>agent/compose.agent.yml</code> already passes it.</p>
 <h2 id="error-tracking-optionally">Error tracking, optionally<a class="headerlink" href="#error-tracking-optionally" title="Permanent link">&para;</a></h2>
 <p>If the server runs GlitchTip, add the <code>errors</code> extra and one variable:</p>
-<div class="highlight"><pre><span></span><code><span id="__span-10-1"><span class="nt">OBS_ERROR_DSN</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://&lt;key&gt;@errors.&lt;domain&gt;/&lt;project-id&gt;</span>
+<div class="highlight"><pre><span></span><code><span id="__span-11-1"><span class="nt">OBS_ERROR_DSN</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://&lt;key&gt;@errors.&lt;domain&gt;/&lt;project-id&gt;</span>
 </span></code></pre></div>
 <p>Unset or empty means no error reporting, which is the default. Events arrive tagged with the same
 <code>app</code> / <code>service</code> / <code>env</code> / <code>host</code>, so an issue in GlitchTip and a trace in Tempo describe

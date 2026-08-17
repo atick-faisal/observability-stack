@@ -737,6 +737,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#install-on-a-platform-that-deploys-from-git" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install on a platform that deploys from git
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#label-your-containers" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -888,6 +899,17 @@
     <span class="md-ellipsis">
       
         Install
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#install-on-a-platform-that-deploys-from-git" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install on a platform that deploys from git
       
     </span>
   </a>
@@ -1053,21 +1075,71 @@ label convention, not in your app.</p>
 </span><span id="__span-0-4">docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>compose.lgtm.yml<span class="w"> </span>-f<span class="w"> </span>observability/compose.agent.yml<span class="w"> </span>up<span class="w"> </span>-d
 </span></code></pre></div>
 <p>Add <code>--profile postgres</code> for <code>postgres-exporter</code>, <code>--profile containers</code> for cAdvisor, or both.</p>
+<h2 id="install-on-a-platform-that-deploys-from-git">Install on a platform that deploys from git<a class="headerlink" href="#install-on-a-platform-that-deploys-from-git" title="Permanent link">&para;</a></h2>
+<p>Dokploy, Coolify and anything else that re-clones the repo on every deploy needs a different
+shape, for two reasons that both fail <em>quietly</em>:</p>
+<ul>
+<li><strong>A bind-mounted repo file does not survive the next deploy</strong> — it comes back empty or missing.
+  So <code>config.alloy</code> is built into an image (<code>Dockerfile</code>) instead of mounted.</li>
+<li><strong>Variables from the platform's UI are written to a <code>.env</code> for interpolation, not injected into
+  containers.</strong> So the settings come from <code>environment:</code> rather than <code>.env.agent</code>.</li>
+</ul>
+<p><code>compose.agent.deploy.yml</code> is that shape. <code>include:</code> it from the app's own compose file, which
+then declares only the app's services:</p>
+<div class="highlight"><pre><span></span><code><span id="__span-1-1"><span class="c1"># compose.deploy.yml, at the app repo root — the one file the platform points at</span>
+</span><span id="__span-1-2"><span class="nt">include</span><span class="p">:</span>
+</span><span id="__span-1-3"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">observability/compose.agent.deploy.yml</span>
+</span><span id="__span-1-4">
+</span><span id="__span-1-5"><span class="nt">services</span><span class="p">:</span>
+</span><span id="__span-1-6"><span class="w">  </span><span class="nt">api</span><span class="p">:</span>
+</span><span id="__span-1-7"><span class="w">    </span><span class="nt">networks</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">obs</span><span class="p p-Indicator">]</span>
+</span><span id="__span-1-8"><span class="w">    </span><span class="nt">expose</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;8000&quot;</span><span class="p p-Indicator">]</span>
+</span><span id="__span-1-9"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
+</span><span id="__span-1-10"><span class="w">      </span><span class="nt">obs.service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api</span>
+</span><span id="__span-1-11"><span class="w">      </span><span class="nt">obs.metrics.port</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;8000&quot;</span>
+</span><span id="__span-1-12"><span class="w">    </span><span class="nt">environment</span><span class="p">:</span>
+</span><span id="__span-1-13"><span class="w">      </span><span class="nt">OBS_OTLP_ENDPOINT</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://alloy:4317</span>
+</span></code></pre></div>
+<p>The variable names are the same ones <code>.env.agent.example</code> documents, plus two:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OBS_NETWORK</code></td>
+<td>The Docker network name for this app, e.g. <code>myapp-obs</code>. Required — Docker network names are global to the host, so a shared default would silently join two apps together. The agent's <code>OBS_DOCKER_NETWORK</code> tracks it, which scopes both metrics discovery and log collection to your own containers.</td>
+</tr>
+<tr>
+<td><code>COMPOSE_PROFILES</code></td>
+<td><code>postgres,containers</code> — there is no <code>--profile</code> to pass. Compose reads it from the same <code>.env</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Two differences from <code>.env.agent</code> follow from Compose reading these rather than the container:
+a <code>$</code> in a value <strong>is</strong> eaten, so keep generated secrets alphanumeric; and the seven variables with
+no sane default fail the render when unset instead of producing an agent that pushes nowhere or
+labels every series <code>app=""</code>.</p>
+<p>The observability-stack repo's own <code>compose.demo.deploy.yml</code> is a worked example: it includes this
+file unmodified and adds three services.</p>
 <h2 id="label-your-containers">Label your containers<a class="headerlink" href="#label-your-containers" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span id="__span-1-1"><span class="nt">services</span><span class="p">:</span>
-</span><span id="__span-1-2"><span class="w">  </span><span class="nt">api</span><span class="p">:</span>
-</span><span id="__span-1-3"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
-</span><span id="__span-1-4"><span class="w">      </span><span class="nt">obs.service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api</span>
-</span><span id="__span-1-5"><span class="w">      </span><span class="nt">obs.metrics.port</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;8000&quot;</span><span class="w">    </span><span class="c1"># presence = scrape me</span>
-</span><span id="__span-1-6"><span class="w">      </span><span class="nt">obs.metrics.path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/metrics</span><span class="w">  </span><span class="c1"># optional, defaults to /metrics</span>
-</span><span id="__span-1-7"><span class="w">    </span><span class="nt">expose</span><span class="p">:</span>
-</span><span id="__span-1-8"><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;8000&quot;</span><span class="w">                    </span><span class="c1"># required — see below</span>
-</span><span id="__span-1-9"><span class="w">  </span><span class="nt">db</span><span class="p">:</span>
-</span><span id="__span-1-10"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
-</span><span id="__span-1-11"><span class="w">      </span><span class="nt">obs.service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">db</span><span class="w">             </span><span class="c1"># logs only</span>
-</span><span id="__span-1-12"><span class="w">  </span><span class="nt">migrations</span><span class="p">:</span>
-</span><span id="__span-1-13"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
-</span><span id="__span-1-14"><span class="w">      </span><span class="nt">obs.logs</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;false&quot;</span><span class="w">           </span><span class="c1"># collect nothing</span>
+<div class="highlight"><pre><span></span><code><span id="__span-2-1"><span class="nt">services</span><span class="p">:</span>
+</span><span id="__span-2-2"><span class="w">  </span><span class="nt">api</span><span class="p">:</span>
+</span><span id="__span-2-3"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
+</span><span id="__span-2-4"><span class="w">      </span><span class="nt">obs.service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api</span>
+</span><span id="__span-2-5"><span class="w">      </span><span class="nt">obs.metrics.port</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;8000&quot;</span><span class="w">    </span><span class="c1"># presence = scrape me</span>
+</span><span id="__span-2-6"><span class="w">      </span><span class="nt">obs.metrics.path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/metrics</span><span class="w">  </span><span class="c1"># optional, defaults to /metrics</span>
+</span><span id="__span-2-7"><span class="w">    </span><span class="nt">expose</span><span class="p">:</span>
+</span><span id="__span-2-8"><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;8000&quot;</span><span class="w">                    </span><span class="c1"># required — see below</span>
+</span><span id="__span-2-9"><span class="w">  </span><span class="nt">db</span><span class="p">:</span>
+</span><span id="__span-2-10"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
+</span><span id="__span-2-11"><span class="w">      </span><span class="nt">obs.service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">db</span><span class="w">             </span><span class="c1"># logs only</span>
+</span><span id="__span-2-12"><span class="w">  </span><span class="nt">migrations</span><span class="p">:</span>
+</span><span id="__span-2-13"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
+</span><span id="__span-2-14"><span class="w">      </span><span class="nt">obs.logs</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;false&quot;</span><span class="w">           </span><span class="c1"># collect nothing</span>
 </span></code></pre></div>
 <p>Everything is collected by default: a container with no labels still has its logs shipped, with
 <code>service</code> falling back to its container name. Only <code>obs.metrics.port</code> is opt-in, because scraping
@@ -1133,7 +1205,7 @@ readable by whoever terminates the connection.</p>
 <tr>
 <td>Every container without <code>obs.logs="false"</code></td>
 <td>logs</td>
-<td>Docker labels</td>
+<td>Docker labels, narrowed by <code>OBS_DOCKER_NETWORK</code> where set</td>
 </tr>
 <tr>
 <td>The app's OTLP on <code>:4317</code> / <code>:4318</code></td>
@@ -1206,21 +1278,30 @@ side by taking a <code>trace_id</code> off a log line from the outage and lookin
 and checking for a hole afterwards.</p>
 <h2 id="postgres-exporter">postgres-exporter<a class="headerlink" href="#postgres-exporter" title="Permanent link">&para;</a></h2>
 <p>The exporter connects as its own least-privilege role, not as the application user. Create it once:</p>
-<div class="highlight"><pre><span></span><code><span id="__span-2-1"><span class="nv">POSTGRES_EXPORTER_PASSWORD</span><span class="o">=</span>...<span class="w"> </span>docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-T<span class="w"> </span>db<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-2"><span class="w">  </span>psql<span class="w"> </span>-U<span class="w"> </span>postgres<span class="w"> </span>-d<span class="w"> </span>appdb<span class="w"> </span>-f<span class="w"> </span>-<span class="w"> </span>&lt;<span class="w"> </span>observability/postgres-exporter-init.sql
+<div class="highlight"><pre><span></span><code><span id="__span-3-1"><span class="nv">POSTGRES_EXPORTER_PASSWORD</span><span class="o">=</span>...<span class="w"> </span>docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-T<span class="w"> </span>db<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-3-2"><span class="w">  </span>psql<span class="w"> </span>-U<span class="w"> </span>postgres<span class="w"> </span>-d<span class="w"> </span>appdb<span class="w"> </span>-f<span class="w"> </span>-<span class="w"> </span>&lt;<span class="w"> </span>observability/postgres-exporter-init.sql
 </span></code></pre></div>
 <p>On a database that does not exist yet, mount the same file into
 <code>/docker-entrypoint-initdb.d/</code> instead and set <code>POSTGRES_EXPORTER_PASSWORD</code> on the Postgres
 container — it reads the variable itself. Re-running rotates the password rather than failing.</p>
+<p>On a platform that deploys from git, that mount is the same trap as <code>config.alloy</code>: build the file
+into a small Postgres image instead. <code>demo/db/Dockerfile</code> in the observability-stack repo is three
+lines and does exactly that.</p>
 <p><code>--collector.stat_checkpointer</code> is not optional on PostgreSQL 17 and later: the checkpoint
 counters moved out of <code>pg_stat_bgwriter</code> into <code>pg_stat_checkpointer</code>, and that collector is off by
 default.</p>
 <h2 id="things-that-will-bite-you">Things that will bite you<a class="headerlink" href="#things-that-will-bite-you" title="Permanent link">&para;</a></h2>
 <p><strong>A container on two networks is scraped twice.</strong> Docker discovery emits one target per
 (network × exposed port), so the same series arrives twice with the same timestamp and Prometheus
-rejects the write. Set <code>OBS_DOCKER_NETWORK</code> to the network the agent shares with the app. Logs are
-unaffected — the Docker log source keys its tailers by container id, and a container with three
-exposed ports is still tailed exactly once.</p>
+rejects the write. Set <code>OBS_DOCKER_NETWORK</code> to the network the agent shares with the app. Duplicate
+ports are not the same problem — the Docker log source keys its tailers by container id, so a
+container with three exposed ports is still tailed exactly once.</p>
+<p><strong><code>OBS_DOCKER_NETWORK</code> scopes logs as well as metrics.</strong> Unset, this agent tails <em>every</em> container
+on the host and stamps its own <code>app</code> label on all of them — right on a dedicated app host, wrong
+the moment the box runs anything else, and on a box running two apps with two agents each one
+ships the other's logs under its own name. Set it and a container with no interface on that
+network stops being collected at all, which is the intent but is a real change if you had set the
+variable for the duplicate-samples reason alone. <code>compose.agent.deploy.yml</code> always sets it.</p>
 <p><strong>Recreating a container can cost one batch of cAdvisor samples.</strong> <code>id</code> is dropped from cAdvisor's
 series because a container id is unbounded over time; the consequence is that while a recreated
 container briefly coexists with its predecessor, the two collapse onto one series and Prometheus
