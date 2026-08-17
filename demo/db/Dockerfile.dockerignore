@@ -1,0 +1,4 @@
+# Build context is the repo root; only the one script is needed.
+*
+
+!agent/postgres-exporter-init.sql

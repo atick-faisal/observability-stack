@@ -1,0 +1,145 @@
+# The demo, as an app host — one compose file, deployable straight from git by
+# Dokploy or Coolify, pushing at ingest.<domain> over HTTPS with a real
+# credential. compose.demo.yml is the *local* shape: an overlay on the server's
+# own compose files, on the server's own network, pushing at prometheus:9090.
+#
+# This is also the worked example docs/onboard-app.md points at for a deployed
+# app: it declares the app's three services and nothing else. The agent comes in
+# unmodified from agent/compose.agent.deploy.yml, which is the same claim
+# compose.demo.yml makes about agent/compose.agent.yml, made the same way — if the
+# agent needed editing to be deployable, that would be a bug in agent/.
+#
+# Everything is interpolated, nothing is literal, because a platform's environment
+# UI is the only place to configure it. .env.demo.production is the paste buffer
+# and the record of what was pasted. Requires Compose 2.20+ for `include:`.
+#
+# Note what the agent will report from a box that also runs the server: cAdvisor
+# and prometheus.exporter.unix describe the *host*, so every container on it —
+# the LGTM stack's, the platform's own — arrives labelled app=demo. That is
+# correct behaviour on a dedicated app host and an artefact of sharing one; it is
+# not something this file can or should filter. Logs are a different matter and
+# are scoped, by OBS_DOCKER_NETWORK in the agent file.
+
+include:
+  # Relative to *this* file. The included file's own relative paths — its
+  # `build: .` — resolve against agent/ instead, which is what makes it copyable
+  # into an app repo as observability/ with nothing to adjust.
+  - agent/compose.agent.deploy.yml
+
+x-obs-logging: &obs-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+volumes:
+  demo_db_data: {}
+
+services:
+  demo-db:
+    build:
+      context: .
+      dockerfile: demo/db/Dockerfile
+    restart: unless-stopped
+    logging: *obs-logging
+    mem_limit: 256m
+    environment:
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: ${DEMO_DB_PASSWORD:?set DEMO_DB_PASSWORD — alphanumeric, Compose eats a $}
+      POSTGRES_DB: demo
+      # Read by the baked-in postgres-exporter-init.sql, via psql's \getenv.
+      POSTGRES_EXPORTER_PASSWORD: ${DATA_SOURCE_PASS:?set DATA_SOURCE_PASS — the exporter's own role}
+    volumes:
+      # Postgres 18 moved the data directory: the mount goes at /var/lib/postgresql
+      # and the image puts the cluster in an 18/docker subdirectory. Mounting the
+      # old /var/lib/postgresql/data refuses to boot.
+      - demo_db_data:/var/lib/postgresql
+    networks:
+      - obs
+    labels:
+      obs.service: db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo -d demo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  demo-api:
+    build:
+      context: .
+      dockerfile: demo/app/Dockerfile
+    restart: unless-stopped
+    logging: *obs-logging
+    mem_limit: 128m
+    # Exposed, not published: the agent needs the port in Docker's metadata to
+    # scrape it, and nothing off-box needs it at all.
+    expose:
+      - "8000"
+    environment:
+      # The same three variables the agent reads, from the same environment. The
+      # failure when these drift is not an error — it is two sets of series that
+      # never join — so there is deliberately no second place to set them.
+      OBS_APP: ${OBS_APP}
+      OBS_ENV: ${OBS_ENV}
+      OBS_HOST: ${OBS_HOST}
+      OBS_SERVICE: api
+      OBS_VERSION: ${OBS_VERSION:-0.1.0}
+      OBS_LOG_FORMAT: json
+      OBS_LOG_LEVEL: ${OBS_LOG_LEVEL:-INFO}
+      # The only address the app needs.
+      OBS_OTLP_ENDPOINT: http://alloy:4317
+      # Empty means no error reporting, which is the default. Set it to the DSN
+      # GlitchTip's UI hands you — the errors.<domain> one, not a container name:
+      # deployed as its own service GlitchTip is a separate Compose project, so
+      # the in-network path does not exist from here.
+      OBS_ERROR_DSN: ${OBS_ERROR_DSN:-}
+      DATABASE_URL: postgresql+asyncpg://demo:${DEMO_DB_PASSWORD}@demo-db:5432/demo
+    depends_on:
+      demo-db:
+        condition: service_healthy
+      alloy:
+        condition: service_started
+    networks:
+      - obs
+    labels:
+      obs.service: api
+      obs.metrics.port: "8000"
+      obs.metrics.path: /metrics
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request as u; u.urlopen('http://localhost:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  demo-loadgen:
+    build:
+      context: .
+      dockerfile: demo/loadgen/Dockerfile
+    restart: unless-stopped
+    logging: *obs-logging
+    mem_limit: 96m
+    expose:
+      - "9101"
+    environment:
+      OBS_APP: ${OBS_APP}
+      OBS_ENV: ${OBS_ENV}
+      OBS_HOST: ${OBS_HOST}
+      OBS_SERVICE: loadgen
+      OBS_VERSION: ${OBS_VERSION:-0.1.0}
+      OBS_LOG_FORMAT: json
+      OBS_LOG_LEVEL: ${OBS_LOG_LEVEL:-INFO}
+      OBS_OTLP_ENDPOINT: http://alloy:4317
+      LOADGEN_TARGET: http://demo-api:8000
+      # Lower than the local demo's 5/s. This one runs indefinitely into a 30-day
+      # TSDB rather than for the length of a test.
+      LOADGEN_RATE: ${LOADGEN_RATE:-2}
+    depends_on:
+      demo-api:
+        condition: service_healthy
+    networks:
+      - obs
+    labels:
+      obs.service: loadgen
+      obs.metrics.port: "9101"
+      obs.metrics.path: /metrics

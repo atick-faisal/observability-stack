@@ -190,18 +190,31 @@ restore: ## Restore a backup — DIR=backups/<stamp>, then add ARGS=--yes
 	@test -n "$(DIR)" || { echo "usage: make restore DIR=backups/<stamp> [ARGS=--yes]"; exit 1; }
 	./scripts/restore.sh $(DIR) $(ARGS)
 
-# Renders both deployed shapes — no ports, no bind mounts, edge network external —
+# Renders every deployed shape — no ports, no bind mounts, edge network external —
 # without needing that network to exist here. This is exactly what a deploy runs.
 # compose.glitchtip.yml is rendered on its own, with no compose.lgtm.yml under it —
 # the shape a platform that deploys one file per service renders. It borrows the
 # `obs` and `edge` networks, and until they were declared here too this failed with
 # "refers to undefined network obs" only on the deploy, never locally.
-verify-config: env-check glitchtip-env-check ## Render both deployed compose shapes and check they resolve
+#
+# compose.demo.deploy.yml is the app-host shape, and the only one that pulls a file
+# in with `include:` rather than -f. The variables below are what its `:?` guards
+# demand — that list failing to compile is the point of rendering it here.
+verify-config: env-check glitchtip-env-check ## Render every deployed compose shape and check they resolve
 	@OBS_EDGE_NETWORK=dokploy-network OBS_EDGE_EXTERNAL=true \
 		$(COMPOSE) $(SERVER_ENV) -f compose.lgtm.yml config >/dev/null && echo "compose.lgtm.yml (deployed shape) OK"
 	@OBS_EDGE_NETWORK=dokploy-network OBS_EDGE_EXTERNAL=true \
 		$(COMPOSE) $(GT_ENV) -f compose.glitchtip.yml config >/dev/null \
 		&& echo "compose.glitchtip.yml (deployed shape) OK"
+	@COMPOSE_PROFILES=postgres,containers \
+		OBS_APP=ci OBS_ENV=production OBS_HOST=ci OBS_NETWORK=ci-obs \
+		OBS_PROM_URL=https://ingest.example.com/api/v1/write \
+		OBS_LOKI_URL=https://ingest.example.com/loki/api/v1/push \
+		OBS_TRACES_URL=https://ingest.example.com \
+		OBS_INGEST_USER=ci OBS_INGEST_PASSWORD=ci \
+		DEMO_DB_PASSWORD=ci DATA_SOURCE_PASS=ci \
+		$(COMPOSE) -f compose.demo.deploy.yml config >/dev/null \
+		&& echo "compose.demo.deploy.yml (deployed shape) OK"
 
 # uvx rather than a `pre-commit` on PATH: uv is already required to build anything here,
 # so this works on a fresh clone with nothing else installed.
