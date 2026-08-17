@@ -19,6 +19,50 @@ docker compose -f compose.lgtm.yml -f observability/compose.agent.yml up -d
 
 Add `--profile postgres` for `postgres-exporter`, `--profile containers` for cAdvisor, or both.
 
+## Install on a platform that deploys from git
+
+Dokploy, Coolify and anything else that re-clones the repo on every deploy needs a different
+shape, for two reasons that both fail *quietly*:
+
+* **A bind-mounted repo file does not survive the next deploy** — it comes back empty or missing.
+  So `config.alloy` is built into an image (`Dockerfile`) instead of mounted.
+* **Variables from the platform's UI are written to a `.env` for interpolation, not injected into
+  containers.** So the settings come from `environment:` rather than `.env.agent`.
+
+`compose.agent.deploy.yml` is that shape. `include:` it from the app's own compose file, which
+then declares only the app's services:
+
+```yaml
+# compose.deploy.yml, at the app repo root — the one file the platform points at
+include:
+  - observability/compose.agent.deploy.yml
+
+services:
+  api:
+    networks: [obs]
+    expose: ["8000"]
+    labels:
+      obs.service: api
+      obs.metrics.port: "8000"
+    environment:
+      OBS_OTLP_ENDPOINT: http://alloy:4317
+```
+
+The variable names are the same ones `.env.agent.example` documents, plus two:
+
+| | |
+|---|---|
+| `OBS_NETWORK` | The Docker network name for this app, e.g. `myapp-obs`. Required — Docker network names are global to the host, so a shared default would silently join two apps together. The agent's `OBS_DOCKER_NETWORK` tracks it, which scopes both metrics discovery and log collection to your own containers. |
+| `COMPOSE_PROFILES` | `postgres,containers` — there is no `--profile` to pass. Compose reads it from the same `.env`. |
+
+Two differences from `.env.agent` follow from Compose reading these rather than the container:
+a `$` in a value **is** eaten, so keep generated secrets alphanumeric; and the seven variables with
+no sane default fail the render when unset instead of producing an agent that pushes nowhere or
+labels every series `app=""`.
+
+The observability-stack repo's own `compose.demo.deploy.yml` is a worked example: it includes this
+file unmodified and adds three services.
+
 ## Label your containers
 
 ```yaml
@@ -81,7 +125,7 @@ be rotated without touching any other.
 | `prometheus.exporter.unix` (built in) | host metrics | always on |
 | cAdvisor, profile `containers` | per-container metrics | its own `obs.*` labels |
 | postgres-exporter, profile `postgres` | database metrics | its own `obs.*` labels |
-| Every container without `obs.logs="false"` | logs | Docker labels |
+| Every container without `obs.logs="false"` | logs | Docker labels, narrowed by `OBS_DOCKER_NETWORK` where set |
 | The app's OTLP on `:4317` / `:4318` | traces | the app points at it |
 
 Alloy's own UI is on `127.0.0.1:12345` — `/graph` shows every component and what it discovered.
@@ -139,6 +183,10 @@ On a database that does not exist yet, mount the same file into
 `/docker-entrypoint-initdb.d/` instead and set `POSTGRES_EXPORTER_PASSWORD` on the Postgres
 container — it reads the variable itself. Re-running rotates the password rather than failing.
 
+On a platform that deploys from git, that mount is the same trap as `config.alloy`: build the file
+into a small Postgres image instead. `demo/db/Dockerfile` in the observability-stack repo is three
+lines and does exactly that.
+
 `--collector.stat_checkpointer` is not optional on PostgreSQL 17 and later: the checkpoint
 counters moved out of `pg_stat_bgwriter` into `pg_stat_checkpointer`, and that collector is off by
 default.
@@ -147,9 +195,16 @@ default.
 
 **A container on two networks is scraped twice.** Docker discovery emits one target per
 (network × exposed port), so the same series arrives twice with the same timestamp and Prometheus
-rejects the write. Set `OBS_DOCKER_NETWORK` to the network the agent shares with the app. Logs are
-unaffected — the Docker log source keys its tailers by container id, and a container with three
-exposed ports is still tailed exactly once.
+rejects the write. Set `OBS_DOCKER_NETWORK` to the network the agent shares with the app. Duplicate
+ports are not the same problem — the Docker log source keys its tailers by container id, so a
+container with three exposed ports is still tailed exactly once.
+
+**`OBS_DOCKER_NETWORK` scopes logs as well as metrics.** Unset, this agent tails *every* container
+on the host and stamps its own `app` label on all of them — right on a dedicated app host, wrong
+the moment the box runs anything else, and on a box running two apps with two agents each one
+ships the other's logs under its own name. Set it and a container with no interface on that
+network stops being collected at all, which is the intent but is a real change if you had set the
+variable for the duplicate-samples reason alone. `compose.agent.deploy.yml` always sets it.
 
 **Recreating a container can cost one batch of cAdvisor samples.** `id` is dropped from cAdvisor's
 series because a container id is unbounded over time; the consequence is that while a recreated

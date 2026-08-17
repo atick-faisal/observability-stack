@@ -1,0 +1,172 @@
+# The agent, for a platform that deploys one compose file straight from git —
+# Dokploy, Coolify. `include:` it from the app's compose file and declare only the
+# app's own services:
+#
+#   # compose.deploy.yml, at the app repo root
+#   include:
+#     - observability/compose.agent.deploy.yml
+#   services:
+#     api: { networks: [obs], labels: { obs.service: api, obs.metrics.port: "8000" } }
+#
+# Three deltas from compose.agent.yml, all forced by the platform rather than
+# chosen. Everything else — the volumes, the command, the profiles, the labels,
+# the memory bounds — is the same file.
+#
+#   1. config.alloy is *built in*, not bind-mounted. A platform that re-clones the
+#      repo on every deploy leaves a mounted repo file empty or gone by the second
+#      one; the server half already builds its config in for this reason.
+#      `build: .` resolves against *this* directory, because Compose resolves
+#      relative paths in an included file against that file — which is also why
+#      this variant needs no OBS_AGENT_DIR.
+#
+#   2. Settings come from `environment:`, not `.env.agent`. Dokploy writes the
+#      variables from its UI into a .env file next to the compose file, which
+#      Compose reads for *interpolation only* — nothing reaches a container that
+#      the compose file does not name. The variable names are unchanged, so
+#      .env.agent.example is still the reference, and it is still one file both
+#      halves of the app read.
+#
+#   3. The `obs` network is declared here, and named. The app's services join it.
+#      A container reaches the agent at alloy:4317 as usual.
+#
+# Requires Compose 2.20+ for `include:`.
+
+networks:
+  # Docker network names are global to the host, so a bare `obs` would be silently
+  # shared with every other app that defaulted to the same thing — on the sort of
+  # box this file exists for, that is the normal case rather than the exotic one.
+  # Name it after the app, and note that OBS_DOCKER_NETWORK below tracks it.
+  obs:
+    name: ${OBS_NETWORK:?set OBS_NETWORK — this app's docker network name, e.g. myapp-obs}
+
+volumes:
+  alloy_data: {}
+
+x-obs-logging: &obs-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  alloy:
+    build: .
+    restart: unless-stopped
+    logging: *obs-logging
+    mem_limit: 256m
+    ports:
+      # UI and debug endpoint. On-box only — reach it over an SSH tunnel.
+      - "127.0.0.1:12345:12345"
+    expose:
+      # The app sends OTLP here. Not published: same-host traffic only.
+      - "4317"
+      - "4318"
+    volumes:
+      - alloy_data:/var/lib/alloy
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # prometheus.exporter.unix reads the host through these.
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host/root:ro
+    # The same variables .env.agent.example documents, read by sys.env() inside
+    # config.alloy. `:?` on the seven that have no sane default: unset, they do not
+    # fail — they produce an agent that pushes nowhere, or one whose every series
+    # is labelled app="". Fail the render instead.
+    environment:
+      OBS_APP: ${OBS_APP:?set OBS_APP — the deployment unit, one value per app repo}
+      OBS_ENV: ${OBS_ENV:?set OBS_ENV — production, staging or local}
+      OBS_HOST: ${OBS_HOST:?set OBS_HOST — the machine this agent runs on}
+      OBS_PROM_URL: ${OBS_PROM_URL:?set OBS_PROM_URL — https://ingest.<domain>/api/v1/write}
+      OBS_LOKI_URL: ${OBS_LOKI_URL:?set OBS_LOKI_URL — https://ingest.<domain>/loki/api/v1/push}
+      OBS_TRACES_URL: ${OBS_TRACES_URL:?set OBS_TRACES_URL — https://ingest.<domain>, a base URL}
+      OBS_INGEST_USER: ${OBS_INGEST_USER:?set OBS_INGEST_USER — minted by the server's add-ingest-user.sh}
+      OBS_INGEST_PASSWORD: ${OBS_INGEST_PASSWORD:?set OBS_INGEST_PASSWORD}
+      # Tracks the network above rather than being set on its own: it scopes both
+      # metrics discovery and log discovery to this app's containers, which is what
+      # keeps the rest of the box out of your Loki when the box is shared.
+      OBS_DOCKER_NETWORK: ${OBS_NETWORK}
+      # Unlike .env.agent, these values are interpolated by Compose before the
+      # container sees them — so a `$` in the password is eaten, exactly as on the
+      # server. Keep generated secrets alphanumeric. Leave TLS_INSECURE alone.
+      OBS_INGEST_TLS_INSECURE: ${OBS_INGEST_TLS_INSECURE:-false}
+      OBS_EXTRA_TARGET: ${OBS_EXTRA_TARGET:-}
+      OBS_EXTRA_SERVICE: ${OBS_EXTRA_SERVICE:-}
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+      # For otelcol.storage.file alone — see compose.agent.yml.
+      - --stability.level=public-preview
+    networks:
+      - obs
+    labels:
+      # Deliberately not collected; read them with `docker compose logs alloy`.
+      obs.logs: "false"
+
+  # Per-container CPU / memory / network / disk, for every container on the host.
+  #
+  # The profiles are unchanged from compose.agent.yml, but a platform gives you no
+  # place to pass --profile. Set COMPOSE_PROFILES in its environment UI instead:
+  #
+  #   COMPOSE_PROFILES=postgres,containers
+  #
+  # Compose reads that from the same .env file the variables above come from.
+  cadvisor:
+    image: ghcr.io/google/cadvisor:v0.57.0
+    profiles: [containers]
+    restart: unless-stopped
+    logging: *obs-logging
+    mem_limit: 128m
+    expose:
+      - "8080"
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=30s
+      - --store_container_labels=false
+      - --disable_metrics=advtcp,cpu_topology,cpuset,hugetlb,memory_numa,process,referenced_memory,resctrl,tcp,udp
+    networks:
+      - obs
+    labels:
+      obs.service: cadvisor
+      obs.metrics.port: "8080"
+      obs.logs: "false"
+
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.19.1
+    profiles: [postgres]
+    restart: unless-stopped
+    logging: *obs-logging
+    mem_limit: 64m
+    expose:
+      - "9187"
+    # Defaulted rather than required: Compose interpolates the whole file before it
+    # filters by profile, so `:?` here would break the render for anyone who does
+    # not run this exporter at all.
+    environment:
+      DATA_SOURCE_URI: ${DATA_SOURCE_URI:-}
+      DATA_SOURCE_USER: ${DATA_SOURCE_USER:-}
+      DATA_SOURCE_PASS: ${DATA_SOURCE_PASS:-}
+    command:
+      # Required for PG17+ — see compose.agent.yml.
+      - --collector.stat_checkpointer
+      - --collector.postmaster
+      - --collector.long_running_transactions
+      - --collector.database_wraparound
+      - --collector.process_idle
+      - --collector.stat_activity_autovacuum
+      - --web.listen-address=:9187
+      - --log.level=info
+    networks:
+      - obs
+    labels:
+      obs.service: db
+      obs.metrics.port: "9187"
