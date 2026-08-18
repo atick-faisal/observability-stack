@@ -14,9 +14,10 @@ distributor:
         http:
           endpoint: "0.0.0.0:4318"
 
-ingester:
-  trace_idle_period: 10s
-  max_block_duration: 5m
+# There is no `ingester:` block: Tempo 3.0 removed the module and the live-store
+# took over cutting blocks. Its defaults — max_trace_idle 5s, max_block_duration
+# 30s — are already tighter than the 10s/5m this set on 2.x, so nothing carries
+# over. Upstream's own single-binary example omits the block too.
 
 # /var/tempo is the image's own data directory (uid 10001). See the same note
 # in loki-config.yaml.
@@ -27,10 +28,6 @@ storage:
       path: /var/tempo/wal
     local:
       path: /var/tempo/blocks
-
-compactor:
-  compaction:
-    block_retention: 168h
 
 metrics_generator:
   processor:
@@ -84,8 +81,18 @@ metrics_generator:
 
 overrides:
   defaults:
+    compaction:
+      # 7 days. Tempo 3.0 replaced the compactor with a backend-scheduler and
+      # worker, each carrying its own compaction config; setting it here instead
+      # keeps retention one number in one place, and the override wins over both.
+      # `tempo-cli migrate config` drops this value silently — it is not carried
+      # over from `compactor.compaction.block_retention`.
+      block_retention: 168h
     metrics_generator:
-      # Do not add local-blocks. It holds completed parquet blocks in RAM for
-      # complete_block_timeout (1h default); the reference stack measured 12 GB+
-      # of growth from it. Nothing here uses TraceQL metrics queries.
+      # 3.0 supports exactly three processors: service-graphs, span-metrics and
+      # host-info. local-blocks is gone, and with it the 12 GB memory regression
+      # the reference stack measured from it — but not the underlying pressure:
+      # the live-store now holds recent traces in memory by design, up to
+      # live_store.max_live_traces_bytes (250 MB default). That, not a processor
+      # list, is what tempo's mem_limit has to cover.
       processors: [service-graphs, span-metrics]
