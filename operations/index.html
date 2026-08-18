@@ -713,10 +713,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-do-not-re-enable-tempo-local-blocks" class="md-nav__link">
+  <a href="#4-tempos-recent-traces-live-in-memory" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. Do not re-enable Tempo local-blocks
+        4. Tempo's recent traces live in memory
       
     </span>
   </a>
@@ -1063,10 +1063,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-do-not-re-enable-tempo-local-blocks" class="md-nav__link">
+  <a href="#4-tempos-recent-traces-live-in-memory" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. Do not re-enable Tempo local-blocks
+        4. Tempo's recent traces live in memory
       
     </span>
   </a>
@@ -1271,7 +1271,7 @@ over, and what to be careful about when upgrading.</p>
 <tr>
 <td>Traces</td>
 <td><strong>168h</strong> (7d)</td>
-<td><code>lgtm/tempo/tempo-config.yaml</code> → <code>block_retention</code></td>
+<td><code>lgtm/tempo/tempo-config.yaml</code> → <code>overrides.defaults.compaction.block_retention</code></td>
 <td></td>
 </tr>
 <tr>
@@ -1434,14 +1434,19 @@ event count back at the backup's, plus whatever has arrived since.</p>
   <code>duplicate sample for timestamp</code>. It resolves within a scrape or two. Remove the rule if you
   would rather have the cardinality than the gap.</li>
 </ul>
-<h2 id="4-do-not-re-enable-tempo-local-blocks">4. Do not re-enable Tempo <code>local-blocks</code><a class="headerlink" href="#4-do-not-re-enable-tempo-local-blocks" title="Permanent link">&para;</a></h2>
-<p><code>lgtm/tempo/tempo-config.yaml</code> runs <code>processors: [service-graphs, span-metrics]</code> and
-deliberately omits <code>local-blocks</code>. It holds completed parquet blocks in RAM for
-<code>complete_block_timeout</code> (1h by default) — <strong>12 GB+</strong> of growth, at the scale this stack runs at.
-Nothing here uses TraceQL metrics queries, which is the only thing it enables. §10 sets
-tempo's <code>mem_limit</code>, which is what turns a re-enabled <code>local-blocks</code> into a restart instead of a
-box-wide OOM.</p>
-<p>If you ever do need TraceQL metrics, budget the memory first and cap <code>complete_block_timeout</code>.</p>
+<h2 id="4-tempos-recent-traces-live-in-memory">4. Tempo's recent traces live in memory<a class="headerlink" href="#4-tempos-recent-traces-live-in-memory" title="Permanent link">&para;</a></h2>
+<p><code>lgtm/tempo/tempo-config.yaml</code> runs <code>processors: [service-graphs, span-metrics]</code>. Tempo 3.0
+supports exactly three — those two and <code>host-info</code> — so the <code>local-blocks</code> processor this
+section used to warn about no longer exists to be re-enabled.</p>
+<p>The pressure it described did not go away, it moved. 3.0 replaced the ingester with a
+<strong>live-store</strong> that holds recent traces in memory by design, bounded by
+<code>live_store.max_live_traces_bytes</code> (<strong>250 MB</strong> default) rather than by a processor list. On 2.x
+the equivalent risk was opt-in and measured at <strong>12 GB+</strong> of growth from <code>local-blocks</code>; now it
+is on by default and capped. §10 sets tempo's <code>mem_limit</code>, which is what turns exceeding that
+cap into a restart instead of a box-wide OOM.</p>
+<p>If you need TraceQL metrics queries — the thing <code>local-blocks</code> used to enable — 3.0 serves them
+from the live-store for recent data. Budget the memory first, and set
+<code>live_store.max_live_traces_bytes</code> explicitly rather than leaving it at the default.</p>
 <h2 id="5-pinned-images">5. Pinned images<a class="headerlink" href="#5-pinned-images" title="Permanent link">&para;</a></h2>
 <p>Every image is pinned to a tag. Three are additionally pinned to a <strong>digest</strong>, because their tags
 float:</p>
@@ -1596,7 +1601,7 @@ attributable per app and a 401 tells you which credential.</p>
 </ul>
 <h2 id="10-memory-limits">10. Memory limits<a class="headerlink" href="#10-memory-limits" title="Permanent link">&para;</a></h2>
 <p>Every service carries a <code>mem_limit</code>. Without one, any single component can take the whole box: a
-wide Loki query, Tempo's compactor, GlitchTip's Celery workers, or Prometheus on a cardinality
+wide Loki query, Tempo's backend worker, GlitchTip's Celery workers, or Prometheus on a cardinality
 spike. The limit changes what that failure costs — an OOMKilled Prometheus replays its WAL and
 loses a bounded amount; an OOMKilled box loses everything on it, including the agent buffers on any
 app host that shares it. A limit converts the second failure into the first.</p>
@@ -1622,7 +1627,7 @@ app host that shares it. A limit converts the second failure into the first.</p>
 <tr>
 <td>tempo</td>
 <td><code>512m</code></td>
-<td>Bounded specifically because <code>local-blocks</code> stays off (§4) — this limit is what turns a re-enabled <code>local-blocks</code> into a restart instead of a box-wide OOM.</td>
+<td>The live-store holds recent traces in memory, capped at 250 MB by default (§4) — this limit is what turns exceeding that into a restart instead of a box-wide OOM. Measured at ~165 MiB under the demo's load on Tempo 3.0.</td>
 </tr>
 <tr>
 <td>grafana</td>
