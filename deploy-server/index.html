@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.3">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1122,8 +1122,8 @@ that only covers services this repo declares.</p>
 <p>Set the daemon default too, so anything added later inherits one:</p>
 <div class="highlight"><pre><span></span><code><span id="__span-0-1"><span class="c1">// /etc/docker/daemon.json</span>
 </span><span id="__span-0-2"><span class="p">{</span>
-</span><span id="__span-0-3"><span class="w">  </span><span class="nt">&quot;log-driver&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;json-file&quot;</span><span class="p">,</span>
-</span><span id="__span-0-4"><span class="w">  </span><span class="nt">&quot;log-opts&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;max-size&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;10m&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;max-file&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;3&quot;</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-0-3"><span class="w">  </span><span class="nt">"log-driver"</span><span class="p">:</span><span class="w"> </span><span class="s2">"json-file"</span><span class="p">,</span>
+</span><span id="__span-0-4"><span class="w">  </span><span class="nt">"log-opts"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"max-size"</span><span class="p">:</span><span class="w"> </span><span class="s2">"10m"</span><span class="p">,</span><span class="w"> </span><span class="nt">"max-file"</span><span class="p">:</span><span class="w"> </span><span class="s2">"3"</span><span class="w"> </span><span class="p">}</span>
 </span><span id="__span-0-5"><span class="p">}</span>
 </span></code></pre></div>
 <div class="highlight"><pre><span></span><code><span id="__span-1-1">sudo<span class="w"> </span>systemctl<span class="w"> </span>restart<span class="w"> </span>docker<span class="w">      </span><span class="c1"># existing containers keep their old setting until recreated</span>
@@ -1207,7 +1207,7 @@ which is what the local demo pushes with.</p>
 </span></code></pre></div>
 <p><strong>B — the host already runs a proxy</strong> (Dokploy, Coolify, an existing Traefik). Deploy
 <code>compose.lgtm.yml</code> alone and point it at that proxy's network:</p>
-<div class="highlight"><pre><span></span><code><span id="__span-6-1"><span class="c1"># in .env.lgtm, or the platform&#39;s environment UI</span>
+<div class="highlight"><pre><span></span><code><span id="__span-6-1"><span class="c1"># in .env.lgtm, or the platform's environment UI</span>
 </span><span id="__span-6-2"><span class="nv">OBS_EDGE_NETWORK</span><span class="o">=</span>dokploy-network
 </span><span id="__span-6-3"><span class="nv">OBS_EDGE_EXTERNAL</span><span class="o">=</span><span class="nb">true</span>
 </span></code></pre></div>
@@ -1229,8 +1229,8 @@ anyway". On a single box the isolation argument is imaginary — the box dying t
 <div class="highlight"><pre><span></span><code><span id="__span-8-1">make<span class="w"> </span>verify-config
 </span></code></pre></div>
 <h2 id="5-verify-the-deploy">5. Verify the deploy<a class="headerlink" href="#5-verify-the-deploy" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span id="__span-9-1">curl<span class="w"> </span>-sI<span class="w"> </span>https://grafana.&lt;domain&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-1<span class="w">                  </span><span class="c1"># 200, and a Let&#39;s Encrypt chain</span>
-</span><span id="__span-9-2">curl<span class="w"> </span>-sI<span class="w"> </span>-o<span class="w"> </span>/dev/null<span class="w"> </span>-w<span class="w"> </span><span class="s1">&#39;%{http_code}\n&#39;</span><span class="w"> </span>https://ingest.&lt;domain&gt;/api/v1/write<span class="w">   </span><span class="c1"># 401</span>
+<div class="highlight"><pre><span></span><code><span id="__span-9-1">curl<span class="w"> </span>-sI<span class="w"> </span>https://grafana.&lt;domain&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-1<span class="w">                  </span><span class="c1"># 200, and a Let's Encrypt chain</span>
+</span><span id="__span-9-2">curl<span class="w"> </span>-sI<span class="w"> </span>-o<span class="w"> </span>/dev/null<span class="w"> </span>-w<span class="w"> </span><span class="s1">'%{http_code}\n'</span><span class="w"> </span>https://ingest.&lt;domain&gt;/api/v1/write<span class="w">   </span><span class="c1"># 401</span>
 </span></code></pre></div>
 <p>A <code>401</code> there is the point of the whole edge. Then, from an app host with a real credential,
 <code>scripts/verify-ingest.sh</code> asserts the full matrix: a wrong credential gets 401, a right one
@@ -1267,7 +1267,7 @@ reaches the backend, and every path that is not one of the three ingest paths 40
 blast-radius guard, not a quota: an agent in a retry loop is indistinguishable from an attack,
 and the cost of being wrong is dropped samples the agent's WAL replays anyway.</p>
 <h2 id="6-check-the-clock">6. Check the clock<a class="headerlink" href="#6-check-the-clock" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span id="__span-10-1">timedatectl<span class="w"> </span>status<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">&#39;System clock synchronized|NTP service&#39;</span>
+<div class="highlight"><pre><span></span><code><span id="__span-10-1">timedatectl<span class="w"> </span>status<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">'System clock synchronized|NTP service'</span>
 </span></code></pre></div>
 <p>Both must say <code>yes</code>/<code>active</code>. This is worth its own step because skew does not fail loudly:</p>
 <ul>
@@ -1335,7 +1335,7 @@ it is where the <code>$$</code> rule from §3 actually bites — as does percent
 it is a URL.</p>
 </div>
 <p>Verify:</p>
-<div class="highlight"><pre><span></span><code><span id="__span-13-1">curl<span class="w"> </span>-sI<span class="w"> </span>https://errors.&lt;domain&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-1<span class="w">        </span><span class="c1"># 200, Let&#39;s Encrypt chain</span>
+<div class="highlight"><pre><span></span><code><span id="__span-13-1">curl<span class="w"> </span>-sI<span class="w"> </span>https://errors.&lt;domain&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-1<span class="w">        </span><span class="c1"># 200, Let's Encrypt chain</span>
 </span><span id="__span-13-2">curl<span class="w"> </span>-s<span class="w">  </span>https://errors.&lt;domain&gt;/_health/<span class="w">         </span><span class="c1"># ok</span>
 </span></code></pre></div>
 <p>Then register, create an organisation and a project, and point an app at the DSN it hands you.
@@ -1453,7 +1453,7 @@ state is smaller than it looks.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.annotate", "content.code.copy", "content.footnote.tooltips", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.instant.prefetch", "navigation.instant.progress", "navigation.path", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

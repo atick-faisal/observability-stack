@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.3">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1363,7 +1363,7 @@ change waits for the next compaction.</p>
 (the admin account, users, annotations, alert state) and GlitchTip's Postgres. Those two are the
 default set.</p>
 <div class="highlight"><pre><span></span><code><span id="__span-1-1">make<span class="w"> </span>backup<span class="w">                                   </span><span class="c1"># the irreplaceable set</span>
-</span><span id="__span-1-2">make<span class="w"> </span>backup<span class="w"> </span><span class="nv">ARGS</span><span class="o">=</span><span class="s2">&quot;--all --keep 7&quot;</span><span class="w">             </span><span class="c1"># ...plus the three TSDBs, keeping the newest 7</span>
+</span><span id="__span-1-2">make<span class="w"> </span>backup<span class="w"> </span><span class="nv">ARGS</span><span class="o">=</span><span class="s2">"--all --keep 7"</span><span class="w">             </span><span class="c1"># ...plus the three TSDBs, keeping the newest 7</span>
 </span><span id="__span-1-3">make<span class="w"> </span>restore<span class="w"> </span><span class="nv">DIR</span><span class="o">=</span>backups/&lt;stamp&gt;<span class="w">              </span><span class="c1"># dry run: prints what it would replace</span>
 </span><span id="__span-1-4">make<span class="w"> </span>restore<span class="w"> </span><span class="nv">DIR</span><span class="o">=</span>backups/&lt;stamp&gt;<span class="w"> </span><span class="nv">ARGS</span><span class="o">=</span>--yes<span class="w">   </span><span class="c1"># and now for real</span>
 </span></code></pre></div>
@@ -1418,7 +1418,7 @@ Grafana install fingerprint matching the backup's rather than the fresh one's, a
 event count back at the backup's, plus whatever has arrived since.</p>
 <h2 id="3-cardinality">3. Cardinality<a class="headerlink" href="#3-cardinality" title="Permanent link">&para;</a></h2>
 <p>Cardinality is the failure mode that kills a Prometheus, and it arrives gradually. What to watch:</p>
-<div class="highlight"><pre><span></span><code><span id="__span-2-1"><span class="k">topk</span><span class="o">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="k">count</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">__name__</span><span class="o">)(</span><span class="p">{</span><span class="nl">__name__</span><span class="o">=~</span><span class="p">&quot;</span><span class="s">.+</span><span class="p">&quot;}</span><span class="o">))</span><span class="w">          </span><span class="c1"># which metrics have the most series</span>
+<div class="highlight"><pre><span></span><code><span id="__span-2-1"><span class="k">topk</span><span class="o">(</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="k">count</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">__name__</span><span class="o">)(</span><span class="p">{</span><span class="nl">__name__</span><span class="o">=~</span><span class="p">"</span><span class="s">.+</span><span class="p">"}</span><span class="o">))</span><span class="w">          </span><span class="c1"># which metrics have the most series</span>
 </span><span id="__span-2-2"><span class="k">sum</span><span class="o">(</span><span class="nv">scrape_samples_scraped</span><span class="o">)</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">job</span><span class="o">)</span><span class="w">                     </span><span class="c1"># which target is growing</span>
 </span><span id="__span-2-3"><span class="nv">prometheus_tsdb_head_series</span><span class="w">                              </span><span class="c1"># the headline number</span>
 </span></code></pre></div>
@@ -1710,7 +1710,7 @@ the container came back, then <strong>504</strong> while it warmed up. Three sta
   message, or <code>docker stats</code>, which reports against the cap.</li>
 </ul>
 <p>Counting the kills is the one-liner worth keeping:</p>
-<div class="highlight"><pre><span></span><code><span id="__span-6-1">journalctl<span class="w"> </span>-k<span class="w"> </span>--since<span class="w"> </span><span class="s1">&#39;14 days ago&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;Killed process.*grafana&#39;</span>
+<div class="highlight"><pre><span></span><code><span id="__span-6-1">journalctl<span class="w"> </span>-k<span class="w"> </span>--since<span class="w"> </span><span class="s1">'14 days ago'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-c<span class="w"> </span><span class="s1">'Killed process.*grafana'</span>
 </span></code></pre></div>
 
 
@@ -1814,7 +1814,7 @@ the container came back, then <strong>504</strong> while it warmed up. Three sta
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.annotate", "content.code.copy", "content.footnote.tooltips", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.instant.prefetch", "navigation.instant.progress", "navigation.path", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

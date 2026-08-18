@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.3">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1093,10 +1093,10 @@ then declares only the app's services:</p>
 </span><span id="__span-1-5"><span class="nt">services</span><span class="p">:</span>
 </span><span id="__span-1-6"><span class="w">  </span><span class="nt">api</span><span class="p">:</span>
 </span><span id="__span-1-7"><span class="w">    </span><span class="nt">networks</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">obs</span><span class="p p-Indicator">]</span>
-</span><span id="__span-1-8"><span class="w">    </span><span class="nt">expose</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;8000&quot;</span><span class="p p-Indicator">]</span>
+</span><span id="__span-1-8"><span class="w">    </span><span class="nt">expose</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">"8000"</span><span class="p p-Indicator">]</span>
 </span><span id="__span-1-9"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
 </span><span id="__span-1-10"><span class="w">      </span><span class="nt">obs.service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api</span>
-</span><span id="__span-1-11"><span class="w">      </span><span class="nt">obs.metrics.port</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;8000&quot;</span>
+</span><span id="__span-1-11"><span class="w">      </span><span class="nt">obs.metrics.port</span><span class="p">:</span><span class="w"> </span><span class="s">"8000"</span>
 </span><span id="__span-1-12"><span class="w">    </span><span class="nt">environment</span><span class="p">:</span>
 </span><span id="__span-1-13"><span class="w">      </span><span class="nt">OBS_OTLP_ENDPOINT</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://alloy:4317</span>
 </span></code></pre></div>
@@ -1131,16 +1131,16 @@ annotated variable by variable.</p>
 </span><span id="__span-2-2"><span class="w">  </span><span class="nt">api</span><span class="p">:</span>
 </span><span id="__span-2-3"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
 </span><span id="__span-2-4"><span class="w">      </span><span class="nt">obs.service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api</span>
-</span><span id="__span-2-5"><span class="w">      </span><span class="nt">obs.metrics.port</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;8000&quot;</span><span class="w">    </span><span class="c1"># presence = scrape me</span>
+</span><span id="__span-2-5"><span class="w">      </span><span class="nt">obs.metrics.port</span><span class="p">:</span><span class="w"> </span><span class="s">"8000"</span><span class="w">    </span><span class="c1"># presence = scrape me</span>
 </span><span id="__span-2-6"><span class="w">      </span><span class="nt">obs.metrics.path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/metrics</span><span class="w">  </span><span class="c1"># optional, defaults to /metrics</span>
 </span><span id="__span-2-7"><span class="w">    </span><span class="nt">expose</span><span class="p">:</span>
-</span><span id="__span-2-8"><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;8000&quot;</span><span class="w">                    </span><span class="c1"># required — see below</span>
+</span><span id="__span-2-8"><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"8000"</span><span class="w">                    </span><span class="c1"># required — see below</span>
 </span><span id="__span-2-9"><span class="w">  </span><span class="nt">db</span><span class="p">:</span>
 </span><span id="__span-2-10"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
 </span><span id="__span-2-11"><span class="w">      </span><span class="nt">obs.service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">db</span><span class="w">             </span><span class="c1"># logs only</span>
 </span><span id="__span-2-12"><span class="w">  </span><span class="nt">migrations</span><span class="p">:</span>
 </span><span id="__span-2-13"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
-</span><span id="__span-2-14"><span class="w">      </span><span class="nt">obs.logs</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;false&quot;</span><span class="w">           </span><span class="c1"># collect nothing</span>
+</span><span id="__span-2-14"><span class="w">      </span><span class="nt">obs.logs</span><span class="p">:</span><span class="w"> </span><span class="s">"false"</span><span class="w">           </span><span class="c1"># collect nothing</span>
 </span></code></pre></div>
 <p>Everything is collected by default: a container with no labels still has its logs shipped, with
 <code>service</code> falling back to its container name. Only <code>obs.metrics.port</code> is opt-in, because scraping
@@ -1422,7 +1422,7 @@ scope — see <code>docs/operations.md</code> §9.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.annotate", "content.code.copy", "content.footnote.tooltips", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.instant.prefetch", "navigation.instant.progress", "navigation.path", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

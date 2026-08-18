@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.3">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -29,7 +29,7 @@
       
     
     
-      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1116,16 +1116,16 @@ a stack that only wants metrics, logs and traces should not pay for:</p>
 </span><span id="__span-2-3"><span class="w">  </span><span class="nt">api</span><span class="p">:</span>
 </span><span id="__span-2-4"><span class="w">    </span><span class="nt">labels</span><span class="p">:</span>
 </span><span id="__span-2-5"><span class="w">      </span><span class="nt">obs.service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api</span>
-</span><span id="__span-2-6"><span class="w">      </span><span class="nt">obs.metrics.port</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;8000&quot;</span>
+</span><span id="__span-2-6"><span class="w">      </span><span class="nt">obs.metrics.port</span><span class="p">:</span><span class="w"> </span><span class="s">"8000"</span>
 </span><span id="__span-2-7"><span class="w">      </span><span class="nt">obs.metrics.path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/metrics</span>
 </span><span id="__span-2-8"><span class="w">    </span><span class="nt">expose</span><span class="p">:</span>
-</span><span id="__span-2-9"><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;8000&quot;</span><span class="w">          </span><span class="c1"># the port has to be exposed; publishing it is not needed</span>
+</span><span id="__span-2-9"><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"8000"</span><span class="w">          </span><span class="c1"># the port has to be exposed; publishing it is not needed</span>
 </span></code></pre></div>
 <div class="highlight"><pre><span></span><code><span id="__span-3-1"><span class="c1"># 2. run the agent alongside the app</span>
 </span><span id="__span-3-2">docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>compose.lgtm.yml<span class="w"> </span>-f<span class="w"> </span>observability/compose.agent.yml<span class="w"> </span>up<span class="w"> </span>-d
 </span><span id="__span-3-3">
 </span><span id="__span-3-4"><span class="c1"># 3. add the SDK</span>
-</span><span id="__span-3-5">uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;obstack[grpc,sqlalchemy]&quot;</span>
+</span><span id="__span-3-5">uv<span class="w"> </span>add<span class="w"> </span><span class="s2">"obstack[grpc,sqlalchemy]"</span>
 </span></code></pre></div>
 <div class="highlight"><pre><span></span><code><span id="__span-4-1"><span class="c1"># 4. wire it up</span>
 </span><span id="__span-4-2"><span class="kn">from</span><span class="w"> </span><span class="nn">obstack</span><span class="w"> </span><span class="kn">import</span> <span class="n">setup_observability</span>
@@ -1144,8 +1144,8 @@ buffer at all: it looks like it worked.</p>
 <div class="highlight"><pre><span></span><code><span id="__span-5-1">make<span class="w"> </span>verify-resilience<span class="w">   </span><span class="c1"># stops the server for 15 min, asserts no gap in any signal</span>
 </span></code></pre></div>
 <h2 id="backup-restore">💾 Backup &amp; Restore<a class="headerlink" href="#backup-restore" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span id="__span-6-1">make<span class="w"> </span>backup<span class="w">                                   </span><span class="c1"># grafana.db + GlitchTip&#39;s database</span>
-</span><span id="__span-6-2">make<span class="w"> </span>backup<span class="w"> </span><span class="nv">ARGS</span><span class="o">=</span><span class="s2">&quot;--all --keep 7&quot;</span><span class="w">             </span><span class="c1"># ...plus the three TSDBs, keeping the newest 7</span>
+<div class="highlight"><pre><span></span><code><span id="__span-6-1">make<span class="w"> </span>backup<span class="w">                                   </span><span class="c1"># grafana.db + GlitchTip's database</span>
+</span><span id="__span-6-2">make<span class="w"> </span>backup<span class="w"> </span><span class="nv">ARGS</span><span class="o">=</span><span class="s2">"--all --keep 7"</span><span class="w">             </span><span class="c1"># ...plus the three TSDBs, keeping the newest 7</span>
 </span><span id="__span-6-3">make<span class="w"> </span>restore<span class="w"> </span><span class="nv">DIR</span><span class="o">=</span>backups/&lt;stamp&gt;<span class="w">              </span><span class="c1"># dry run: prints what it would replace</span>
 </span><span id="__span-6-4">make<span class="w"> </span>restore<span class="w"> </span><span class="nv">DIR</span><span class="o">=</span>backups/&lt;stamp&gt;<span class="w"> </span><span class="nv">ARGS</span><span class="o">=</span>--yes<span class="w">   </span><span class="c1"># and now for real</span>
 </span></code></pre></div>
@@ -1311,7 +1311,7 @@ and in this repo:</p>
       <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["content.code.annotate", "content.code.copy", "content.footnote.tooltips", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.instant", "navigation.instant.prefetch", "navigation.instant.progress", "navigation.path", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>
