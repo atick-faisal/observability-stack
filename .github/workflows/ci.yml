@@ -153,6 +153,11 @@ jobs:
       - name: ⏳ Wait for the stack to be ready
         run: |
           timeout 120 bash -c 'until curl -sf http://localhost:3100/ready >/dev/null; do sleep 3; done'
+          # Tempo too, not just Loki: a Tempo that never starts — a config block
+          # a major version stopped accepting, say — otherwise surfaces two
+          # minutes later as five verify-signals failures about missing traces,
+          # span-metrics and service-graph edges, three layers from the cause.
+          timeout 120 bash -c 'until curl -sf http://localhost:3200/ready >/dev/null; do sleep 3; done'
           # docs/local-dev.md and verify-signals.sh's own header both say to run
           # the verify scripts "a minute or so" after demo-up — Loki answering
           # /ready isn't the same as the first scrape/dashboard data landing.

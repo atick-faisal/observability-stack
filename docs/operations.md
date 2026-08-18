@@ -11,7 +11,7 @@ over, and what to be careful about when upgrading.
 |---|---|---|---|
 | Metrics | **30d** | `compose.lgtm.yml` → `--storage.tsdb.retention.time` | `--storage.tsdb.retention.size=25GB` |
 | Logs | **336h** (14d) | `lgtm/loki/loki-config.yaml` → `limits_config.retention_period` | `ingestion_rate_mb: 16`, burst 32 |
-| Traces | **168h** (7d) | `lgtm/tempo/tempo-config.yaml` → `block_retention` | |
+| Traces | **168h** (7d) | `lgtm/tempo/tempo-config.yaml` → `overrides.defaults.compaction.block_retention` | |
 | Errors | **30d** | `.env.glitchtip` → `GLITCHTIP_RETENTION_DAYS` | |
 
 Whichever of time and size hits first wins for Prometheus. Loki's retention needs
@@ -142,16 +142,22 @@ The rules that keep it bounded, from `docs/labels.md`:
   `duplicate sample for timestamp`. It resolves within a scrape or two. Remove the rule if you
   would rather have the cardinality than the gap.
 
-## 4. Do not re-enable Tempo `local-blocks`
+## 4. Tempo's recent traces live in memory
 
-`lgtm/tempo/tempo-config.yaml` runs `processors: [service-graphs, span-metrics]` and
-deliberately omits `local-blocks`. It holds completed parquet blocks in RAM for
-`complete_block_timeout` (1h by default) — **12 GB+** of growth, at the scale this stack runs at.
-Nothing here uses TraceQL metrics queries, which is the only thing it enables. §10 sets
-tempo's `mem_limit`, which is what turns a re-enabled `local-blocks` into a restart instead of a
-box-wide OOM.
+`lgtm/tempo/tempo-config.yaml` runs `processors: [service-graphs, span-metrics]`. Tempo 3.0
+supports exactly three — those two and `host-info` — so the `local-blocks` processor this
+section used to warn about no longer exists to be re-enabled.
 
-If you ever do need TraceQL metrics, budget the memory first and cap `complete_block_timeout`.
+The pressure it described did not go away, it moved. 3.0 replaced the ingester with a
+**live-store** that holds recent traces in memory by design, bounded by
+`live_store.max_live_traces_bytes` (**250 MB** default) rather than by a processor list. On 2.x
+the equivalent risk was opt-in and measured at **12 GB+** of growth from `local-blocks`; now it
+is on by default and capped. §10 sets tempo's `mem_limit`, which is what turns exceeding that
+cap into a restart instead of a box-wide OOM.
+
+If you need TraceQL metrics queries — the thing `local-blocks` used to enable — 3.0 serves them
+from the live-store for recent data. Budget the memory first, and set
+`live_store.max_live_traces_bytes` explicitly rather than leaving it at the default.
 
 ## 5. Pinned images
 
@@ -286,7 +292,7 @@ Listed so their absence reads as a decision rather than an oversight:
 ## 10. Memory limits
 
 Every service carries a `mem_limit`. Without one, any single component can take the whole box: a
-wide Loki query, Tempo's compactor, GlitchTip's Celery workers, or Prometheus on a cardinality
+wide Loki query, Tempo's backend worker, GlitchTip's Celery workers, or Prometheus on a cardinality
 spike. The limit changes what that failure costs — an OOMKilled Prometheus replays its WAL and
 loses a bounded amount; an OOMKilled box loses everything on it, including the agent buffers on any
 app host that shares it. A limit converts the second failure into the first.
@@ -295,7 +301,7 @@ app host that shares it. A limit converts the second failure into the first.
 |---|---|---|
 | prometheus | `1g` | The one most likely to grow: cardinality, plus the 8h out-of-order head (§1). |
 | loki | `512m` | |
-| tempo | `512m` | Bounded specifically because `local-blocks` stays off (§4) — this limit is what turns a re-enabled `local-blocks` into a restart instead of a box-wide OOM. |
+| tempo | `512m` | The live-store holds recent traces in memory, capped at 250 MB by default (§4) — this limit is what turns exceeding that into a restart instead of a box-wide OOM. Measured at ~165 MiB under the demo's load on Tempo 3.0. |
 | grafana | `512m` | Query-time aggregation on a wide dashboard is the spike case, and it is not a theoretical one — see "When this was wrong" below. Measured idle at ~178 MiB on Grafana 13. |
 | traefik | `128m` | Reverse proxy plus JSON access logging. Watch it if request volume grows a lot. |
 | glitchtip-postgres | `512m` | |

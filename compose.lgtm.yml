@@ -152,8 +152,9 @@ services:
     build: ./lgtm/tempo
     restart: unless-stopped
     logging: *obs-logging
-    # Bounded only because local-blocks stays off (§4) — this limit is what turns
-    # a re-enabled local-blocks into a restart instead of a box-wide OOM.
+    # The live-store holds recent traces in memory, capped at 250 MB by default
+    # (docs/operations.md §4) — this limit is what turns exceeding that into a
+    # restart instead of a box-wide OOM.
     mem_limit: 512m
     volumes:
       - tempo_data:/var/tempo
