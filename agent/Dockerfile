@@ -4,6 +4,6 @@
 # mounting config.alloy. Same reasoning as lgtm/*/Dockerfile on the server side.
 #
 # Keep the tag in step with compose.agent.yml's image.
-FROM grafana/alloy:v1.16.1
+FROM grafana/alloy:v1.19.2
 
 COPY config.alloy /etc/alloy/config.alloy

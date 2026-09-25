@@ -81,7 +81,7 @@ x-glitchtip-app: &glitchtip-app
   # `up`. An unattended minor bump therefore rewrites the schema of the database
   # holding every error ever reported, and migrations do not run backwards.
   # Re-pin deliberately, with a backup taken first: ./scripts/resolve-digests.sh
-  image: glitchtip/glitchtip:6@sha256:95e0e2d6b1bc18446902ae0cb47910cc55d7c0d6756ee901b0cd8dce9f8ef5a9
+  image: glitchtip/glitchtip:6@sha256:a3d8eb1b36c1e1603d55ab32711ea3dd8115874742a781a57391a62a16e0dff6
   logging: *obs-logging
   # Uniform across migrate/web/worker — docs/operations.md §10 has the sizing
   # rationale. CELERY_WORKER_AUTOSCALE below is already capped at 1,3 for the

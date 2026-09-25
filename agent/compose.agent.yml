@@ -26,7 +26,7 @@ volumes:
 
 services:
   alloy:
-    image: grafana/alloy:v1.16.1
+    image: grafana/alloy:v1.19.2
     restart: unless-stopped
     logging: *obs-logging
     # docs/operations.md §10 has the sizing rationale.
