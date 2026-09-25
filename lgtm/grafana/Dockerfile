@@ -1,4 +1,4 @@
-FROM grafana/grafana:13.0.1
+FROM grafana/grafana:13.2.2
 
 # Not /var/lib/grafana/dashboards, the path Grafana's own docs use: that directory
 # is inside the grafana_data volume, and a named volume only inherits image
