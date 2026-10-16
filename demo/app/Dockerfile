@@ -2,7 +2,7 @@
 # image, so `obstack = { path = "../../sdk/obstack" }` resolves in both places.
 #
 #   docker build -f demo/app/Dockerfile .
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.0 /uv /bin/uv
 
