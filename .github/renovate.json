@@ -9,13 +9,15 @@
   "labels": ["dependencies"],
   "prConcurrentLimit": 5,
   "minimumReleaseAge": "7 days",
+  "prCreation": "not-pending",
   "semanticCommits": "disabled",
   "commitMessagePrefix": "⬆️ deps:",
   "commitMessageLowerCase": "auto",
   "ignoreDeps": ["obstack"],
   "lockFileMaintenance": {
     "enabled": true,
-    "schedule": ["before 6am on the first day of the month"]
+    "schedule": ["before 6am on the first day of the month"],
+    "minimumReleaseAge": null
   },
   "customManagers": [
     {
@@ -36,10 +38,9 @@
       "enabled": false
     },
     {
-      "description": "GlitchTip re-pins are deliberate: glitchtip-migrate runs irreversible Django migrations on every `up`, so a bump needs `make backup` first (compose.glitchtip.yml:82-83). Surface the drift on the dependency dashboard instead of opening a mergeable PR.",
-      "matchPackageNames": ["glitchtip/glitchtip"],
-      "dependencyDashboardApproval": true,
-      "automerge": false
+      "description": "Most Docker digest updates have no release date, so minimumReleaseAge never passes and the stability-days check stays pending forever",
+      "matchUpdateTypes": ["digest"],
+      "minimumReleaseAge": null
     },
     {
       "matchManagers": ["github-actions", "custom.regex"],
@@ -52,6 +53,13 @@
       "matchUpdateTypes": ["minor", "patch", "digest", "pin"],
       "groupName": "docker images",
       "automerge": true
+    },
+    {
+      "description": "GlitchTip re-pins are deliberate: glitchtip-migrate runs irreversible Django migrations on every `up`, so a bump needs `make backup` first (compose.glitchtip.yml:82-83). A new digest under the same tag is a new image too. This rule sits after the docker images group on purpose: later rules win, so it pulls GlitchTip out of that automerged group and puts it behind dashboard approval.",
+      "matchPackageNames": ["glitchtip/glitchtip"],
+      "groupName": "glitchtip",
+      "dependencyDashboardApproval": true,
+      "automerge": false
     },
     {
       "matchManagers": ["pep621", "pip_requirements"],
