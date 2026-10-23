@@ -302,7 +302,7 @@ app host that shares it. A limit converts the second failure into the first.
 | prometheus | `1g` | The one most likely to grow: cardinality, plus the 8h out-of-order head (§1). |
 | loki | `512m` | |
 | tempo | `512m` | The live-store holds recent traces in memory, capped at 250 MB by default (§4) — this limit is what turns exceeding that into a restart instead of a box-wide OOM. Measured at ~165 MiB under the demo's load on Tempo 3.0. |
-| grafana | `512m` | Query-time aggregation on a wide dashboard is the spike case, and it is not a theoretical one — see "When this was wrong" below. Measured idle at ~178 MiB on Grafana 13. |
+| grafana | `768m` | Query-time aggregation on a wide dashboard is the spike case, and it is not a theoretical one — see "When this was wrong" below, twice. Measured idle at ~178 MiB on Grafana 13. |
 | traefik | `128m` | Reverse proxy plus JSON access logging. Watch it if request volume grows a lot. |
 | glitchtip-postgres | `512m` | |
 | glitchtip-valkey | `128m` | Queue and cache; small working set. |
@@ -313,7 +313,7 @@ app host that shares it. A limit converts the second failure into the first.
 | demo-db / demo-api / demo-loadgen | `256m` / `128m` / `96m` | Local only. `demo-loadgen` measured at 73% of a `64m` limit within minutes of `demo-up`, so it got the extra margin. |
 
 **Budget check**, against §1 of `docs/deploy-server.md` ("4 GB works for a handful of apps"): LGTM
-alone — prometheus + loki + tempo + grafana — totals 2.5 GB, leaving headroom for the OS and the
+alone — prometheus + loki + tempo + grafana — totals 2.75 GB, leaving headroom for the OS and the
 Docker daemon; `EDGE=1` adds traefik's 128m on top. GlitchTip, deployed as its own service, totals
 about 1.66 GB steady-state (web + worker + postgres + valkey; migrate is transient and exits before
 its limit is concurrent with the others) — comfortably less than the LGTM box, which fits it being
@@ -343,6 +343,12 @@ The symptom did not look like memory. Because Traefik's Docker provider keeps th
 container's labels, each kill deregistered the route, so the browser saw an intermittent **404**
 on paths that plainly exist (`/api/ds/query`, `/api/login/ping`, static assets), then **502** as
 the container came back, then **504** while it warmed up. Three status codes, one cause.
+
+It was raised to `512m`, and that was still too small: **20 kills in 47 days** (Sep 3 – Oct 19),
+every one `CONSTRAINT_MEMCG` at ~503 MiB anon-rss. That is rarer, but it is the same failure,
+so it is now `768m`. On a 4 GB platform host, give the box swap too. Without it, an overbooked
+host thrashes and freezes for minutes before any cgroup limit fires, and that shows up as gaps in
+every signal, not as an OOM kill.
 
 Two things to know if this recurs:
 
