@@ -1631,8 +1631,8 @@ app host that shares it. A limit converts the second failure into the first.</p>
 </tr>
 <tr>
 <td>grafana</td>
-<td><code>512m</code></td>
-<td>Query-time aggregation on a wide dashboard is the spike case, and it is not a theoretical one — see "When this was wrong" below. Measured idle at ~178 MiB on Grafana 13.</td>
+<td><code>768m</code></td>
+<td>Query-time aggregation on a wide dashboard is the spike case, and it is not a theoretical one — see "When this was wrong" below, twice. Measured idle at ~178 MiB on Grafana 13.</td>
 </tr>
 <tr>
 <td>traefik</td>
@@ -1677,7 +1677,7 @@ app host that shares it. A limit converts the second failure into the first.</p>
 </tbody>
 </table>
 <p><strong>Budget check</strong>, against §1 of <code>docs/deploy-server.md</code> ("4 GB works for a handful of apps"): LGTM
-alone — prometheus + loki + tempo + grafana — totals 2.5 GB, leaving headroom for the OS and the
+alone — prometheus + loki + tempo + grafana — totals 2.75 GB, leaving headroom for the OS and the
 Docker daemon; <code>EDGE=1</code> adds traefik's 128m on top. GlitchTip, deployed as its own service, totals
 about 1.66 GB steady-state (web + worker + postgres + valkey; migrate is transient and exits before
 its limit is concurrent with the others) — comfortably less than the LGTM box, which fits it being
@@ -1704,6 +1704,11 @@ took it <strong>22 times in 14 days</strong>, always while someone was browsing.
 container's labels, each kill deregistered the route, so the browser saw an intermittent <strong>404</strong>
 on paths that plainly exist (<code>/api/ds/query</code>, <code>/api/login/ping</code>, static assets), then <strong>502</strong> as
 the container came back, then <strong>504</strong> while it warmed up. Three status codes, one cause.</p>
+<p>It was raised to <code>512m</code>, and that was still too small: <strong>20 kills in 47 days</strong> (Sep 3 – Oct 19),
+every one <code>CONSTRAINT_MEMCG</code> at ~503 MiB anon-rss. That is rarer, but it is the same failure,
+so it is now <code>768m</code>. On a 4 GB platform host, give the box swap too. Without it, an overbooked
+host thrashes and freezes for minutes before any cgroup limit fires, and that shows up as gaps in
+every signal, not as an OOM kill.</p>
 <p>Two things to know if this recurs:</p>
 <ul>
 <li><strong><code>docker inspect</code> lied.</strong> <code>.State.OOMKilled</code> read <code>false</code> for all 22 kills. Trust
